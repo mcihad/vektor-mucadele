@@ -377,6 +377,27 @@ async function createPgTables() {
             is_active INTEGER DEFAULT 1
         )
     `);
+
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS local_streets (
+            id SERIAL PRIMARY KEY,
+            osm_id VARCHAR(100),
+            fid VARCHAR(100),
+            name VARCHAR(250),
+            highway VARCHAR(100),
+            width INTEGER,
+            length_m INTEGER,
+            mahalle VARCHAR(200),
+            geometry_geojson TEXT,
+            bbox_minx DOUBLE PRECISION,
+            bbox_miny DOUBLE PRECISION,
+            bbox_maxx DOUBLE PRECISION,
+            bbox_maxy DOUBLE PRECISION
+        )
+    `);
+
+    await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_local_streets_bbox ON local_streets(bbox_minx, bbox_maxx, bbox_miny, bbox_maxy)`);
+    await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_local_streets_mahalle ON local_streets(mahalle)`);
 }
 
 async function seedPgData() {

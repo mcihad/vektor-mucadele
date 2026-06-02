@@ -73,46 +73,91 @@ function getPythonCommand() {
     return 'python';
 }
 
-function fetchLocalStreets(south, west, north, east, neighborhood = '') {
-    return new Promise((resolve, reject) => {
-        const scriptPath = path.join(__dirname, '..', 'services', 'query_streets.py');
-        const pythonCmd = getPythonCommand();
-        console.log(`[Routes] Spawning Python process: "${pythonCmd}" "${scriptPath}"`);
-        const child = cp.spawn(pythonCmd, [scriptPath]);
+function normalizeTurkish(s) {
+    if (!s) return "";
+    const mapping = {
+        'I': 'i', 'İ': 'i', 'ı': 'i', 'Ş': 's', 'ş': 's', 'Ç': 'c', 'ç': 'c',
+        'Ğ': 'g', 'ğ': 'g', 'Ö': 'o', 'ö': 'o', 'Ü': 'u', 'ü': 'u'
+    };
+    const res = [];
+    for (let i = 0; i < s.length; i++) {
+        const c = s[i].toUpperCase();
+        if (mapping[c]) {
+            res.push(mapping[c]);
+        } else {
+            res.push(c.toLowerCase());
+        }
+    }
+    return res.join('').replace(/[^a-z0-9]/gi, '');
+}
+
+async function fetchLocalStreets(south, west, north, east, neighborhood = '') {
+    const db = getDb();
+    
+    // Bounding Box overlap query in WGS84
+    // bbox_minx <= east AND bbox_maxx >= west AND bbox_miny <= north AND bbox_maxy >= south
+    const sql = `
+        SELECT osm_id, fid, name, highway, width, length_m, mahalle, geometry_geojson
+        FROM local_streets
+        WHERE bbox_minx <= ? AND bbox_maxx >= ? AND bbox_miny <= ? AND bbox_maxy >= ?
+    `;
+    
+    const params = [
+        parseFloat(east),
+        parseFloat(west),
+        parseFloat(north),
+        parseFloat(south)
+    ];
+    
+    try {
+        console.log(`[Routes] Veri tabanındaki local_streets tablosu sorgulanıyor. BBox: [${south}, ${west}] -> [${north}, ${east}]`);
+        const result = await db.exec(sql, params);
+        const rows = rowsToObjects(result);
         
-        let stdout = '';
-        let stderr = '';
+        const normalizedTarget = neighborhood ? normalizeTurkish(neighborhood) : '';
+        const features = [];
         
-        child.stdout.on('data', (data) => {
-            stdout += data.toString();
-        });
-        
-        child.stderr.on('data', (data) => {
-            stderr += data.toString();
-        });
-        
-        child.on('close', (code) => {
-            if (code !== 0) {
-                return reject(new Error(`Python script exited with code ${code}. Stderr: ${stderr}`));
+        rows.forEach(row => {
+            if (normalizedTarget) {
+                const rowNeigh = normalizeTurkish(row.mahalle);
+                if (rowNeigh !== normalizedTarget) return;
             }
+            
             try {
-                const geojson = JSON.parse(stdout);
-                if (geojson.error) {
-                    return reject(new Error(geojson.error));
-                }
-                resolve(geojson);
+                const geom = JSON.parse(row.geometry_geojson);
+                
+                features.push({
+                    type: "Feature",
+                    id: row.osm_id || `local_${row.fid}`,
+                    properties: {
+                        osm_id: row.osm_id || row.fid,
+                        fid: row.fid,
+                        name: row.name,
+                        highway: row.highway,
+                        width: row.width,
+                        length_m: row.length_m,
+                        surface: "asphalt",
+                        oneway: false,
+                        lanes: row.width > 12 ? 2 : 1,
+                        maxspeed: "50",
+                        sprayable: true,
+                        mahalle: row.mahalle
+                    },
+                    geometry: geom
+                });
             } catch (err) {
-                reject(new Error(`Failed to parse Python output: ${err.message}. Output: ${stdout.slice(0, 200)}`));
+                console.error('[Routes] Yerel sokak geometrisi JSON parse hatası:', err.message);
             }
         });
         
-        child.on('error', (err) => {
-            reject(err);
-        });
-        
-        child.stdin.write(JSON.stringify({ south, west, north, east, neighborhood }));
-        child.stdin.end();
-    });
+        return {
+            type: "FeatureCollection",
+            features: features
+        };
+    } catch (err) {
+        console.error('[Routes] Veri tabanından local_streets çekme hatası:', err.message);
+        throw err;
+    }
 }
 
 function rowsToObjects(result) {
