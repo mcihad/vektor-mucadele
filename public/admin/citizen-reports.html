@@ -45,10 +45,18 @@
         /* Çizim Talimatı Bannerı */
         .drawing-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid var(--accent);padding:14px 24px;border-radius:30px;box-shadow:0 10px 25px rgba(0,0,0,0.5);align-items:center;gap:16px;color:#fff;font-size:13px;font-weight:500;animation:pulse-border 2s infinite;}
         @keyframes pulse-border{0%,100%{border-color:var(--accent)}50%{border-color:var(--accent-glow)}}
+
+        /* Pulse Ring for Smaller Map Pins */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
     </style>
 </head>
 <body>
 <aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
     <div class="sidebar-header">
         <div class="logo">🦟 Sivas Belediyesi</div>
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
@@ -70,7 +78,11 @@
     <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
 </aside>
 <div class="main-content">
-    <header class="topbar"><div class="topbar-title">📋 Vatandaş İhbarları</div>
+    <header class="topbar">
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            📋 Vatandaş İhbarları
+        </div>
         <div class="topbar-actions"><span class="badge badge-success" id="socketStatus">● Bağlı</span></div>
     </header>
     <div class="page-content">
@@ -141,6 +153,7 @@
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const TOKEN = localStorage.getItem('vms_token');
@@ -207,6 +220,15 @@ socket.on('citizen-report-updated', (data) => {
     loadReports();
 });
 
+socket.on('citizen-report-deleted', (data) => {
+    toast(`🗑️ Bir ihbar silindi (#${data.report_id})`, 'info');
+    if (selectedReportId === data.report_id) {
+        closeDetailPanel();
+    }
+    loadReports();
+});
+
+
 socket.on('session-issue-updated', data => {
     if (data.status === 'sorunlu') {
         const notes = data.notes || '';
@@ -266,19 +288,27 @@ const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y
 const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
 
-const rMap = L.map('reportMap', { center: [39.7477, 37.0179], zoom: 13, layers: [googleHybrid] });
+const rMap = L.map('reportMap', { center: [39.7477, 37.0179], zoom: 13, layers: [osm] });
 const baseMaps = { "Google Uydu + Hibrit": googleHybrid, "Google Harita": googleRoadmap, "Google Uydu": googleSatellite, "OpenStreetMap": osm };
 
 const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}/{y}', { maxZoom: 19, opacity: 0.6 });
-const overlayMaps = { "Sivas Mahalle Sınırları": sivasBorders };
-L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(rMap);
-
 const reportMarkers = L.layerGroup().addTo(rMap);
 const sprayedLayers = L.layerGroup().addTo(rMap);
+const sprayedHeatmapLayer = L.layerGroup();
 const workAreaLayers = L.layerGroup().addTo(rMap);
-
-// Leaflet.draw for admin work area definition
 const drawnItems = new L.FeatureGroup().addTo(rMap);
+
+const overlayMaps = {
+    "Sivas Mahalle Sınırları": sivasBorders,
+    "İhbar Noktaları": reportMarkers,
+    "Çalışma Alanları": workAreaLayers,
+    "Çizilen Alan": drawnItems,
+    "İlaçlama Çizgileri": sprayedLayers,
+    "İlaçlama Yoğunluğu (Heatmap)": sprayedHeatmapLayer
+};
+
+L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(rMap);
+
 let drawControl = null;
 let activeDrawReportId = null;
 
@@ -299,7 +329,10 @@ function getSprayStyle(daysRemaining) {
 async function loadSprayedStreets() {
     const expiryData = await api('/api/reports/expiry-map').catch(() => null);
     sprayedLayers.clearLayers();
+    sprayedHeatmapLayer.clearLayers();
     if (!expiryData || !expiryData.streets) return;
+    
+    const heatPoints = [];
     expiryData.streets.forEach(s => {
         if (s.geometry_geojson) {
             try {
@@ -317,9 +350,33 @@ async function loadSprayedStreets() {
                     ⏳ ${daysText}<br>
                     🚐 Araç: ${s.plate || '-'}`);
                 sprayedLayers.addLayer(layer);
+                
+                // Add coordinates to heatmap if active protection remaining
+                if (remaining > 0) {
+                    const intensity = remaining / 30;
+                    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                    if (geometry) {
+                        if (geometry.type === 'LineString') {
+                            geometry.coordinates.forEach(c => heatPoints.push([c[1], c[0], intensity]));
+                        } else if (geometry.type === 'MultiLineString') {
+                            geometry.coordinates.forEach(line => line.forEach(c => heatPoints.push([c[1], c[0], intensity])));
+                        }
+                    }
+                }
             } catch (e) {}
         }
     });
+    
+    if (heatPoints.length > 0) {
+        const heatLayer = L.heatLayer(heatPoints, {
+            radius: 20,
+            blur: 15,
+            maxZoom: 16,
+            max: 0.9,
+            gradient: { 0.3: '#3b82f6', 0.5: '#06b6d4', 0.7: '#10b981', 0.85: '#f59e0b', 1.0: '#ef4444' }
+        });
+        sprayedHeatmapLayer.addLayer(heatLayer);
+    }
 }
 
 // ─── Data ───
@@ -446,13 +503,14 @@ function renderTable(reports) {
             <td style="font-size:11px;font-weight:600;">${durationText}</td>
             <td><span class="badge ${prBadge}">${r.priority}</span></td>
             <td><span class="badge ${stBadge}">${r.status === 'sorunlu' ? '⚠️ Sorunlu' : r.status === 'çözüldü' ? 'Çözüldü' : r.status === 'işlemde' ? 'İşlemde' : 'Beklemede'}</span> ${hasWorkArea}</td>
-            <td onclick="event.stopPropagation()">
-                <select class="form-select" style="width:100px;padding:4px 6px;font-size:11px;" onchange="updateReport(${r.id}, this.value)">
+            <td onclick="event.stopPropagation()" style="display:flex; gap:6px; align-items:center; min-height:44px; border-bottom:none;">
+                <select class="form-select" style="width:90px;padding:4px 6px;font-size:11px;" onchange="updateReport(${r.id}, this.value)">
                     <option value="beklemede" ${r.status==='beklemede'?'selected':''}>Beklemede</option>
                     <option value="işlemde" ${r.status==='işlemde'?'selected':''}>İşlemde</option>
                     <option value="sorunlu" ${r.status==='sorunlu'?'selected':''}>Sorunlu</option>
                     <option value="çözüldü" ${r.status==='çözüldü'?'selected':''}>Çözüldü</option>
                 </select>
+                <button class="btn btn-outline" style="color:#ef4444; border-color:rgba(239,68,68,0.4); padding:4px 8px; font-size:10px; font-weight:bold; cursor:pointer;" onclick="deleteReport(${r.id})">🗑️ Sil</button>
             </td>
         </tr>`;
     }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">İhbar yok</td></tr>';
@@ -464,48 +522,49 @@ function updateMapMarkers(reports) {
     (reports || []).forEach(r => {
         if (r.latitude && r.longitude) {
             const color = r.status === 'çözüldü' ? '#10b981' : r.status === 'sorunlu' ? '#ef4444' : r.status === 'işlemde' ? '#f59e0b' : '#3b82f6';
-            const emoji = r.status === 'çözüldü' ? '🟢' : r.status === 'sorunlu' ? '🚨' : r.status === 'işlemde' ? '🟡' : '🔴';
             const icon = L.divIcon({
                 className: '',
-                html: `<div style="position:relative;">
-                    <span style="font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));" class="${r.status === 'sorunlu' ? 'blink' : ''}">${emoji}</span>
-                    ${r.priority === 'acil' ? '<span style="position:absolute;top:-4px;right:-4px;font-size:10px;">🚨</span>' : ''}
+                html: `<div style="
+                    width: 10px;
+                    height: 10px;
+                    background: ${color};
+                    border: 1.5px solid #fff;
+                    border-radius: 50%;
+                    box-shadow: 0 0 6px ${color}, 0 1px 3px rgba(0,0,0,0.5);
+                    position: relative;
+                ">
+                    ${r.status !== 'çözüldü' ? `
+                    <div style="
+                        position: absolute;
+                        top: -4px;
+                        left: -4px;
+                        width: 15px;
+                        height: 15px;
+                        border: 1.5px solid ${color};
+                        border-radius: 50%;
+                        animation: pulse-ring 1.5s infinite;
+                        opacity: 0.85;
+                    "></div>` : ''}
                 </div>`,
-                iconSize: [24, 24], iconAnchor: [12, 12]
+                iconSize: [10, 10], iconAnchor: [5, 5]
             });
             const marker = L.marker([r.latitude, r.longitude], { icon }).addTo(reportMarkers);
             const statusText = r.status === 'sorunlu' ? 'Sorunlu' : r.status === 'çözüldü' ? 'Çözüldü' : r.status === 'işlemde' ? 'İşlemde' : 'Beklemede';
             marker.bindPopup(`
-                <div style="min-width:200px;">
-                    <b style="font-size:14px;">${r.report_type || 'haşere'}</b>
+                <div style="min-width:200px; color:#fff;">
+                    <b style="font-size:14px; color:#60a5fa;">${r.report_type || 'haşere'}</b>
                     <span class="badge" style="font-size:9px;padding:2px 6px;border-radius:10px;background:${color};color:#fff;margin-left:6px;">${statusText}</span><br>
                     <span style="font-size:12px;">${r.description}</span><br>
-                    📍 ${r.neighborhood || '-'}<br>
-                    👤 ${r.assigned_user_name || 'Atanmadı'}<br>
-                    📅 ${new Date(r.created_at).toLocaleString('tr-TR')}<br>
+                    📍 <b>Mahalle:</b> ${r.neighborhood || '-'}<br>
+                    👤 <b>Atanan:</b> ${r.assigned_user_name || 'Atanmadı'}<br>
+                    📅 <b>Tarih:</b> ${new Date(r.created_at).toLocaleString('tr-TR')}<br>
                     ${r.admin_notes ? '<br>📝 Not: ' + r.admin_notes : ''}
+                    <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+                        <button class="btn btn-outline" style="color:#ef4444; border-color:rgba(239,68,68,0.4); padding:3px 6px; font-size:10px; font-weight:bold; cursor:pointer;" onclick="deleteReport(${r.id})">🗑️ Sil</button>
+                    </div>
                 </div>
             `);
             marker.on('click', () => { openDetailPanel(r.id); });
-        }
-        // Draw work areas
-        if (r.work_area_geojson) {
-            try {
-                const geojson = JSON.parse(r.work_area_geojson);
-                const areaLayer = L.geoJSON(geojson, {
-                    style: () => ({
-                        color: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
-                        weight: 3,
-                        opacity: 0.8,
-                        fillOpacity: 0.15,
-                        fillColor: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
-                        dashArray: r.status === 'çözüldü' ? null : '6 4'
-                    }),
-                    pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 8 })
-                });
-                areaLayer.bindPopup(`<b>Çalışma Alanı</b><br>İhbar #${r.id} - ${r.report_type}<br>👤 ${r.assigned_user_name || 'Atanmadı'}`);
-                workAreaLayers.addLayer(areaLayer);
-            } catch (e) {}
         }
     });
 }
@@ -524,6 +583,31 @@ function openDetailPanel(reportId) {
     // Zoom map to report location
     if (r.latitude && r.longitude) {
         rMap.setView([r.latitude, r.longitude], 16, { animate: true });
+    }
+
+    // Draw work area only for selected report
+    if (typeof workAreaLayers !== 'undefined') {
+        workAreaLayers.clearLayers();
+        if (r.work_area_geojson) {
+            try {
+                const geojson = JSON.parse(r.work_area_geojson);
+                const areaLayer = L.geoJSON(geojson, {
+                    style: () => ({
+                        color: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
+                        weight: 3,
+                        opacity: 0.8,
+                        fillOpacity: 0.15,
+                        fillColor: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
+                        dashArray: r.status === 'çözüldü' ? null : '6 4'
+                    }),
+                    pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 8 })
+                });
+                areaLayer.bindPopup(`<b>Çalışma Alanı</b><br>İhbar #${r.id} - ${r.report_type}<br>👤 ${r.assigned_user_name || 'Atanmadı'}`);
+                workAreaLayers.addLayer(areaLayer);
+            } catch (e) {
+                console.error("Error drawing work area:", e);
+            }
+        }
     }
 
     const prColor = r.priority === 'acil' ? 'var(--danger)' : r.priority === 'yüksek' ? 'var(--warning)' : 'var(--accent)';
@@ -594,7 +678,10 @@ function openDetailPanel(reportId) {
             <div class="detail-field">
                 <div class="detail-label">Yönetici Notu</div>
                 <textarea class="form-textarea" id="adminNoteInput" style="font-size:12px;min-height:60px;" placeholder="Personele iletilecek notunuzu yazın...">${r.admin_notes || ''}</textarea>
-                <button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="saveAdminNote(${r.id})">💾 Notu Kaydet</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+                    <button class="btn btn-sm btn-primary" onclick="saveAdminNote(${r.id})">💾 Notu Kaydet</button>
+                    <button class="btn btn-sm btn-danger" style="background:#ef4444; color:#fff; border:none; padding:6px 12px; font-weight:600; border-radius:4px; cursor:pointer;" onclick="deleteReport(${r.id})">🗑️ İhbarı Sil</button>
+                </div>
             </div>
         </div>
         <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
@@ -645,6 +732,9 @@ function closeDetailPanel() {
     selectedReportId = null;
     document.querySelectorAll('.report-row').forEach(row => row.classList.remove('selected'));
     stopDrawing();
+    if (typeof workAreaLayers !== 'undefined') {
+        workAreaLayers.clearLayers();
+    }
 }
 
 // ─── Work Area Drawing ───
@@ -766,6 +856,22 @@ async function saveAdminNote(reportId) {
     });
     toast('📝 Yönetici notu kaydedildi', 'success');
     loadReports().then(() => openDetailPanel(reportId));
+}
+
+async function deleteReport(id) {
+    if (!confirm('Bu ihbar kaydını kalıcı olarak silmek istediğinize emin misiniz?\nBu işlem geri alınamaz ve ihbar haritadan da kaldırılacaktır.')) {
+        return;
+    }
+    try {
+        await api(`/api/citizen-reports/${id}`, { method: 'DELETE' });
+        toast('🗑️ İhbar başarıyla silindi', 'success');
+        if (selectedReportId === id) {
+            closeDetailPanel();
+        }
+        loadReports();
+    } catch (e) {
+        toast('❌ İhbar silinirken bir hata oluştu: ' + e.message, 'danger');
+    }
 }
 
 // ─── Init ───

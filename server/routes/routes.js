@@ -159,48 +159,108 @@ router.get('/application-types', authMiddleware, async (req, res) => {
 });
 
 // ─── OSM: Sokakları çek (Overpass API) ───
+// ─── OSM & GPKG Akıllı Birleştirme (Sokakları Çek) ───
 router.post('/fetch-streets', authMiddleware, async (req, res) => {
     const { south, west, north, east, neighborhood } = req.body;
     if (!south || !west || !north || !east) {
         return res.status(400).json({ error: 'Bounding box koordinatları gerekli (south, west, north, east)' });
     }
 
-    // 1. ÖNCELİK: Canlı OpenStreetMap Overpass API (Trafik kuralları, Tek Yön ve Yaya yollarını barındırır!)
+    let osmGeoJSON = null;
+    let localGeoJSON = null;
+
+    // 1. Canlı OpenStreetMap Verilerini Çek
     try {
         console.log(`[Routes] Canlı OpenStreetMap Overpass API'den sokaklar çekiliyor. BBox: ${south},${west},${north},${east}`);
-        const geojson = await fetchStreets(
+        osmGeoJSON = await fetchStreets(
             parseFloat(south), parseFloat(west),
             parseFloat(north), parseFloat(east)
         );
-        
-        if (geojson.features && geojson.features.length > 0) {
-            console.log(`[Routes] Canlı OSM'den ${geojson.features.length} sokak başarıyla çekildi.`);
-            return res.json(geojson);
-        }
-        console.warn('[Routes] Canlı OSM veri tabanında sokak bulunamadı, yerel GPKG fall-back deneniyor...');
     } catch (err) {
         console.error('[Routes] Canlı OSM Overpass Hatası:', err.message);
-        console.log('[Routes] Yerel GPKG veri tabanına (yedek olarak) geçiliyor...');
     }
 
-    // 2. YEDEK: Yerel GPKG Veri Tabanı (Çevrimdışı/Offline durumlar için)
+    // 2. Yerel GPKG Veri Tabanından (Sivas Belediyesi SOKAK.gpkg CBS veri tabanı) verileri çek
     try {
-        console.log(`[Routes] Yerel GPKG veri tabanından sokaklar sorgulanıyor. BBox: ${south},${west},${north},${east} | Mahalle: ${neighborhood || 'Tümü'}`);
-        const geojson = await fetchLocalStreets(
+        console.log(`[Routes] Yerel GPKG veri tabanından sokaklar çekiliyor. BBox: ${south},${west},${north},${east} | Mahalle: ${neighborhood || 'Tümü'}`);
+        localGeoJSON = await fetchLocalStreets(
             parseFloat(south), parseFloat(west),
             parseFloat(north), parseFloat(east),
             neighborhood
         );
-        
-        if (geojson.features && geojson.features.length > 0) {
-            console.log(`[Routes] Yerel GPKG veri tabanından (Yedek) ${geojson.features.length} sokak başarıyla çekildi.`);
-            return res.json(geojson);
-        }
-        res.status(404).json({ error: 'Belirtilen sınırlar içerisinde hiçbir sokak bulunamadı!' });
     } catch (localErr) {
         console.error('[Routes] Yerel GPKG sorgu hatası:', localErr.message);
-        res.status(500).json({ error: 'Sokak verisi alınamadı (Hem Canlı Sunucular hem de Yerel Veritabanı başarısız oldu): ' + localErr.message });
     }
+
+    // 3. AKILLI BİRLEŞTİRME VE DEDÜPLİKASYON (Gaps Filler):
+    // Eğer hem OSM hem de yerel GPKG verisi varsa, OSM verilerini birincil (esas) alıyoruz.
+    // Ancak, yerel GPKG'de olup OSM haritasında OLMAYAN (uydu görüntüsünde var ama OSM'ye çizilmemiş olan)
+    // tüm sokakları otomatik olarak saptıyor ve bunları araya enjekte ediyoruz!
+    if (osmGeoJSON && osmGeoJSON.features && localGeoJSON && localGeoJSON.features) {
+        const mergedFeatures = [...osmGeoJSON.features];
+        let injectedCount = 0;
+
+        // İki nokta arasındaki mesafeyi metre cinsinden hesapla (Haversine)
+        const getDistance = (lat1, lon1, lat2, lon2) => {
+            const R = 6371000;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        };
+
+        const getMidpoint = (coords) => {
+            if (!coords || coords.length === 0) return [0, 0];
+            let sumLon = 0, sumLat = 0;
+            coords.forEach(c => { sumLon += c[0]; sumLat += c[1]; });
+            return [sumLat / coords.length, sumLon / coords.length]; // [lat, lon]
+        };
+
+        const osmMidpoints = osmGeoJSON.features
+            .filter(f => f.geometry && f.geometry.coordinates)
+            .map(f => getMidpoint(f.geometry.coordinates));
+
+        localGeoJSON.features.forEach(localFeature => {
+            if (!localFeature.geometry || localFeature.geometry.type !== 'LineString') return;
+            const localMid = getMidpoint(localFeature.geometry.coordinates);
+
+            // Bu lokal sokağın orta noktasının herhangi bir OSM sokağına olan minimum mesafesini bul
+            let minDistance = Infinity;
+            for (const osmMid of osmMidpoints) {
+                const dist = getDistance(localMid[0], localMid[1], osmMid[0], osmMid[1]);
+                if (dist < minDistance) {
+                    minDistance = dist;
+                }
+            }
+
+            // Eğer lokal sokak hiçbir OSM sokağına 30 metreden daha yakın değilse,
+            // bu sokak OSM haritasında EKSİK demektir! Otomatik enjekte et!
+            if (minDistance > 30) {
+                // Eşsiz bir ID ata
+                localFeature.properties.osm_id = 'local_' + (localFeature.properties.fid || Math.random().toString(36).substr(2, 9));
+                mergedFeatures.push(localFeature);
+                injectedCount++;
+            }
+        });
+
+        console.log(`[Routes] Akıllı Birleştirme Tamamlandı. Canlı OSM: ${osmGeoJSON.features.length} yol. GPKG'den eksik olup otomatik doldurulan yol sayısı: ${injectedCount}. Toplam: ${mergedFeatures.length} yol.`);
+        return res.json({
+            type: 'FeatureCollection',
+            features: mergedFeatures
+        });
+    }
+
+    // Fallbacks if one of them is missing:
+    if (osmGeoJSON && osmGeoJSON.features && osmGeoJSON.features.length > 0) {
+        return res.json(osmGeoJSON);
+    }
+    if (localGeoJSON && localGeoJSON.features && localGeoJSON.features.length > 0) {
+        return res.json(localGeoJSON);
+    }
+
+    res.status(404).json({ error: 'Belirtilen sınırlar içerisinde hiçbir sokak bulunamadı!' });
 });
 
 // ─── Otomatik rota hesapla (Chinese Postman) ───

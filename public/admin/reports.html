@@ -9,6 +9,7 @@
 </head>
 <body>
 <aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
     <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
     <nav class="sidebar-nav">
         <div class="nav-section">Ana Menü</div>
@@ -26,7 +27,12 @@
     <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
 </aside>
 <div class="main-content">
-    <header class="topbar"><div class="topbar-title">📈 Raporlar</div></header>
+    <header class="topbar">
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            📈 Raporlar
+        </div>
+    </header>
     <div class="page-content">
         <div class="tabs">
             <button class="tab active" onclick="showTab('daily',this)">Günlük</button>

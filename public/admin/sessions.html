@@ -8,6 +8,7 @@
 </head>
 <body>
 <aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
     <div class="sidebar-header">
         <div class="logo">🦟 Sivas Belediyesi</div>
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
@@ -31,7 +32,10 @@
 
 <div class="main-content">
     <header class="topbar">
-        <div class="topbar-title">💉 İlaçlama Kayıtları</div>
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            💉 İlaçlama Kayıtları
+        </div>
         <button class="btn btn-primary" onclick="openNewSession()">+ Yeni İlaçlama</button>
     </header>
 

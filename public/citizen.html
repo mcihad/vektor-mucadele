@@ -7,22 +7,34 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
-        .citizen-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:#0f172a; }
-        .citizen-card { width:100%; max-width:540px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow-lg); }
-        .citizen-card h1 { font-size:22px; text-align:center; margin-bottom:4px; color:#fff; }
-        .citizen-card .sub { text-align:center; font-size:13px; color:var(--text-muted); margin-bottom:24px; }
-        .success-msg { text-align:center; padding:40px 20px; }
-        .success-msg .icon { font-size:64px; margin-bottom:16px; }
-        .success-msg h2 { color:var(--success); margin-bottom:8px; }
-        .map-container { height:220px; border-radius:8px; border:1px solid var(--border); margin-bottom:8px; overflow:hidden; }
-        .gps-alert { background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); color:#f87171; padding:10px 14px; border-radius:6px; font-size:11px; margin-bottom:16px; text-align:center; font-weight:500; }
+        .citizen-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:12px; background:#0f172a; }
+        .citizen-card { width:100%; max-width:500px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 24px; box-shadow:var(--shadow-lg); }
+        .citizen-card h1 { font-size:18px; text-align:center; margin-bottom:2px; color:#fff; }
+        .citizen-card .sub { text-align:center; font-size:12px; color:var(--text-muted); margin-bottom:12px; }
+        .success-msg { text-align:center; padding:30px 10px; }
+        .success-msg .icon { font-size:48px; margin-bottom:12px; }
+        .success-msg h2 { color:var(--success); margin-bottom:6px; }
+        .map-container { height:160px; border-radius:8px; border:1px solid var(--border); margin-bottom:6px; overflow:hidden; }
+        .gps-alert { background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); color:#f87171; padding:8px 12px; border-radius:6px; font-size:10.5px; margin-bottom:10px; text-align:center; font-weight:500; }
         .gps-alert.success { background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); color:#34d399; }
+        
+        /* Compact Form Elements Override */
+        .form-group { margin-bottom: 10px !important; }
+        .form-label { margin-bottom: 4px !important; font-size: 11.5px !important; font-weight: 600; color: rgba(255,255,255,0.9); }
+        .form-input, .form-select, .form-textarea { padding: 8px 12px !important; font-size: 13px !important; border-radius: 8px !important; }
+        .grid-2 { gap: 10px !important; }
+        .btn-lg { padding: 10px 18px !important; font-size: 14.5px !important; border-radius: 8px !important; }
+        
+        @media (max-width: 576px) {
+            .citizen-card { padding: 16px 18px; }
+            .map-container { height: 140px; }
+        }
     </style>
 </head>
 <body>
 <div class="citizen-page">
     <div class="citizen-card" id="formCard">
-        <div style="text-align:center;font-size:40px;margin-bottom:8px;">🦟</div>
+        <div style="text-align:center;font-size:28px;margin-bottom:4px;">🦟</div>
         <h1>Haşere İhbar Formu</h1>
         <p class="sub">Sivas Belediyesi Veteriner İşleri Müdürlüğü</p>
 
@@ -107,10 +119,10 @@ let map = null, marker = null;
 function initMap() {
     map = L.map('citizenMap').setView([39.7477, 37.0179], 13);
     
-    // Google Hybrid Tile Layer for realistic satellite view
-    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-        attribution: '© Google Maps',
-        maxZoom: 20
+    // OpenStreetMap Tile Layer as default
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
     }).addTo(map);
 
     // Draggable marker

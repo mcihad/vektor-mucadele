@@ -230,7 +230,9 @@ function findEulerTour(nodes, edges, transportType = 'vehicle') {
         return [nodes[0].id];
     }
 
-    return tour;
+    // CRITICAL BUGFIX: Reversing the Hierholzer's stack sequence is absolutely mandatory
+    // for directed graphs (one-way streets) to ensure we move in the forward (correct) direction!
+    return tour.reverse();
 }
 
 /**
@@ -301,33 +303,41 @@ function rotateTour(tour, startNodeId) {
  * OSRM API üzerinden iki nokta arasındaki gerçek karayolu rotasını çeker
  */
 async function fetchOSRMRoute(fromNode, toNode, transportType = 'vehicle') {
-    const profile = transportType === 'pedestrian' ? 'foot' : 'driving';
-    const url = `https://router.project-osrm.org/route/v1/${profile}/${fromNode.lon},${fromNode.lat};${toNode.lon},${toNode.lat}?overview=full&geometries=geojson`;
+    const isPedestrian = transportType === 'pedestrian';
+    const profile = isPedestrian ? 'foot' : 'driving';
     
-    try {
-        console.log(`[OSRM] Querying bridge path (${profile}): ${fromNode.lon},${fromNode.lat} -> ${toNode.lon},${toNode.lat}`);
-        const response = await fetch(url, {
-            headers: { 'User-Agent': 'SivasVMS-App/1.0 (contact@sivasvms.local)' }
-        });
-        
-        if (!response.ok) {
-            console.error(`[OSRM] HTTP error: ${response.status}`);
-            return null;
-        }
-        
-        const data = await response.json();
-        if (data && data.routes && data.routes.length > 0) {
-            const route = data.routes[0];
-            if (route.geometry && route.geometry.coordinates) {
-                console.log(`[OSRM] Successfully fetched path: ${route.distance} meters, ${route.geometry.coordinates.length} coords`);
-                return {
-                    coordinates: route.geometry.coordinates,
-                    distance_m: route.distance
-                };
+    // Robust multi-server list to prevent rate-limiting or network blockages
+    const urls = [
+        `https://router.project-osrm.org/route/v1/${profile}/${fromNode.lon},${fromNode.lat};${toNode.lon},${toNode.lat}?overview=full&geometries=geojson`,
+        `https://routing.openstreetmap.de/${isPedestrian ? 'routed-foot' : 'routed-car'}/route/v1/${profile}/${fromNode.lon},${fromNode.lat};${toNode.lon},${toNode.lat}?overview=full&geometries=geojson`
+    ];
+    
+    for (const url of urls) {
+        try {
+            console.log(`[OSRM] Querying bridge path (${profile}): ${url}`);
+            const response = await fetch(url, {
+                headers: { 'User-Agent': 'SivasVMS-App/1.0 (contact@sivasvms.local)' }
+            });
+            
+            if (!response.ok) {
+                console.error(`[OSRM] OSRM error for ${url}: status ${response.status}`);
+                continue;
             }
+            
+            const data = await response.json();
+            if (data && data.routes && data.routes.length > 0) {
+                const route = data.routes[0];
+                if (route.geometry && route.geometry.coordinates) {
+                    console.log(`[OSRM] Successfully fetched path: ${route.distance} meters, ${route.geometry.coordinates.length} coords`);
+                    return {
+                        coordinates: route.geometry.coordinates,
+                        distance_m: route.distance
+                    };
+                }
+            }
+        } catch (err) {
+            console.error(`[OSRM] Error querying OSRM endpoint:`, err.message);
         }
-    } catch (err) {
-        console.error(`[OSRM] Error fetching route from OSRM:`, err.message);
     }
     return null;
 }
@@ -672,6 +682,44 @@ async function solveChinesePostman(geojson, machineType = 'ulv', tankCapacity = 
                         coordinates: coords
                     }
                 });
+            } else {
+                // GAP FILLER / ATLAMA GİDERİCİ: Eğer iki düğüm arasında fiziksel kenar bulunamadıysa (yön kuralları nedeniyle 
+                // grafik kopukluğu ve Euler turu atlaması yaşandıysa), OSRM üzerinden bu iki nokta arasındaki gerçek karayolu 
+                // rotasını çekip "Bağlantı Geçişi" olarak ekliyoruz. Bu sayede araç ASLA evlerin üstünden uçup gitmeyecektir!
+                const fromNode = nodeById.get(fromId);
+                const toNode = nodeById.get(toId);
+                if (fromNode && toNode) {
+                    console.log(`[CPP] Yol bağlantısı atlaması saptandı: ${fromId} -> ${toId}. OSRM ile gerçek yol aranıyor...`);
+                    const osrmRes = await fetchOSRMRoute(fromNode, toNode, transportType);
+                    
+                    let bridgeCoords = [
+                        [fromNode.lon, fromNode.lat],
+                        [toNode.lon, toNode.lat]
+                    ];
+                    let bridgeDist = haversine(fromNode.lat, fromNode.lon, toNode.lat, toNode.lon);
+                    
+                    if (osrmRes && osrmRes.coordinates && osrmRes.coordinates.length >= 2) {
+                        bridgeCoords = osrmRes.coordinates;
+                        bridgeDist = osrmRes.distance_m;
+                    }
+                    
+                    bridgeDistanceM += bridgeDist;
+                    routeFeatures.push({
+                        type: 'Feature',
+                        properties: {
+                            order: featureOrder++,
+                            name: '↗️ Bağlantı Geçişi',
+                            osm_id: '',
+                            distance_m: Math.round(bridgeDist),
+                            duplicate: false,
+                            bridge: true
+                        },
+                        geometry: {
+                            type: 'LineString',
+                            coordinates: bridgeCoords
+                        }
+                    });
+                }
             }
         }
     }

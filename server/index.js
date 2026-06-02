@@ -73,6 +73,7 @@ app.get('/mobile/*', (req, res) => {
     });
 });
 app.get('/ihbar', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'citizen.html')));
+app.get('/vatandas-veri', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'vatandas-veri.html')));
 
 // Socket.io - real-time vehicle tracking
 io.on('connection', (socket) => {

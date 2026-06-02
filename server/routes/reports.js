@@ -62,6 +62,28 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
     }
 });
 
+// ─── Kamu İlaçlama Etki Haritası Verisi (Public) ───
+router.get('/public/expiry-map', async (req, res) => {
+    const db = getDb();
+    try {
+        const result = await db.exec(`
+            SELECT ss.id, ss.street_name, ss.osm_way_id, ss.sprayed_at, ss.expires_at,
+                   ss.geometry_geojson, ss.width_mt, ss.length_mt,
+                   s.neighborhood, s.vehicle_id, v.plate,
+                   CAST(julianday(ss.expires_at) - julianday('now') AS REAL) as days_remaining,
+                   CAST(julianday('now') - julianday(ss.sprayed_at) AS REAL) as days_elapsed
+            FROM sprayed_streets ss
+            JOIN spray_sessions s ON ss.session_id = s.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            WHERE ss.sprayed_at >= datetime('now', '-35 days')
+            ORDER BY ss.sprayed_at DESC
+        `);
+        res.json({ streets: rowsToObjects(result) });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // ─── 30 Günlük İlaç Etki Haritası Verisi ───
 router.get('/expiry-map', authMiddleware, async (req, res) => {
     const db = getDb();

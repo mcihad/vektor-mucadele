@@ -20,11 +20,16 @@
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
         .blink{animation:blink 1.5s ease-in-out infinite}
         .legend-bar{display:flex;gap:2px;margin-top:12px;border-radius:4px;overflow:hidden;height:8px}
-        .legend-bar div{flex:1}
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
     </style>
 </head>
 <body>
 <aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
     <div class="sidebar-header">
         <div class="logo">🦟 Sivas Belediyesi</div>
         <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
@@ -50,7 +55,10 @@
 </aside>
 <div class="main-content">
     <header class="topbar">
-        <div class="topbar-title">📊 Ana Ekran</div>
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            📊 Ana Ekran
+        </div>
         <div class="topbar-actions">
             <span id="clock" style="font-size:13px;color:var(--text-secondary);"></span>
             <span class="badge badge-success" id="connectionStatus">● Bağlı</span>
@@ -105,10 +113,6 @@
                     <div id="vehicleList"></div>
                 </div>
                 <div class="card">
-                    <div class="card-title" style="margin-bottom:12px">💉 Son İlaçlamalar</div>
-                    <div id="recentSessions" class="session-list"></div>
-                </div>
-                <div class="card">
                     <div class="card-title" style="margin-bottom:12px">📅 Yaklaşan Süreler</div>
                     <div id="scheduleList" class="session-list"></div>
                 </div>
@@ -118,6 +122,7 @@
 </div>
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const TOKEN=localStorage.getItem('vms_token');
@@ -155,7 +160,7 @@ const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 const map = L.map('map', {
     center: [39.7477, 37.0179],
     zoom: 13,
-    layers: [googleHybrid] // Google Hybrid as default
+    layers: [osm] // OpenStreetMap as default
 });
 
 const baseMaps = {
@@ -171,17 +176,21 @@ const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}
     opacity: 0.6
 }).addTo(map);
 
+const sprayedLayers=L.layerGroup().addTo(map);
+const sprayedHeatmapLayer=L.layerGroup();
+const citizenReportMarkersLayer=L.layerGroup().addTo(map);
+const activeVehiclePathsGroup = L.layerGroup().addTo(map);
+const vehicleMarkers={};
+const vehiclePathsData = {}; // vehicle_id -> { points: [{lat, lng, is_spraying}], group: L.layerGroup() }
+
 const overlayMaps = {
-    "Sivas Mahalle Sınırları (Belediye)": sivasBorders
+    "Sivas Mahalle Sınırları (Belediye)": sivasBorders,
+    "İlaçlama Çizgileri": sprayedLayers,
+    "İlaçlama Yoğunluğu (Heatmap)": sprayedHeatmapLayer,
+    "Vatandaş İhbar Noktaları": citizenReportMarkersLayer
 };
 
 L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
-
-const vehicleMarkers={};
-const sprayedLayers=L.layerGroup().addTo(map);
-const citizenReportMarkersLayer=L.layerGroup().addTo(map);
-const activeVehiclePathsGroup = L.layerGroup().addTo(map);
-const vehiclePathsData = {}; // vehicle_id -> { points: [{lat, lng, is_spraying}], group: L.layerGroup() }
 
 function centerMap(){map.setView([39.7477,37.0179],13);}
 
@@ -211,6 +220,7 @@ socket.on('vehicle-update',data=>{
 });
 socket.on('spray-update',data=>{toast(`${data.plate} - ${data.message}`,'success');loadDashboard();});
 socket.on('citizen-report-new',data=>{toast(`📢 Yeni Vatandaş İhbarı: ${data.report_type} - ${data.neighborhood||''}`,  'info');loadCitizenReportMarkers();loadDashboard();});
+socket.on('citizen-report-deleted',data=>{toast(`🗑️ Bir ihbar silindi (#${data.report_id})`,'info');loadCitizenReportMarkers();loadDashboard();});
 
 socket.on('citizen-report-updated',data=>{
     if (data.saha_sorunu) {
@@ -448,20 +458,6 @@ async function loadDashboard(){
         const locs=await api('/api/reports/vehicle-locations');
         if(locs) locs.forEach(v=>updateVehicleOnMap({vehicle_id:v.id,plate:v.plate,latitude:v.last_lat,longitude:v.last_lng}));
     }
-    // Sessions
-    const sessions=await api('/api/sessions?status=completed');
-    const sList=document.getElementById('recentSessions');
-    if(sessions){
-        sList.innerHTML=sessions.slice(0,8).map(s=>`
-            <div class="session-item">
-                <div style="display:flex;justify-content:space-between;">
-                    <span style="font-weight:500;font-size:12px;">${s.plate||''} - ${s.neighborhood||''}</span>
-                    <span class="badge badge-success">✓</span></div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
-                    ${s.driver_name||''} & ${s.operator_name||''} • ${Number(s.total_km||0).toFixed(1)}km • ${Number(s.chemical_used_lt||0).toFixed(1)}lt</div>
-                <div style="font-size:10px;color:var(--text-muted);">${s.start_time?new Date(s.start_time).toLocaleString('tr-TR'):''}</div>
-            </div>`).join('')||'<div style="padding:12px;color:var(--text-muted);font-size:12px;">Henüz kayıt yok</div>';
-    }
     // Schedule
     const schedule=await api('/api/reports/schedule');
     const schList=document.getElementById('scheduleList');
@@ -495,6 +491,8 @@ async function loadDashboard(){
             });
         }
         // Sokakları haritaya çiz
+        sprayedHeatmapLayer.clearLayers();
+        const heatPoints = [];
         (expiryData.streets||[]).forEach(s=>{
             if(s.geometry_geojson){try{
                 const geom=JSON.parse(s.geometry_geojson);
@@ -512,8 +510,31 @@ async function loadDashboard(){
                     ⏳ ${daysText}<br>
                     🚐 Araç: ${s.plate||'-'}`);
                 sprayedLayers.addLayer(layer);
+                
+                // Add coordinates to heatmap if active protection remaining
+                if (remaining > 0) {
+                    const intensity = remaining / 30;
+                    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                    if (geometry) {
+                        if (geometry.type === 'LineString') {
+                            geometry.coordinates.forEach(c => heatPoints.push([c[1], c[0], intensity]));
+                        } else if (geometry.type === 'MultiLineString') {
+                            geometry.coordinates.forEach(line => line.forEach(c => heatPoints.push([c[1], c[0], intensity])));
+                        }
+                    }
+                }
             }catch(e){}}
         });
+        if (heatPoints.length > 0) {
+            const heatLayer = L.heatLayer(heatPoints, {
+                radius: 20,
+                blur: 15,
+                maxZoom: 16,
+                max: 0.9,
+                gradient: { 0.3: '#3b82f6', 0.5: '#06b6d4', 0.7: '#10b981', 0.85: '#f59e0b', 1.0: '#ef4444' }
+            });
+            sprayedHeatmapLayer.addLayer(heatLayer);
+        }
     }
 }
 
@@ -532,8 +553,33 @@ async function loadCitizenReportMarkers(){
         citizenReportMarkersLayer.clearLayers();
         if(reports) {
             reports.filter(r=>r.status!=='çözüldü'&&r.latitude&&r.longitude).forEach(r=>{
-                const emoji=r.status==='sorunlu'?'🚨':r.status==='işlemde'?'🟡':'🔴';
-                const icon=L.divIcon({className:'',html:`<div style="position:relative;"><span style="font-size:20px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));" class="${r.status==='sorunlu'?'blink':''}">${emoji}</span>${r.priority==='acil'?'<span style="position:absolute;top:-4px;right:-6px;font-size:10px;">🚨</span>':''}</div>`,iconSize:[22,22],iconAnchor:[11,11]});
+                const color = r.status === 'sorunlu' ? '#ef4444' : r.status === 'işlemde' ? '#f59e0b' : '#3b82f6';
+                const icon = L.divIcon({
+                    className: '',
+                    html: `<div style="
+                        width: 10px;
+                        height: 10px;
+                        background: ${color};
+                        border: 1.5px solid #fff;
+                        border-radius: 50%;
+                        box-shadow: 0 0 6px ${color}, 0 1px 3px rgba(0,0,0,0.5);
+                        position: relative;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: -4px;
+                            left: -4px;
+                            width: 15px;
+                            height: 15px;
+                            border: 1.5px solid ${color};
+                            border-radius: 50%;
+                            animation: pulse-ring 1.5s infinite;
+                            opacity: 0.85;
+                        "></div>
+                        ${r.priority==='acil'?'<span style="position:absolute;top:-8px;right:-10px;font-size:10px;">🚨</span>':''}
+                    </div>`,
+                    iconSize: [10, 10], iconAnchor: [5, 5]
+                });
                 const m=L.marker([r.latitude,r.longitude],{icon}).addTo(citizenReportMarkersLayer);
                 m.bindPopup(`<b>📢 Vatandaş İhbarı #${r.id}</b><br><b>${r.report_type||'haşere'}</b><br>${r.description}<br>📍 ${r.neighborhood||'-'}<br>👤 ${r.assigned_user_name||'Atanmadı'}<br>📅 ${new Date(r.created_at).toLocaleString('tr-TR')}<br><a href="/admin/citizen-reports" style="color:var(--accent);">→ İhbar Sayfasına Git</a>`);
             });

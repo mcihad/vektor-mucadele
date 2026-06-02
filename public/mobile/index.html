@@ -10,13 +10,13 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
-        body{background:#0a0e1a;overflow:hidden;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif}
-        .mobile-app{display:flex;flex-direction:column;height:100vh;height:100dvh}
-        .mobile-header{background:rgba(21, 31, 58, 0.95);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}
-        .mobile-header h1{font-size:13px;font-weight:700;background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-        .mobile-map{flex:1;position:relative}
+        body{background:#0a0e1a;overflow:hidden;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;margin:0;padding:0}
+        .mobile-app{position:relative;width:100vw;height:100vh;height:100dvh;overflow:hidden}
+        .mobile-header{background:rgba(21, 31, 58, 0.95);height:45px;padding:0 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;z-index:10;position:relative;box-sizing:border-box}
+        .mobile-header h1{font-size:13px;font-weight:700;background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0}
+        .mobile-map{position:absolute;top:45px;bottom:0;left:0;right:0;z-index:1}
         #mobileMap{width:100%;height:100%}
-        .mobile-panel{background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:6px 10px;flex-shrink:0;max-height:28dvh;border-top-left-radius:12px;border-top-right-radius:12px;box-shadow:0 -8px 24px rgba(0,0,0,0.4)}
+        .mobile-panel{background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px;position:absolute;bottom:0;left:0;right:0;z-index:5;max-height:75dvh;overflow-y:auto;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -8px 24px rgba(0,0,0,0.5);transition:max-height 0.3s ease;box-sizing:border-box}
         .mobile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px}
         .mobile-stat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:4px;text-align:center}
         .mobile-stat .val{font-size:13px;font-weight:700;color:#fff}
@@ -36,8 +36,15 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 5000;
+            z-index: 10000;
             display: flex;
+            pointer-events: auto;
+        }
+        .mobile-drawer.closing .drawer-content {
+            animation: slideLeft 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
+        }
+        .mobile-drawer.closing .drawer-overlay {
+            animation: fadeOutOverlay 0.25s ease forwards;
         }
         .drawer-content {
             width: 280px;
@@ -50,14 +57,42 @@
             box-shadow: 8px 0 32px rgba(0,0,0,0.5);
             animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
-            z-index: 5002;
+            z-index: 10002;
         }
         .drawer-overlay {
             flex: 1;
             background: rgba(0,0,0,0.5);
             backdrop-filter: blur(4px);
             height: 100%;
-            z-index: 5001;
+            z-index: 10001;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .drawer-close-tab {
+            position: absolute;
+            right: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 40px;
+            height: 70px;
+            background: rgba(15, 23, 42, 0.95);
+            border-radius: 0 12px 12px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10003;
+            color: #ef4444;
+            font-size: 22px;
+            font-weight: 700;
+            box-shadow: 4px 0 16px rgba(0,0,0,0.4);
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.2s ease;
+        }
+        .drawer-close-tab:active {
+            background: rgba(239, 68, 68, 0.2);
         }
         .drawer-header {
             padding: 20px 16px;
@@ -77,13 +112,24 @@
         .drawer-close {
             position: absolute;
             right: 16px;
-            top: 18px;
-            background: transparent;
-            border: none;
+            top: 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
             color: #fff;
-            font-size: 24px;
+            font-size: 16px;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
-            line-height: 1;
+            transition: all 0.2s ease;
+        }
+        .drawer-close:active {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border-color: rgba(239, 68, 68, 0.4);
         }
         .drawer-nav {
             flex: 1;
@@ -113,6 +159,14 @@
             from { transform: translateX(-100%); }
             to { transform: translateX(0); }
         }
+        @keyframes slideLeft {
+            from { transform: translateX(0); }
+            to { transform: translateX(-100%); }
+        }
+        @keyframes fadeOutOverlay {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
         .alert-banner{position:fixed;top:45px;left:10px;right:10px;z-index:2000;padding:10px 14px;font-size:12px;font-weight:600;text-align:center;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);animation:slideDown 0.3s ease;display:none}
         .alert-banner.route-off{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
         .alert-banner.already-sprayed{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff}
@@ -127,6 +181,11 @@
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
         .blink{animation:blink 1.5s ease-in-out infinite}
         .preview-arrow-icon, .route-direction-arrow {background:none !important;border:none !important;box-shadow:none !important}
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            70% { transform: scale(1.6); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
     </style>
 </head>
 <body>
@@ -138,23 +197,34 @@
 
 <!-- Mobile Drawer -->
 <div id="mobileDrawer" class="mobile-drawer" style="display:none">
-    <div class="drawer-overlay" onclick="toggleDrawer(false)"></div>
+    <div class="drawer-overlay" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)"></div>
     <div class="drawer-content">
+        <!-- Close tab on the right edge -->
+        <div class="drawer-close-tab" ontouchend="event.stopPropagation(); toggleDrawer(false)" onclick="toggleDrawer(false)" title="Menüyü Kapat">
+            ✕
+        </div>
         <div class="drawer-header">
             <div class="logo">🦟 Sivas VMS</div>
             <div class="sub">Yönetici Paneli</div>
-            <button class="drawer-close" onclick="toggleDrawer(false)">&times;</button>
+            <button class="drawer-close" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)">✕</button>
         </div>
         <nav class="drawer-nav">
-            <div style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">YÖNETİM SAYFALARI</div>
-            <a href="/admin/dashboard" class="drawer-item">📊 Ana Ekran</a>
-            <a href="/admin/planning" class="drawer-item">🗺️ Rota Planlama</a>
-            <a href="/admin/sessions" class="drawer-item">💉 İlaçlama Kayıtları</a>
-            <a href="/admin/vehicles" class="drawer-item">🚐 Araçlar</a>
-            <a href="/admin/personnel" class="drawer-item">👥 Personel</a>
-            <a href="/admin/chemicals" class="drawer-item">🧪 İlaç Stok</a>
-            <a href="/admin/reports" class="drawer-item">📈 Raporlar</a>
-            <a href="/admin/citizen-reports" class="drawer-item">📋 Vatandaş İhbar</a>
+            <div id="drawerAdminTitle" style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">YÖNETİM SAYFALARI</div>
+            <div id="drawerAdminLinks">
+                <a href="/admin/dashboard" class="drawer-item">📊 Ana Ekran</a>
+                <a href="/admin/planning" class="drawer-item">🗺️ Rota Planlama</a>
+                <a href="/admin/sessions" class="drawer-item">💉 İlaçlama Kayıtları</a>
+                <a href="/admin/vehicles" class="drawer-item">🚐 Araçlar</a>
+                <a href="/admin/personnel" class="drawer-item">👥 Personel</a>
+                <a href="/admin/chemicals" class="drawer-item">🧪 İlaç Stok</a>
+                <a href="/admin/reports" class="drawer-item">📈 Raporlar</a>
+                <a href="/admin/citizen-reports" class="drawer-item">📋 Vatandaş İhbar</a>
+            </div>
+            
+            <div style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-top: 16px; margin-bottom: 8px;">SAHA İŞLEMLERİ</div>
+            <a href="#" onclick="toggleDrawer(false); animateRoutePreview();" class="drawer-item" id="drawerPreviewBtn">▶️ Rota Önizle</a>
+            <a href="#" onclick="toggleDrawer(false); openGoogleNavigation();" class="drawer-item" id="drawerNavBtn">🗺️ Google Navigasyon</a>
+            <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item" style="color:var(--danger)">🚪 Oturumu Kapat</a>
         </nav>
     </div>
 </div>
@@ -294,15 +364,59 @@ if (TOKEN && USER.id) {
     window.location.href = '/';
 }
 
+// Mobil cihazlarda drawer'ı kesin olarak kapatmak için global olay dinleyicileri
+function setupDrawerClosers() {
+    const overlay = document.querySelector('.drawer-overlay');
+    const closeTab = document.querySelector('.drawer-close-tab');
+    const closeBtn = document.querySelector('.drawer-close');
+    
+    const forceClose = (e) => {
+        if (e) {
+            try { e.preventDefault(); } catch(err){}
+            try { e.stopPropagation(); } catch(err){}
+        }
+        toggleDrawer(false);
+    };
+
+    if (overlay) {
+        overlay.onclick = forceClose;
+        overlay.ontouchend = forceClose;
+    }
+    if (closeTab) {
+        closeTab.onclick = forceClose;
+        closeTab.ontouchend = forceClose;
+    }
+    if (closeBtn) {
+        closeBtn.onclick = forceClose;
+        closeBtn.ontouchend = forceClose;
+    }
+}
+// Sayfa yüklendiğinde veya dinamik olarak tetiklenebilir
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupDrawerClosers);
+} else {
+    setupDrawerClosers();
+}
+
 async function showApp(){
     document.getElementById('appScreen').style.display='flex';
     document.getElementById('mUserName').textContent=USER.full_name||'';
     const hamburgerBtn = document.getElementById('hamburgerBtn');
+    hamburgerBtn.style.display = 'flex';
+    
+    const adminTitle = document.getElementById('drawerAdminTitle');
+    const adminLinks = document.getElementById('drawerAdminLinks');
+    const drawerSub = document.getElementById('mobileDrawer') ? document.getElementById('mobileDrawer').querySelector('.sub') : null;
     if (USER.role === 'admin') {
-        hamburgerBtn.style.display = 'flex';
+        if (adminTitle) adminTitle.style.display = 'block';
+        if (adminLinks) adminLinks.style.display = 'block';
+        if (drawerSub) drawerSub.textContent = 'Yönetici Paneli';
     } else {
-        hamburgerBtn.style.display = 'none';
+        if (adminTitle) adminTitle.style.display = 'none';
+        if (adminLinks) adminLinks.style.display = 'none';
+        if (drawerSub) drawerSub.textContent = 'Saha Personel Paneli';
     }
+
     initMap();initSocket();startGPS();
     await loadAssignedRoute();
     loadMyAssignedReports();
@@ -559,14 +673,31 @@ async function loadMyAssignedReports() {
                 if (coords) {
                     const [lat, lng] = coords;
                     const color = r.status === 'işlemde' ? '#f59e0b' : '#ef4444';
-                    const emoji = r.status === 'işlemde' ? '🟡' : '🔴';
                     const marker = L.marker([lat, lng], {
                         icon: L.divIcon({
                             className: '',
-                            html: `<div style="position:relative; font-size:22px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));" class="blink">
-                                ${emoji}
+                            html: `<div style="
+                                width: 10px;
+                                height: 10px;
+                                background: ${color};
+                                border: 1.5px solid #fff;
+                                border-radius: 50%;
+                                box-shadow: 0 0 6px ${color}, 0 1px 3px rgba(0,0,0,0.5);
+                                position: relative;
+                            ">
+                                <div style="
+                                    position: absolute;
+                                    top: -4px;
+                                    left: -4px;
+                                    width: 15px;
+                                    height: 15px;
+                                    border: 1.5px solid ${color};
+                                    border-radius: 50%;
+                                    animation: pulse-ring 1.5s infinite;
+                                    opacity: 0.85;
+                                "></div>
                             </div>`,
-                            iconSize: [24, 24], iconAnchor: [12, 12]
+                            iconSize: [10, 10], iconAnchor: [5, 5]
                         })
                     }).addTo(reportMarkersLayer);
                     
@@ -622,6 +753,11 @@ async function loadMyAssignedReports() {
 function initMap(){
     map=L.map('mobileMap',{zoomControl:false}).setView([39.7477,37.0179],15);
     
+    // Haritaya tıklanıldığında/dokunulduğunda drawer açık ise otomatik kapansın
+    map.on('click mousedown touchstart', function() {
+        toggleDrawer(false);
+    });
+    
     const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         attribution: '© Google Maps',
         maxZoom: 22
@@ -633,11 +769,11 @@ function initMap(){
     const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
         attribution: '© Google Maps',
         maxZoom: 22
-    }).addTo(map); // Google Hybrid by default
+    }); // Google Hybrid
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19
-    });
+    }).addTo(map); // OpenStreetMap by default
 
     const baseMaps = {
         "Google Uydu + Hibrit": googleHybrid,
@@ -836,6 +972,9 @@ function initSocket(){
     if(USER && USER.id) socket.emit('join-field-user', USER.id);
     socket.on('citizen-report-assigned', (data) => {
         alert('📢 Yeni ihbar görevi atandı! Görevlerinizi kontrol edin.');
+        loadMyAssignedReports();
+    });
+    socket.on('citizen-report-deleted', (data) => {
         loadMyAssignedReports();
     });
 }
@@ -1146,8 +1285,16 @@ function checkAlreadySprayed(lat,lng){
 
 function toggleDrawer(open) {
     const drawer = document.getElementById('mobileDrawer');
-    if (drawer) {
-        drawer.style.display = open ? 'flex' : 'none';
+    if (!drawer) return;
+    if (open) {
+        drawer.classList.remove('closing');
+        drawer.style.display = 'flex';
+    } else {
+        drawer.classList.add('closing');
+        setTimeout(() => {
+            drawer.style.display = 'none';
+            drawer.classList.remove('closing');
+        }, 250);
     }
 }
 

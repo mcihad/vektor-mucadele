@@ -1,5 +1,5 @@
-const CACHE_NAME = 'vms-saha-v1';
-const STATIC_ASSETS = ['/', '/mobile/', '/css/main.css'];
+const CACHE_NAME = 'vms-saha-v2';
+const STATIC_ASSETS = ['/', '/mobile/', '/css/main.css?v=2'];
 
 self.addEventListener('install', (event) => {
     event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS)));

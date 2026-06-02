@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sivas Belediyesi - Vektörle Mücadele Kamu Bilgi Haritası</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: #0a0e1a;
+            font-family: 'Inter', -apple-system, sans-serif;
+        }
+        
+        #publicMap {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Floating Header */
+        .floating-header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            border-radius: 12px;
+            padding: 8px 16px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+        }
+
+        .header-main-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+
+        /* Expand / Collapse Button */
+        .header-expand-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: rgba(255,255,255,0.85);
+            border-radius: 8px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            outline: none;
+        }
+
+        .header-expand-btn:hover {
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            transform: scale(1.05);
+        }
+
+        .header-expand-btn span {
+            transition: transform 0.3s ease;
+            display: inline-block;
+        }
+        
+        .header-logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-logo-section .logo-emoji {
+            font-size: 24px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .header-title-section h1 {
+            font-size: 13.5px;
+            font-weight: 800;
+            margin: 0;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .header-title-section p {
+            font-size: 9px;
+            color: var(--text-secondary);
+            margin: 1px 0 0 0;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            font-weight: 600;
+        }
+
+        /* Glassmorphism Floating Info Card / Bottom Sheet */
+        .floating-info-card {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(99, 179, 237, 0.2);
+            border-radius: 16px;
+            padding: 24px 20px 20px 20px;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            color: #fff;
+            
+            /* Desktop transition state */
+            opacity: 0;
+            transform: translateY(15px);
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .floating-info-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Close Button inside Card */
+        .info-card-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.85);
+            border-radius: 50%;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: bold;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+
+        .info-card-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            transform: scale(1.05);
+        }
+
+        .info-card-title {
+            font-size: 13.5px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 8px;
+        }
+
+        .info-item {
+            font-size: 11.5px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .info-item b {
+            color: var(--accent);
+        }
+
+        /* Efficacy Colors Legend */
+        .legend-container {
+            margin-top: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 10.5px;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        /* Pulsing Action Button */
+        .floating-action-btn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #ef4444, #f97316);
+            color: #fff;
+            border-radius: 50px;
+            padding: 16px 28px;
+            z-index: 1000;
+            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+            font-weight: 800;
+            font-size: 14px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid rgba(255,255,255,0.25);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            animation: pulse-button 2s infinite;
+        }
+
+        .floating-action-btn:hover {
+            transform: scale(1.05) translateY(-3px);
+            box-shadow: 0 12px 35px rgba(239, 68, 68, 0.6);
+        }
+
+        @keyframes pulse-button {
+            0% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
+            50% { box-shadow: 0 10px 35px rgba(239, 68, 68, 0.8); }
+            100% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
+        }
+
+        /* Floating GPS Location Button */
+        .gps-locate-btn {
+            position: absolute;
+            bottom: 90px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(99, 179, 237, 0.3);
+            border-radius: 50%;
+            color: #fff;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 1000;
+        }
+
+        .gps-locate-btn:hover {
+            background: rgba(99, 179, 237, 0.2);
+            border-color: rgba(99, 179, 237, 0.6);
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(99, 179, 237, 0.35);
+        }
+
+        .gps-locate-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Custom Premium Dark Leaflet Popups */
+        .leaflet-popup-content-wrapper {
+            background: rgba(15, 23, 42, 0.96) !important;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(99, 179, 237, 0.25);
+            border-radius: 12px;
+            color: #fff !important;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            padding: 2px;
+        }
+
+        .leaflet-popup-tip {
+            background: rgba(15, 23, 42, 0.96) !important;
+            border-left: 1px solid rgba(99, 179, 237, 0.25);
+            border-bottom: 1px solid rgba(99, 179, 237, 0.25);
+            box-shadow: none !important;
+        }
+
+        .leaflet-popup-content {
+            margin: 12px 14px;
+            line-height: 1.5;
+            font-family: inherit;
+            color: #fff !important;
+        }
+
+        .leaflet-popup-content b, 
+        .leaflet-popup-content strong {
+            color: #fff !important;
+        }
+
+        .leaflet-popup-close-button {
+            color: rgba(255, 255, 255, 0.6) !important;
+            padding: 8px 8px 0 0 !important;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: #fff !important;
+        }
+
+        /* Wrapper for controls inside Header with Collapsible Transition */
+        .header-controls-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            margin-top: 0;
+            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.3s ease;
+        }
+
+        .floating-header.expanded .header-controls-wrapper {
+            max-height: 60px;
+            opacity: 1;
+            margin-top: 8px;
+        }
+
+        .map-toggle-group {
+            display: flex;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .map-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .map-toggle-btn.active {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 4px 12px var(--accent-glow);
+        }
+
+        /* Info Toggle Button */
+        .info-toggle-btn {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            color: #fff;
+            font-size: 10.5px;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-toggle-btn:hover {
+            background: rgba(255,255,255,0.12);
+            border-color: rgba(99, 179, 237, 0.4);
+        }
+
+        .info-toggle-btn.active {
+            background: rgba(99, 179, 237, 0.2);
+            border-color: rgba(99, 179, 237, 0.5);
+            color: #63b3ed;
+        }
+
+        /* Responsive UI & Premium Bottom Sheet Drawer */
+        @media (max-width: 768px) {
+            .floating-header {
+                top: 10px; left: 10px; right: 10px;
+                padding: 8px 12px;
+                flex-direction: column;
+                gap: 0;
+                align-items: stretch;
+            }
+            .floating-header.expanded {
+                padding-bottom: 12px;
+            }
+            .header-logo-section {
+                justify-content: flex-start;
+            }
+            .header-controls-wrapper {
+                flex-direction: row;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 4px;
+                max-height: 0;
+                opacity: 0;
+                margin-top: 0;
+                transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.35s ease;
+            }
+            .floating-header.expanded .header-controls-wrapper {
+                max-height: 140px;
+                opacity: 1;
+                margin-top: 10px;
+            }
+            .map-toggle-group {
+                flex: 1 1 auto;
+                justify-content: center;
+            }
+            .map-toggle-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 5px 4px;
+                font-size: 9.5px;
+                gap: 4px;
+            }
+            .info-toggle-btn {
+                flex: 1 1 100%;
+                justify-content: center;
+                padding: 5px 10px;
+                font-size: 10px;
+            }
+
+            /* Bottom Sheet styling for mobile info card */
+            .floating-info-card {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-radius: 24px 24px 0 0;
+                padding: 24px 20px 95px 20px;
+                z-index: 1005;
+                border-left: none;
+                border-right: none;
+                border-bottom: none;
+                
+                /* Keep opacity full, slide offscreen entirely */
+                opacity: 1;
+                transform: translateY(100%);
+                transition: transform 0.35s cubic-bezier(0.32, 0.94, 0.6, 1);
+            }
+
+            .floating-info-card.active {
+                transform: translateY(0);
+            }
+
+            .floating-action-btn {
+                bottom: 15px;
+                left: 15px;
+                right: 15px;
+                justify-content: center;
+                padding: 14px 20px;
+                font-size: 13px;
+                z-index: 1006; /* Above the bottom sheet */
+            }
+
+            .gps-locate-btn {
+                bottom: 80px;
+                right: 15px;
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+                z-index: 1004; /* Floating above the map layer, below bottom drawer */
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Floating Topbar Header -->
+    <div class="floating-header" id="floatingHeader">
+        <div class="header-main-row">
+            <div class="header-logo-section">
+                <span class="logo-emoji">🦟</span>
+                <div class="header-title-section">
+                    <h1>SİVAS VEKTÖRLE MÜCADELE</h1>
+                    <p>Kamu Bilgilendirme ve İzleme Portalı</p>
+                </div>
+            </div>
+            
+            <!-- Expand / Collapse controls button -->
+            <button class="header-expand-btn" onclick="toggleHeaderControls()" title="Menüyü Aç/Kapat">
+                <span id="expandChevron">▼</span>
+            </button>
+        </div>
+        
+        <div class="header-controls-wrapper">
+            <!-- Toggle map rendering style -->
+            <div class="map-toggle-group">
+                <button class="map-toggle-btn" id="btnToggleLines" onclick="setMapMode('lines')">🔀 Görünüm</button>
+                <button class="map-toggle-btn active" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
+            </div>
+
+            <!-- Toggle basemap -->
+            <div class="map-toggle-group">
+                <button class="map-toggle-btn active" id="btnBaseOsm" onclick="setBasemap('osm')">🗺️ Sokak</button>
+                <button class="map-toggle-btn" id="btnBaseSat" onclick="setBasemap('satellite')">🛰️ Uydu</button>
+            </div>
+
+            <!-- Toggle Info panel -->
+            <button class="info-toggle-btn" id="btnToggleInfo" onclick="toggleInfoCard()">
+                <span>ℹ️</span> <span>Bilgi & Lejant</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Floating Info Panel / Slide-up Bottom Sheet -->
+    <div class="floating-info-card" id="infoCard">
+        <button class="info-card-close" onclick="toggleInfoCard(false)">✕</button>
+        <div class="info-card-title">ℹ️ İlaçlama Etki Süresi Nedir?</div>
+        <div class="info-item">
+            Sivas genelinde sivrisinek, karasinek ve haşerelerle mücadele amacıyla caddelerimiz <b>misblower ve ULV cihazlarıyla</b> düzenli olarak ilaçlanmaktadır.
+        </div>
+        <div class="info-item">
+            Kullanılan ilaçların etkisi <b>30 gün boyunca</b> koruyuculuk sağlamaktadır. Haritada caddelerin etki durumu renk skalası ile gösterilir.
+        </div>
+        
+        <div class="legend-container">
+            <div class="legend-row">
+                <div class="legend-color" style="background:#10b981"></div>
+                <span>Yeni İlaçlanmış (0-10 gün)</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-color" style="background:#f59e0b"></div>
+                <span>Etki Devam Ediyor (11-20 gün)</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-color" style="background:#f97316"></div>
+                <span>Etkisi Azalıyor (21-25 gün)</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-color" style="background:#ef4444"></div>
+                <span>Koruma Süresi Dolanlar (26-30 gün)</span>
+            </div>
+            <div class="legend-row">
+                <div class="legend-color" style="background:#6b7280; border: 1px dashed rgba(255,255,255,0.3);"></div>
+                <span>Etkisi Tamamen Bitmiş</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating GPS Locate Button -->
+    <button class="gps-locate-btn" onclick="locateUser()" title="Konumuma Odaklan">
+        🎯
+    </button>
+
+    <!-- Floating Action Button -->
+    <a href="/ihbar" class="floating-action-btn">
+        <span>🚨</span>
+        <span>HAŞERE İHBARI GÖNDER</span>
+    </a>
+
+    <!-- Map Area -->
+    <div id="publicMap"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Leaflet Heatmap Plugin -->
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script>
+        let map;
+        let sprayedLinesGroup;
+        let sprayedHeatmapGroup;
+        let activeMode = 'heatmap'; // 'heatmap' or 'lines'
+        let osmLayer;
+        let satelliteLayer;
+        let isInfoOpen = false;
+        let isHeaderExpanded = false;
+
+        function toggleHeaderControls(forceState) {
+            const header = document.getElementById('floatingHeader');
+            const chevron = document.getElementById('expandChevron');
+            
+            if (typeof forceState === 'boolean') {
+                isHeaderExpanded = forceState;
+            } else {
+                isHeaderExpanded = !isHeaderExpanded;
+            }
+
+            header.classList.toggle('expanded', isHeaderExpanded);
+            chevron.innerHTML = isHeaderExpanded ? "▲" : "▼";
+        }
+
+        function initMap() {
+            // Default center Sivas Municipality coordinates
+            map = L.map('publicMap', { zoomControl: false }).setView([39.7477, 37.0179], 13);
+
+            // OpenStreetMap as default basemap
+            osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap | Sivas Belediyesi Vektör Kontrol',
+                maxZoom: 19
+            }).addTo(map);
+
+            satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps',
+                maxZoom: 22
+            });
+
+            L.control.zoom({ position: 'topright' }).addTo(map);
+
+            sprayedLinesGroup = L.layerGroup(); 
+            sprayedHeatmapGroup = L.layerGroup().addTo(map);
+            
+            loadSprayedData();
+
+            // Set default drawer and header state based on device viewport
+            if (window.innerWidth > 768) {
+                toggleInfoCard(true);
+                toggleHeaderControls(true);
+            } else {
+                toggleInfoCard(false);
+                toggleHeaderControls(false);
+            }
+        }
+
+        function getSprayStyle(daysRemaining) {
+            if (daysRemaining <= 0) return { color: '#6b7280', opacity: 0.45, weight: 3, dashArray: '4 4' };
+            if (daysRemaining <= 2) return { color: '#991b1b', opacity: 0.9, weight: 6, className: 'blink' };
+            if (daysRemaining <= 5) return { color: '#dc2626', opacity: 0.85, weight: 5 };
+            if (daysRemaining <= 10) return { color: '#ef4444', opacity: 0.8, weight: 5 };
+            if (daysRemaining <= 15) return { color: '#f97316', opacity: 0.75, weight: 4 };
+            if (daysRemaining <= 20) return { color: '#f59e0b', opacity: 0.7, weight: 4 };
+            if (daysRemaining <= 25) return { color: '#84cc16', opacity: 0.65, weight: 4 };
+            return { color: '#10b981', opacity: 0.8, weight: 5 };
+        }
+
+        async function loadSprayedData() {
+            try {
+                const res = await fetch('/api/reports/public/expiry-map');
+                const data = await res.json();
+                
+                if (!data || !data.streets) return;
+
+                const heatPoints = [];
+                sprayedLinesGroup.clearLayers();
+
+                data.streets.forEach(s => {
+                    if (s.geometry_geojson) {
+                        try {
+                            const geom = JSON.parse(s.geometry_geojson);
+                            const remaining = s.days_remaining || 0;
+                            const style = getSprayStyle(remaining);
+                            
+                            // 1. Çizgi Katmanı oluştur
+                            const layer = L.geoJSON(geom, { style: () => style });
+                            const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
+                            const sprayedDate = new Date(s.sprayed_at);
+                            const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
+                            
+                            layer.bindPopup(`
+                                <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #fff;">
+                                    <b style="font-size: 13px; color: #60a5fa;">📍 ${s.street_name || 'İlaçlama Hattı'}</b><br>
+                                    🏘️ <b>Mahalle:</b> ${s.neighborhood || '-'}<br>
+                                    🕐 <b>İlaçlama Saati:</b> ${sprayedStr}<br>
+                                    📅 <b>Eritme/Bitiş Tarihi:</b> ${expiresStr}<br>
+                                    ⏳ <b>Erişim/Etki:</b> ${daysText}
+                                </div>
+                            `);
+                            sprayedLinesGroup.addLayer(layer);
+
+                            // 2. Heatmap Noktalarını topla (Yalnızca aktif/koruyuculuğu olan ilaçlamaları heatmap yapalım)
+                            if (remaining > 0) {
+                                const intensity = remaining / 30; // Etki gün sayısına göre yoğunluk gücü verelim
+                                const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                                if (geometry) {
+                                    if (geometry.type === 'LineString') {
+                                        geometry.coordinates.forEach(c => {
+                                            heatPoints.push([c[1], c[0], intensity]);
+                                        });
+                                    } else if (geometry.type === 'MultiLineString') {
+                                        geometry.coordinates.forEach(line => {
+                                            line.forEach(c => {
+                                                heatPoints.push([c[1], c[0], intensity]);
+                                            });
+                                        });
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error("GeoJSON parsing error:", e);
+                        }
+                    }
+                });
+
+                // 3. Heatmap Katmanını kur
+                if (heatPoints.length > 0) {
+                    const heatLayer = L.heatLayer(heatPoints, {
+                        radius: 20,
+                        blur: 15,
+                        maxZoom: 16,
+                        max: 0.9,
+                        gradient: { 0.3: '#3b82f6', 0.5: '#06b6d4', 0.7: '#10b981', 0.85: '#f59e0b', 1.0: '#ef4444' }
+                    });
+                    sprayedHeatmapGroup.addLayer(heatLayer);
+                }
+
+            } catch (err) {
+                console.error("Veriler yüklenemedi:", err);
+            }
+        }
+
+        function setMapMode(mode) {
+            activeMode = mode;
+            document.getElementById('btnToggleLines').classList.toggle('active', mode === 'lines');
+            document.getElementById('btnToggleHeatmap').classList.toggle('active', mode === 'heatmap');
+
+            if (mode === 'lines') {
+                map.removeLayer(sprayedHeatmapGroup);
+                map.addLayer(sprayedLinesGroup);
+            } else {
+                map.removeLayer(sprayedLinesGroup);
+                map.addLayer(sprayedHeatmapGroup);
+            }
+        }
+
+        function setBasemap(type) {
+            document.getElementById('btnBaseOsm').classList.toggle('active', type === 'osm');
+            document.getElementById('btnBaseSat').classList.toggle('active', type === 'satellite');
+
+            if (type === 'osm') {
+                map.removeLayer(satelliteLayer);
+                map.addLayer(osmLayer);
+            } else {
+                map.removeLayer(osmLayer);
+                map.addLayer(satelliteLayer);
+            }
+        }
+
+        function toggleInfoCard(forceState) {
+            const card = document.getElementById('infoCard');
+            const btn = document.getElementById('btnToggleInfo');
+            
+            if (typeof forceState === 'boolean') {
+                isInfoOpen = forceState;
+            } else {
+                isInfoOpen = !isInfoOpen;
+            }
+
+            card.classList.toggle('active', isInfoOpen);
+            btn.classList.toggle('active', isInfoOpen);
+        }
+
+        let userLocationMarker = null;
+
+        function locateUser() {
+            if (!navigator.geolocation) {
+                alert("Tarayıcınız konum servislerini desteklemiyor.");
+                return;
+            }
+
+            const gpsBtn = document.querySelector('.gps-locate-btn');
+            const originalContent = gpsBtn.innerHTML;
+            gpsBtn.innerHTML = "⏳";
+            gpsBtn.style.pointerEvents = "none";
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    gpsBtn.innerHTML = originalContent;
+                    gpsBtn.style.pointerEvents = "auto";
+
+                    if (userLocationMarker) {
+                        map.removeLayer(userLocationMarker);
+                    }
+
+                    userLocationMarker = L.circleMarker([lat, lng], {
+                        radius: 8,
+                        fillColor: '#3b82f6',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map);
+
+                    userLocationMarker.bindPopup(`
+                        <div style="font-family: inherit; font-size: 12px; color: #fff; text-align: center;">
+                            <b>📍 Mevcut Konumunuz</b><br>
+                            Konum çevresindeki ilaçlama yoğunluğunu inceleyebilirsiniz.
+                        </div>
+                    `).openPopup();
+
+                    map.setView([lat, lng], 15, { animate: true });
+                },
+                (error) => {
+                    gpsBtn.innerHTML = originalContent;
+                    gpsBtn.style.pointerEvents = "auto";
+                    
+                    let msg = "Konumunuza erişilemedi.";
+                    if (error.code === error.PERMISSION_DENIED) {
+                        msg = "Konum erişim izni reddedildi. Lütfen tarayıcı ayarlarından konum izni verin.";
+                    }
+                    alert(msg);
+                },
+                { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+            );
+        }
+
+        initMap();
+    </script>
+</body>
+</html>

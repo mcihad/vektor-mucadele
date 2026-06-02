@@ -145,6 +145,26 @@ module.exports = function(io) {
         }
     });
 
+    // Delete report (authorized admins only)
+    router.delete('/:id', authMiddleware, async (req, res) => {
+        const db = getDb();
+        try {
+            await db.run("DELETE FROM citizen_reports WHERE id = ?", [req.params.id]);
+            saveDatabase();
+
+            // Socket.io: Notify all clients that a report has been deleted
+            if (io) {
+                io.emit('citizen-report-deleted', {
+                    report_id: parseInt(req.params.id)
+                });
+            }
+
+            res.json({ message: 'İhbar başarıyla silindi' });
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // Get report stats
     router.get('/stats/summary', authMiddleware, async (req, res) => {
         const db = getDb();
