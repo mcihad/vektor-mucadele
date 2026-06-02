@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sivas VMS - Giriş</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <style>
+        body {
+            background-image: linear-gradient(rgba(10, 14, 26, 0.65), rgba(10, 14, 26, 0.65)), url('/icons/sivas_bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        body::before {
+            display: none !important;
+        }
+        .login-container {
+            background: transparent !important;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+        .login-card {
+            background: rgba(26, 34, 54, 0.85) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        }
+        .role-selector{display:flex;gap:8px;margin-bottom:20px;background:var(--bg-secondary);border-radius:10px;padding:4px}
+        .role-btn{flex:1;padding:10px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-secondary);font-family:inherit;transition:var(--transition)}
+        .role-btn.active{background:var(--accent);color:#fff}
+        .credentials-hint{background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:10px;margin-top:16px;font-size:11px;color:var(--text-muted);line-height:1.6}
+        .credentials-hint b{color:var(--text-secondary)}
+        .conn-status{font-size:11px;text-align:center;margin-bottom:12px;padding:6px;border-radius:6px}
+        .conn-ok{background:rgba(16,185,129,0.1);color:#10b981}
+        .conn-err{background:rgba(239,68,68,0.1);color:#ef4444}
+
+        /* Elegant Signature Container without Dark Background Box */
+        .signature-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 100;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            padding: 0 !important;
+            max-width: 320px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .signature-container:hover {
+            transform: translateY(-3px);
+        }
+        .signature-logo {
+            height: 52px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.85)) drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+            margin-bottom: 2px;
+            transition: transform 0.3s ease;
+        }
+        .signature-container:hover .signature-logo {
+            transform: scale(1.05);
+        }
+        .signature-title {
+            font-size: 10px;
+            color: #3b82f6; /* Modern aesthetic blue accent */
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.7);
+        }
+        .signature-dept {
+            font-size: 11px;
+            color: #ffffff;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.7);
+        }
+        .signature-by {
+            font-size: 9.5px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+            font-style: italic;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6);
+        }
+        @media (max-width: 768px) {
+            .signature-container {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                margin: 20px auto;
+                max-width: 90%;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-card" style="position:relative; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08);">
+        <!-- Sivas Belediyesi Circular Logo -->
+        <div style="text-align:center;margin-bottom:20px;">
+            <img src="/icons/sivas_logo.jpg" alt="Sivas Belediyesi" style="width:110px;height:110px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:2.5px solid #1e3a8a;object-fit:contain;">
+        </div>
+        <h1 style="font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.2; margin-bottom:2px; text-align:center;">SİVAS BELEDİYESİ</h1>
+        <h2 style="font-size:13.5px; font-weight:700; color:var(--accent); margin-bottom:6px; letter-spacing:0.2px; text-align:center;">Veteriner İşleri Müdürlüğü</h2>
+        <p class="subtitle" style="font-size:11.5px; color:var(--text-muted); margin-bottom:20px; font-weight:500; text-align:center;">Vektörle Mücadele Yönetim Sistemi</p>
+        
+        <div id="connStatus" class="conn-status"></div>
+        
+        <div class="role-selector">
+            <button class="role-btn active" onclick="setRole('admin',this)">🖥️ Yönetici</button>
+            <button class="role-btn" onclick="setRole('field',this)">📱 Saha Personeli</button>
+        </div>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label class="form-label">Kullanıcı Adı</label>
+                <input type="text" class="form-input" id="username" placeholder="admin" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Şifre</label>
+                <input type="password" class="form-input" id="password" placeholder="••••••" required>
+            </div>
+            <div id="loginError" style="color:var(--danger);font-size:12px;margin-bottom:12px;display:none;"></div>
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px; font-weight:700; letter-spacing:0.5px;" id="loginBtn">
+                Giriş Yap
+            </button>
+        </form>
+        
+        <div class="credentials-hint">
+            <b>Yönetici:</b> admin / admin123<br>
+            <b>Saha Personeli:</b> ufuk, ahmet, kamil, alperen, samet, tolga, koray, enes, onur<br>
+            <b>Saha Şifre:</b> sivas2024
+        </div>
+        
+        <!-- Glowing Citizen Report Button -->
+        <div style="text-align:center;margin-top:20px;border-top:1px solid rgba(255,255,255,0.08);padding-top:20px;">
+            <a href="/ihbar" class="btn btn-outline" style="width:100%;justify-content:center;font-size:13px;font-weight:700;border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,0.06);transition:all 0.25s ease;display:flex;align-items:center;gap:6px;box-shadow:0 0 16px rgba(59,130,246,0.25);border-width:1.5px;" onmouseover="this.style.background='#3b82f6';this.style.color='#fff';this.style.boxShadow='0 0 24px rgba(59,130,246,0.5)';" onmouseout="this.style.background='rgba(59,130,246,0.06)';this.style.color='#3b82f6';this.style.boxShadow='0 0 16px rgba(59,130,246,0.25)';">
+                📢 Vatandaş İhbar Girişi
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Department Signature and Logo in Bottom-Right Corner -->
+<div class="signature-container">
+    <img src="/icons/akilli_sehir_logo.png" alt="Akıllı Şehir" class="signature-logo">
+    <div class="signature-title">SİVAS BELEDİYESİ</div>
+    <div class="signature-dept">Akıllı Şehir ve Kent Bilgi Sistemleri Müdürlüğü</div>
+    <div class="signature-by">Tarafından Hazırlanmıştır</div>
+</div>
+
+<script>
+let selectedRole = 'admin';
+
+function setRole(role, btn) {
+    selectedRole = role;
+    document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (role === 'admin') {
+        document.getElementById('username').placeholder = 'admin';
+    } else {
+        document.getElementById('username').placeholder = 'ufuk, ahmet, kamil...';
+    }
+}
+
+// Sunucu bağlantı kontrolü
+async function checkConnection() {
+    const el = document.getElementById('connStatus');
+    try {
+        const res = await fetch('/api/auth/login', { method: 'OPTIONS' }).catch(() => null);
+        // Basit bir health check - sunucu cevap veriyorsa tamam
+        const res2 = await fetch('/api/vehicles', { 
+            headers: { 'Authorization': 'Bearer test' } 
+        }).catch(() => null);
+        if (res2) {
+            el.className = 'conn-status conn-ok';
+            el.textContent = '✅ Sunucu bağlantısı aktif';
+        } else {
+            throw new Error();
+        }
+    } catch (e) {
+        el.className = 'conn-status conn-err';
+        el.textContent = '❌ Sunucu bağlantısı yok - Lütfen sunucunun çalıştığından emin olun (npm start)';
+    }
+}
+checkConnection();
+
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById('loginError');
+    const btn = document.getElementById('loginBtn');
+    errEl.style.display = 'none';
+    btn.disabled = true;
+    btn.textContent = 'Giriş yapılıyor...';
+    
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: document.getElementById('username').value.trim().toLowerCase(),
+                password: document.getElementById('password').value
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        
+        if (selectedRole === 'admin' && data.user.role !== 'admin') {
+            throw new Error('Yetki Hatası: Saha personeli yönetici paneline giriş yapamaz!');
+        }
+        if (selectedRole === 'field' && data.user.role !== 'field') {
+            throw new Error('Yetki Hatası: Bu kullanıcı saha personeli değildir!');
+        }
+        
+        localStorage.setItem('vms_token', data.token);
+        localStorage.setItem('vms_user', JSON.stringify(data.user));
+        if (data.user.role === 'admin') {
+            window.location.href = '/admin/dashboard';
+        } else {
+            window.location.href = '/mobile/';
+        }
+    } catch (err) {
+        let msg = err.message || 'Giriş hatası';
+        if (msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('fetch')) {
+            msg = 'Sunucuya bağlanılamıyor! Sunucunun çalıştığından emin olun (npm start komutu ile başlatın).';
+        }
+        errEl.textContent = msg;
+        errEl.style.display = 'block';
+        btn.disabled = false;
+        btn.textContent = 'Giriş Yap';
+    }
+});
+
+if (localStorage.getItem('vms_token')) {
+    const u = JSON.parse(localStorage.getItem('vms_user') || '{}');
+    if (u.role === 'admin') window.location.href = '/admin/dashboard';
+    else window.location.href = '/mobile/';
+}
+</script>
+</body>
+</html>

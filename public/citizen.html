@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sivas Belediyesi - Haşere İhbar</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        .citizen-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; background:#0f172a; }
+        .citizen-card { width:100%; max-width:540px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow-lg); }
+        .citizen-card h1 { font-size:22px; text-align:center; margin-bottom:4px; color:#fff; }
+        .citizen-card .sub { text-align:center; font-size:13px; color:var(--text-muted); margin-bottom:24px; }
+        .success-msg { text-align:center; padding:40px 20px; }
+        .success-msg .icon { font-size:64px; margin-bottom:16px; }
+        .success-msg h2 { color:var(--success); margin-bottom:8px; }
+        .map-container { height:220px; border-radius:8px; border:1px solid var(--border); margin-bottom:8px; overflow:hidden; }
+        .gps-alert { background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.3); color:#f87171; padding:10px 14px; border-radius:6px; font-size:11px; margin-bottom:16px; text-align:center; font-weight:500; }
+        .gps-alert.success { background:rgba(16, 185, 129, 0.1); border:1px solid rgba(16, 185, 129, 0.3); color:#34d399; }
+    </style>
+</head>
+<body>
+<div class="citizen-page">
+    <div class="citizen-card" id="formCard">
+        <div style="text-align:center;font-size:40px;margin-bottom:8px;">🦟</div>
+        <h1>Haşere İhbar Formu</h1>
+        <p class="sub">Sivas Belediyesi Veteriner İşleri Müdürlüğü</p>
+
+        <form id="reportForm">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Adınız Soyadınız</label>
+                    <input type="text" class="form-input" id="rName" placeholder="Adınız Soyadınız">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefon Numaranız *</label>
+                    <input type="tel" class="form-input" id="rPhone" placeholder="05XX XXX XX XX" required>
+                </div>
+            </div>
+            
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">İhbar Türü</label>
+                    <select class="form-select" id="rType">
+                        <option value="sivrisinek">🦟 Sivrisinek</option>
+                        <option value="karasinek">🪰 Karasinek</option>
+                        <option value="kemirgen">🐀 Kemirgen</option>
+                        <option value="haşere">🐛 Diğer Haşere</option>
+                        <option value="larva">💧 Su Birikintisi/Larva</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Öncelik</label>
+                    <select class="form-select" id="rPriority">
+                        <option value="normal">Normal</option>
+                        <option value="yüksek">Yüksek</option>
+                        <option value="acil">Acil</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Mahalle *</label>
+                <select class="form-select" id="rNeighborhood" required>
+                    <option value="">Yükleniyor...</option>
+                </select>
+            </div>
+
+            <!-- Draggable Map Selector -->
+            <div class="form-group">
+                <label class="form-label">Haritadan Konum Seçin / Doğrulayın *</label>
+                <div id="citizenMap" class="map-container"></div>
+                <div style="display:flex; gap:8px; margin-bottom:8px;">
+                    <button type="button" class="btn btn-outline" style="flex:1; justify-content:center; font-size:11px;" onclick="getLocation()">📍 GPS Konumumu Bul</button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Adres / Açıklama *</label>
+                <textarea class="form-textarea" id="rDesc" rows="3" placeholder="Lütfen sorunu ve adresi detaylı yazınız..." required></textarea>
+            </div>
+
+            <div class="gps-alert" id="gpsAlert">
+                ⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%;justify-content:center;" disabled>📨 İhbar Gönder</button>
+        </form>
+    </div>
+
+    <div class="citizen-card" id="successCard" style="display:none;">
+        <div class="success-msg">
+            <div class="icon">✅</div>
+            <h2>İhbarınız Alındı!</h2>
+            <p style="color:var(--text-secondary);margin-bottom:24px;">Ekiplerimiz en kısa sürede değerlendirecektir. Teşekkür ederiz.</p>
+            <button class="btn btn-primary btn-lg" onclick="resetForm()">Yeni İhbar</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+let userLat = null, userLng = null;
+let map = null, marker = null;
+
+// Initialize Sivas Map
+function initMap() {
+    map = L.map('citizenMap').setView([39.7477, 37.0179], 13);
+    
+    // Google Hybrid Tile Layer for realistic satellite view
+    L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 20
+    }).addTo(map);
+
+    // Draggable marker
+    marker = L.marker([39.7477, 37.0179], { draggable: true }).addTo(map);
+
+    marker.on('dragend', function() {
+        const pos = marker.getLatLng();
+        updateCoordinates(pos.lat, pos.lng, true);
+    });
+
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        updateCoordinates(e.latlng.lat, e.latlng.lng, true);
+    });
+}
+initMap();
+
+// Load Sivas neighborhoods dynamically from public endpoint
+async function loadNeighborhoods() {
+    try {
+        const res = await fetch('/api/routes/public/neighborhoods');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+            const select = document.getElementById('rNeighborhood');
+            select.innerHTML = '<option value="">Seçiniz</option>' +
+                data.map(n => `<option value="${n.name}">${n.name}</option>`).join('');
+        } else {
+            document.getElementById('rNeighborhood').innerHTML = '<option value="">Hata oluştu</option>';
+        }
+    } catch(err) {
+        console.error("Mahalleler yüklenemedi:", err);
+        document.getElementById('rNeighborhood').innerHTML = '<option value="">Yüklenemedi</option>';
+    }
+}
+loadNeighborhoods();
+
+// Set coordinates & perform reverse geocoding to auto-fill address/neighborhood
+async function updateCoordinates(lat, lng, doGeocode = true) {
+    userLat = lat;
+    userLng = lng;
+    
+    const alertEl = document.getElementById('gpsAlert');
+    alertEl.className = "gps-alert success";
+    alertEl.innerHTML = `✅ Konum Seçildi: <b>${lat.toFixed(5)}, ${lng.toFixed(5)}</b>`;
+    document.getElementById('submitBtn').disabled = false;
+
+    if (doGeocode) {
+        try {
+            const res = await fetch(`/api/routes/geocoding/reverse?lat=${lat}&lng=${lng}`);
+            const data = await res.json();
+            if (data && data.address) {
+                // Autofill the address into description
+                const descTextarea = document.getElementById('rDesc');
+                let cleanVal = descTextarea.value.replace(/^Adres: .*\n\n/, ""); // Remove old autofilled address if exists
+                descTextarea.value = `Adres: ${data.address}\n\n` + cleanVal;
+                
+                // Autoselect neighborhood
+                if (data.neighborhood) {
+                    const select = document.getElementById('rNeighborhood');
+                    const upperNeighborhood = data.neighborhood.toUpperCase('tr-TR');
+                    for (let option of select.options) {
+                        if (option.value.toUpperCase('tr-TR') === upperNeighborhood || option.value.toUpperCase('tr-TR').includes(upperNeighborhood) || upperNeighborhood.includes(option.value.toUpperCase('tr-TR'))) {
+                            select.value = option.value;
+                            break;
+                        }
+                    }
+                }
+            }
+        } catch(e) {
+            console.error("Adres ters sorgulama hatası:", e);
+        }
+    }
+}
+
+async function getLocation() {
+    if (!navigator.geolocation) { 
+        alert('Tarayıcınız konum desteklemiyor'); 
+        return; 
+    }
+    
+    const alertEl = document.getElementById('gpsAlert');
+    alertEl.className = "gps-alert";
+    alertEl.textContent = '📡 GPS konumu alınıyor... Lütfen bekleyin.';
+    
+    navigator.geolocation.getCurrentPosition(
+        async (pos) => { 
+            const lat = pos.coords.latitude; 
+            const lng = pos.coords.longitude; 
+            
+            marker.setLatLng([lat, lng]);
+            map.setView([lat, lng], 17);
+            updateCoordinates(lat, lng, true);
+        },
+        (err) => { 
+            alertEl.className = "gps-alert";
+            alertEl.innerHTML = `❌ Konum alınamadı: ${err.message}. <br><b>Lütfen yukarıdaki haritaya tıklayarak konumunuzu elle seçin!</b>`;
+            alert('GPS konumu alınamadı. Haritaya tıklayarak konumunuzu elle seçebilirsiniz.');
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+    );
+}
+
+document.getElementById('reportForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!userLat || !userLng) {
+        alert("Lütfen ihbar gönderebilmek için haritadan bir nokta seçin veya GPS konumunuzu paylaşın!");
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Gönderiliyor...';
+
+    try {
+        const res = await fetch('/api/citizen-reports', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                reporter_name: document.getElementById('rName').value,
+                reporter_phone: document.getElementById('rPhone').value,
+                report_type: document.getElementById('rType').value,
+                neighborhood: document.getElementById('rNeighborhood').value,
+                description: document.getElementById('rDesc').value,
+                priority: document.getElementById('rPriority').value,
+                latitude: userLat,
+                longitude: userLng
+            })
+        });
+        if (res.ok) {
+            document.getElementById('formCard').style.display = 'none';
+            document.getElementById('successCard').style.display = 'block';
+        } else {
+            alert('İhbar gönderilemedi. Lütfen tüm alanları kontrol edin.');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '📨 İhbar Gönder';
+        }
+    } catch(err) { 
+        alert('Hata oluştu. Lütfen tekrar deneyin.'); 
+        submitBtn.disabled = false;
+        submitBtn.textContent = '📨 İhbar Gönder';
+    }
+});
+
+function resetForm() {
+    document.getElementById('formCard').style.display = 'block';
+    document.getElementById('successCard').style.display = 'none';
+    document.getElementById('reportForm').reset();
+    userLat = null; userLng = null;
+    document.getElementById('gpsAlert').className = "gps-alert";
+    document.getElementById('gpsAlert').innerHTML = `⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**`;
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('submitBtn').textContent = '📨 İhbar Gönder';
+    marker.setLatLng([39.7477, 37.0179]);
+    map.setView([39.7477, 37.0179], 13);
+}
+</script>
+</body>
+</html>

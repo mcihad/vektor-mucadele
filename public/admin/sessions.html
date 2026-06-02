@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - İlaçlama Kayıtları</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item active"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+
+<div class="main-content">
+    <header class="topbar">
+        <div class="topbar-title">💉 İlaçlama Kayıtları</div>
+        <button class="btn btn-primary" onclick="openNewSession()">+ Yeni İlaçlama</button>
+    </header>
+
+    <div class="page-content">
+        <!-- Filters -->
+        <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+                <div class="form-group" style="margin:0;min-width:140px;">
+                    <label class="form-label">Durum</label>
+                    <select class="form-select" id="filterStatus" onchange="loadSessions()">
+                        <option value="">Tümü</option>
+                        <option value="planned">Planlandı</option>
+                        <option value="active">Aktif</option>
+                        <option value="completed">Tamamlandı</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0;min-width:140px;">
+                    <label class="form-label">Başlangıç</label>
+                    <input type="date" class="form-input" id="filterFrom" onchange="loadSessions()">
+                </div>
+                <div class="form-group" style="margin:0;min-width:140px;">
+                    <label class="form-label">Bitiş</label>
+                    <input type="date" class="form-input" id="filterTo" onchange="loadSessions()">
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="clearFilters()">Temizle</button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Araç</th><th>Ekip</th><th>Mahalle</th>
+                            <th>Uygulama</th><th>Başlangıç</th><th>Bitiş</th>
+                            <th>Mesafe</th><th>İlaç</th><th>Durum</th><th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sessionTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Session Modal -->
+<div class="modal-overlay" id="sessionModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">💉 Yeni İlaçlama Oturumu</div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form id="sessionForm">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Araç *</label>
+                    <select class="form-select" id="sVehicle" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Uygulama Türü</label>
+                    <select class="form-select" id="sAppType"></select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Şoför *</label>
+                    <select class="form-select" id="sDriver" required></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Operatör *</label>
+                    <select class="form-select" id="sOperator" required></select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Mahalle</label>
+                    <select class="form-select" id="sNeighborhood"></select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">İlaç</label>
+                    <select class="form-select" id="sChemical"></select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Notlar</label>
+                <textarea class="form-textarea" id="sNotes" rows="2"></textarea>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">İptal</button>
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+function logout() { localStorage.clear(); window.location.href = '/'; }
+
+async function api(url, opts = {}) {
+    const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
+    return res.json();
+}
+function toast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+async function loadSessions() {
+    const status = document.getElementById('filterStatus').value;
+    const from = document.getElementById('filterFrom').value;
+    const to = document.getElementById('filterTo').value;
+    let url = '/api/sessions?';
+    if (status) url += `status=${status}&`;
+    if (from) url += `date_from=${from}&`;
+    if (to) url += `date_to=${to}&`;
+
+    let sessions = await api(url);
+    
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchVal = urlParams.get('search');
+    if (searchVal) {
+        sessions = (sessions || []).filter(s => 
+            s.id.toString() === searchVal.trim() || 
+            (s.plate && s.plate.toLowerCase().includes(searchVal.toLowerCase())) ||
+            (s.neighborhood && s.neighborhood.toLowerCase().includes(searchVal.toLowerCase()))
+        );
+        toast(`Filtrelenen Oturum: #${searchVal}`, 'info');
+    }
+    
+    const tbody = document.getElementById('sessionTable');
+    tbody.innerHTML = sessions.map(s => {
+        const statusBadge = s.status === 'completed' ? 'badge-success' : s.status === 'active' ? 'badge-warning' : 'badge-info';
+        const statusText = s.status === 'completed' ? 'Tamamlandı' : s.status === 'active' ? 'Aktif' : 'Planlandı';
+        
+        const intakeInfo = s.intake_chemical_name
+            ? `<div style="margin-top:6px; font-size:9px; color:#10b981; line-height:1.3; background:rgba(16,185,129,0.06); padding:4px 8px; border-radius:6px; border:1px solid rgba(16,185,129,0.15); display:block; max-width:180px;">
+                🧪 <b>Dolum:</b> ${s.intake_chemical_name}<br>
+                ⚖️ <b>Miktar:</b> ${s.intake_amount_lt} lt<br>
+                👤 <b>Kimden:</b> ${s.intake_received_from || '-'}<br>
+                📅 <b>Tarih:</b> ${s.intake_date ? new Date(s.intake_date).toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-'}
+               </div>`
+            : '';
+
+        return `<tr>
+            <td>#${s.id}</td>
+            <td><strong>${s.plate || '-'}</strong><br><span style="font-size:10px;color:var(--text-muted)">${s.machine_name || ''}</span></td>
+            <td>${s.driver_name || '-'}<br><span style="font-size:10px;color:var(--text-muted)">${s.operator_name || ''}</span></td>
+            <td>${s.neighborhood || '-'}</td>
+            <td style="font-size:11px;">${s.application_type || '-'}</td>
+            <td style="font-size:11px;">${s.start_time ? new Date(s.start_time).toLocaleString('tr-TR') : '-'}</td>
+            <td style="font-size:11px;">${s.end_time ? new Date(s.end_time).toLocaleString('tr-TR') : '-'}</td>
+            <td>${Number(s.total_km || 0).toFixed(1)} km</td>
+            <td>
+                ${Number(s.chemical_used_lt || 0).toFixed(1)} lt
+                ${intakeInfo}
+            </td>
+            <td><span class="badge ${statusBadge}">${statusText}</span></td>
+            <td>
+                <div style="display:flex;gap:4px;align-items:center;">
+                    ${s.status === 'planned' ? `<button class="btn btn-sm btn-success" onclick="startSession(${s.id})">▶ Başlat</button>` : ''}
+                    ${s.status === 'active' ? `<button class="btn btn-sm btn-danger" onclick="endSession(${s.id})">⏹ Bitir</button>` : ''}
+                    <button class="btn btn-sm btn-outline btn-danger" style="padding:2px 6px;color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deleteSession(${s.id})">🗑️ Sil</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted)">Kayıt bulunamadı</td></tr>';
+}
+
+function clearFilters() {
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterFrom').value = '';
+    document.getElementById('filterTo').value = '';
+    loadSessions();
+}
+
+async function openNewSession() {
+    // Load dropdowns
+    const [vehicles, personnel, chemicals, neighborhoods, appTypes] = await Promise.all([
+        api('/api/vehicles'), api('/api/personnel'), api('/api/chemicals'),
+        api('/api/routes/neighborhoods'), api('/api/routes/application-types')
+    ]);
+
+    document.getElementById('sVehicle').innerHTML = vehicles.map(v => `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`).join('');
+    document.getElementById('sDriver').innerHTML = personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('sOperator').innerHTML = personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('sChemical').innerHTML = '<option value="">Seçiniz</option>' + chemicals.map(c => `<option value="${c.id}">${c.name} (${c.stock_amount}lt)</option>`).join('');
+    document.getElementById('sNeighborhood').innerHTML = '<option value="">Seçiniz</option>' + neighborhoods.map(n => `<option value="${n.name}">${n.name}</option>`).join('');
+    document.getElementById('sAppType').innerHTML = appTypes.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
+
+    document.getElementById('sessionModal').classList.add('active');
+}
+
+function closeModal() { document.getElementById('sessionModal').classList.remove('active'); }
+
+document.getElementById('sessionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await api('/api/sessions', {
+        method: 'POST',
+        body: JSON.stringify({
+            vehicle_id: document.getElementById('sVehicle').value,
+            driver_id: document.getElementById('sDriver').value,
+            operator_id: document.getElementById('sOperator').value,
+            chemical_id: document.getElementById('sChemical').value || null,
+            neighborhood: document.getElementById('sNeighborhood').value,
+            application_type: document.getElementById('sAppType').value,
+            notes: document.getElementById('sNotes').value
+        })
+    });
+    closeModal();
+    toast('İlaçlama oturumu oluşturuldu', 'success');
+    loadSessions();
+});
+
+async function startSession(id) {
+    await api(`/api/sessions/${id}/start`, { method: 'POST' });
+    toast('İlaçlama başlatıldı', 'success');
+    loadSessions();
+}
+
+async function endSession(id) {
+    const km = prompt('Toplam mesafe (km):');
+    const chem = prompt('Kullanılan ilaç (lt):');
+    await api(`/api/sessions/${id}/end`, {
+        method: 'POST',
+        body: JSON.stringify({ total_km: parseFloat(km) || 0, chemical_used_lt: parseFloat(chem) || 0 })
+    });
+    toast('İlaçlama tamamlandı', 'success');
+    loadSessions();
+}
+
+async function deleteSession(id) {
+    if (!confirm('Bu ilaçlama kaydını ve ilişkili tüm GPS/sokak verilerini kalıcı olarak silmek istediğinize emin misiniz?')) return;
+    try {
+        const res = await api(`/api/sessions/${id}`, { method: 'DELETE' });
+        if (res.error) {
+            toast('Hata: ' + res.error, 'error');
+        } else {
+            toast('İlaçlama kaydı başarıyla silindi', 'success');
+            loadSessions();
+        }
+    } catch(err) {
+        toast('Hata oluştu: ' + err.message, 'error');
+    }
+}
+
+loadSessions();
+</script>
+</body>
+</html>

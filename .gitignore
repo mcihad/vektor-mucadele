@@ -1,0 +1,22 @@
+# Ortam dosyaları (hassas bilgiler)
+.env
+.env.*
+!.env.example
+
+# Windows Batch Dosyaları
+*.bat
+
+# Bağımlılıklar (belediye bilgisayarında yeniden yüklenecek)
+node_modules/
+
+# Test dosyaları
+test_db_conn.js
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store

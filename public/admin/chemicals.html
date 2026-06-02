@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - İlaç Stok Yönetimi</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item active"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar">
+        <div class="topbar-title">🧪 İlaç Stok Yönetimi</div>
+        <button class="btn btn-primary" onclick="openAddStock()">+ Stok Girişi</button>
+    </header>
+    <div class="page-content">
+        <div class="stats-grid" id="stockCards"></div>
+        <div class="card">
+            <div class="card-header"><span class="card-title">İlaç Envanteri</span></div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>İlaç Adı</th><th>Tür</th><th>Stok</th><th>Min Uyarı</th><th>Durum</th><th>İşlem</th></tr></thead>
+                    <tbody id="chemTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="stockModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">📦 Stok Girişi</div>
+            <button class="modal-close" onclick="document.getElementById('stockModal').classList.remove('active')">&times;</button>
+        </div>
+        <form id="stockForm">
+            <div class="form-group">
+                <label class="form-label">İlaç</label>
+                <select class="form-select" id="stockChemical" required></select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Miktar (lt)</label>
+                <input type="number" class="form-input" id="stockAmount" step="0.1" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Açıklama</label>
+                <input type="text" class="form-input" id="stockDesc" placeholder="Tedarikçi, fatura no, vs.">
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('stockModal').classList.remove('active')">İptal</button>
+                <button type="submit" class="btn btn-success">Ekle</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+function logout() { localStorage.clear(); window.location.href = '/'; }
+async function api(url, opts={}) { const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } }); return res.json(); }
+function toast(msg,type='info'){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),4000);}
+
+async function load() {
+    const chems = await api('/api/chemicals');
+    const colors = ['blue','green','orange','purple','blue'];
+    document.getElementById('stockCards').innerHTML = chems.map((c,i) => {
+        const low = c.stock_amount <= c.min_stock_alert;
+        return `<div class="stat-card ${low ? 'orange' : colors[i%5]}">
+            <div class="stat-icon ${low ? 'orange' : colors[i%5]}">${low ? '⚠️' : '🧪'}</div>
+            <div>
+                <div class="stat-value" style="font-size:20px;">${c.stock_amount} lt</div>
+                <div class="stat-label">${c.name}</div>
+                <div class="stat-label">${c.type}</div>
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('chemTable').innerHTML = chems.map(c => {
+        const low = c.stock_amount <= c.min_stock_alert;
+        return `<tr>
+            <td><strong>${c.name}</strong></td>
+            <td><span class="badge badge-info">${c.type}</span></td>
+            <td style="font-weight:600;${low?'color:var(--danger)':''}">${c.stock_amount} lt</td>
+            <td>${c.min_stock_alert} lt</td>
+            <td><span class="badge ${low?'badge-danger':'badge-success'}">${low?'⚠ Düşük':'✓ Yeterli'}</span></td>
+            <td><button class="btn btn-sm btn-outline" onclick="addStockFor(${c.id},'${c.name}')">+ Ekle</button></td>
+        </tr>`;
+    }).join('');
+}
+
+function openAddStock() {
+    api('/api/chemicals').then(chems => {
+        document.getElementById('stockChemical').innerHTML = chems.map(c => `<option value="${c.id}">${c.name} (${c.stock_amount}lt)</option>`).join('');
+        document.getElementById('stockModal').classList.add('active');
+    });
+}
+
+function addStockFor(id, name) {
+    document.getElementById('stockChemical').innerHTML = `<option value="${id}">${name}</option>`;
+    document.getElementById('stockModal').classList.add('active');
+}
+
+document.getElementById('stockForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await api(`/api/chemicals/${document.getElementById('stockChemical').value}/stock-in`, {
+        method: 'POST',
+        body: JSON.stringify({ amount: parseFloat(document.getElementById('stockAmount').value), description: document.getElementById('stockDesc').value })
+    });
+    document.getElementById('stockModal').classList.remove('active');
+    toast('Stok eklendi', 'success');
+    load();
+});
+load();
+</script>
+</body>
+</html>

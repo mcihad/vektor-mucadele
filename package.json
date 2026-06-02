@@ -1,0 +1,38 @@
+{
+  "name": "sivas-vektor-mucadele",
+  "version": "1.0.0",
+  "description": "Sivas Belediyesi Veteriner İşleri Müdürlüğü - Vektörle Mücadele Yönetim Sistemi",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "install-service": "node service-install.js",
+    "uninstall-service": "node service-uninstall.js"
+  },
+  "keywords": [
+    "sivas",
+    "vektor",
+    "ilacalama",
+    "pest-control",
+    "gis"
+  ],
+  "author": "Sivas Belediyesi - Akıllı Şehir ve Kent Bilgi Sistemleri Müdürlüğü",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.21.0",
+    "socket.io": "^4.7.4",
+    "uuid": "^9.0.0"
+  },
+  "optionalDependencies": {
+    "node-windows": "^1.0.0-beta.8"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

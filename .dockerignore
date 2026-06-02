@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+.env
+.env.*
+!.env.example
+.git
+.github
+.vscode
+.idea
+*.bat
+service-install.js
+service-uninstall.js
+test_db_conn.js
+Thumbs.db
+desktop.ini
+.DS_Store

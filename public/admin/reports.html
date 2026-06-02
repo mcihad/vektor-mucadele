@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Raporlar</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item active"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar"><div class="topbar-title">📈 Raporlar</div></header>
+    <div class="page-content">
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('daily',this)">Günlük</button>
+            <button class="tab" onclick="showTab('monthly',this)">Aylık</button>
+            <button class="tab" onclick="showTab('coverage',this)">Mahalle Kapsam</button>
+        </div>
+
+        <!-- Daily Report -->
+        <div id="tab-daily">
+            <div style="margin-bottom:16px;display:flex;gap:12px;align-items:end;">
+                <div class="form-group" style="margin:0;"><label class="form-label">Tarih</label><input type="date" class="form-input" id="dailyDate" onchange="loadDaily()"></div>
+            </div>
+            <div class="stats-grid" id="dailyStats"></div>
+            <div class="card"><div class="card-title" style="margin-bottom:12px;">Günün İlaçlamaları</div>
+                <div class="table-container"><table><thead><tr><th>Araç</th><th>Ekip</th><th>Mahalle</th><th>Mesafe</th><th>İlaç</th><th>Süre</th></tr></thead><tbody id="dailyTable"></tbody></table></div>
+            </div>
+        </div>
+
+        <!-- Monthly Report -->
+        <div id="tab-monthly" style="display:none;">
+            <div style="margin-bottom:16px;display:flex;gap:12px;align-items:end;">
+                <div class="form-group" style="margin:0;"><label class="form-label">Ay</label><select class="form-select" id="monthSelect" onchange="loadMonthly()">
+                    <option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option><option value="4">Nisan</option>
+                    <option value="5" selected>Mayıs</option><option value="6">Haziran</option><option value="7">Temmuz</option><option value="8">Ağustos</option>
+                    <option value="9">Eylül</option><option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
+                </select></div>
+                <div class="form-group" style="margin:0;"><label class="form-label">Yıl</label><input type="number" class="form-input" id="yearSelect" value="2026" onchange="loadMonthly()"></div>
+            </div>
+            <div class="grid-2">
+                <div class="card"><div class="card-title" style="margin-bottom:12px;">Araç Bazlı</div><canvas id="vehicleChart"></canvas></div>
+                <div class="card"><div class="card-title" style="margin-bottom:12px;">Personel Bazlı</div><canvas id="personnelChart"></canvas></div>
+            </div>
+            <div class="card" style="margin-top:20px;"><div class="card-title" style="margin-bottom:12px;">Günlük Trend</div><canvas id="dailyChart"></canvas></div>
+        </div>
+
+        <!-- Coverage -->
+        <div id="tab-coverage" style="display:none;">
+            <div class="card"><div class="card-title" style="margin-bottom:12px;">Mahalle Kapsam Durumu</div>
+                <div class="table-container"><table><thead><tr><th>Mahalle</th><th>İlaçlanan Sokak</th><th>Son İlaçlama</th><th>En Yakın Bitiş</th><th>Durum</th></tr></thead><tbody id="coverageTable"></tbody></table></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+function logout() { localStorage.clear(); window.location.href = '/'; }
+async function api(url) { const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } }); return res.json(); }
+
+function showTab(name, el) {
+    document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
+    document.getElementById('tab-' + name).style.display = 'block';
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+}
+
+document.getElementById('dailyDate').value = new Date().toISOString().split('T')[0];
+
+async function loadDaily() {
+    const date = document.getElementById('dailyDate').value;
+    const data = await api(`/api/reports/daily?date=${date}`);
+    const s = data.summary || {};
+    document.getElementById('dailyStats').innerHTML = `
+        <div class="stat-card blue"><div class="stat-icon blue">📋</div><div><div class="stat-value">${s.total_sessions||0}</div><div class="stat-label">Oturum</div></div></div>
+        <div class="stat-card green"><div class="stat-icon green">📏</div><div><div class="stat-value">${Number(s.total_km||0).toFixed(1)}</div><div class="stat-label">km</div></div></div>
+        <div class="stat-card orange"><div class="stat-icon orange">🧪</div><div><div class="stat-value">${Number(s.total_chemical||0).toFixed(1)}</div><div class="stat-label">lt İlaç</div></div></div>
+        <div class="stat-card purple"><div class="stat-icon purple">📐</div><div><div class="stat-value">${Number(s.total_area||0).toFixed(0)}</div><div class="stat-label">m² Alan</div></div></div>
+    `;
+    document.getElementById('dailyTable').innerHTML = (data.sessions || []).map(s => `<tr>
+        <td><strong>${s.plate||'-'}</strong></td><td>${s.driver_name||'-'} & ${s.operator_name||'-'}</td>
+        <td>${s.neighborhood||'-'}</td><td>${Number(s.total_km||0).toFixed(1)} km</td><td>${Number(s.chemical_used_lt||0).toFixed(1)} lt</td>
+        <td>${s.start_time && s.end_time ? Math.round((new Date(s.end_time)-new Date(s.start_time))/60000) + ' dk' : '-'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Bu tarihte kayıt yok</td></tr>';
+}
+
+let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
+async function loadMonthly() {
+    const month = document.getElementById('monthSelect').value;
+    const year = document.getElementById('yearSelect').value;
+    const data = await api(`/api/reports/monthly?month=${month}&year=${year}`);
+
+    if (vehicleChartInstance) vehicleChartInstance.destroy();
+    if (personnelChartInstance) personnelChartInstance.destroy();
+    if (dailyChartInstance) dailyChartInstance.destroy();
+
+    const vData = data.by_vehicle || [];
+    vehicleChartInstance = new Chart(document.getElementById('vehicleChart'), {
+        type: 'bar', data: {
+            labels: vData.map(v => v.plate),
+            datasets: [
+                { label: 'km', data: vData.map(v => v.km), backgroundColor: 'rgba(59,130,246,0.7)' },
+                { label: 'İlaç (lt)', data: vData.map(v => v.chemical), backgroundColor: 'rgba(16,185,129,0.7)' }
+            ]
+        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+    });
+
+    const pData = data.by_personnel || [];
+    personnelChartInstance = new Chart(document.getElementById('personnelChart'), {
+        type: 'bar', data: {
+            labels: pData.map(p => p.name), datasets: [{ label: 'Oturum Sayısı', data: pData.map(p => p.sessions), backgroundColor: 'rgba(139,92,246,0.7)' }]
+        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+    });
+
+    const dData = data.daily || [];
+    dailyChartInstance = new Chart(document.getElementById('dailyChart'), {
+        type: 'line', data: {
+            labels: dData.map(d => d.day),
+            datasets: [
+                { label: 'km', data: dData.map(d => d.km), borderColor: '#3b82f6', tension: 0.3, fill: false },
+                { label: 'İlaç (lt)', data: dData.map(d => d.chemical), borderColor: '#10b981', tension: 0.3, fill: false }
+            ]
+        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+    });
+}
+
+async function loadCoverage() {
+    const data = await api('/api/reports/neighborhood-coverage');
+    document.getElementById('coverageTable').innerHTML = (data || []).map(n => {
+        const days = n.earliest_expiry ? Math.round((new Date(n.earliest_expiry) - Date.now()) / 86400000) : 99;
+        const badge = days <= 3 ? 'badge-danger' : days <= 10 ? 'badge-warning' : 'badge-success';
+        return `<tr><td><strong>${n.neighborhood||'-'}</strong></td><td>${n.streets_sprayed}</td>
+            <td>${n.last_sprayed ? new Date(n.last_sprayed).toLocaleDateString('tr-TR') : '-'}</td>
+            <td>${n.earliest_expiry ? new Date(n.earliest_expiry).toLocaleDateString('tr-TR') : '-'}</td>
+            <td><span class="badge ${badge}">${days <= 0 ? 'Süresi Doldu' : days + ' gün kaldı'}</span></td></tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Veri yok</td></tr>';
+}
+
+loadDaily();
+loadMonthly();
+loadCoverage();
+</script>
+</body>
+</html>

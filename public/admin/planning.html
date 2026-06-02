@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Rota Planlama</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+    <style>
+        .mode-tabs{display:flex;gap:4px;margin-bottom:12px;background:var(--bg-secondary);border-radius:8px;padding:3px}
+        .mode-tab{flex:1;padding:8px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-secondary);font-family:inherit;transition:var(--transition)}
+        .mode-tab.active{background:var(--accent);color:#fff}
+        .route-stat{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+        .route-stat .label{color:var(--text-secondary);font-size:12px}
+        .route-stat .value{font-weight:700;font-size:14px}
+        .loading-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000;border-radius:var(--radius)}
+        .loading-overlay .spinner{width:40px;height:40px}
+        #planMap{position:relative}
+        .assign-row{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+        .blink{animation:blink 1.5s ease-in-out infinite}
+        .preview-arrow-icon{background:none !important;border:none !important;box-shadow:none !important}
+    </style>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item active"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar"><div class="topbar-title">🗺️ Rota Planlama</div></header>
+    <div class="page-content">
+        <div class="grid-sidebar">
+            <div class="card" style="position:relative">
+                <div class="card-header">
+                    <span class="card-title">Harita</span>
+                    <div style="display:flex;gap:6px">
+                        <button class="btn btn-sm btn-primary" onclick="fetchOSMStreets()" id="btnFetch">🌐 Sokakları Çek</button>
+                        <button class="btn btn-sm btn-success" onclick="calculateRoute()" id="btnCalc">🧮 Rota Hesapla</button>
+                        <button class="btn btn-sm btn-outline" onclick="clearAll()">🗑️ Temizle</button>
+                    </div>
+                </div>
+                <div id="planMap" class="map-container fullheight"></div>
+                <div id="mapLoading" class="loading-overlay" style="display:none"><div class="spinner"></div></div>
+                <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--text-secondary);align-items:center;border-bottom:1px solid rgba(255,255,255,0.05);padding-bottom:6px;margin-bottom:6px;">
+                    <span style="font-weight:750;color:#fff;">⏳ İLAÇ ETKİ SÜRELERİ:</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#10b981;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Yeni (0-10 gün)</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#84cc16;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Etkili (11-15 gün)</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Orta (16-20 gün)</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#f97316;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Azalan (21-25 gün)</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#ef4444;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Kritik (26-30 gün)</span>
+                    <span><span style="display:inline-block;width:12px;height:4px;background:#6b7280;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Dolmuş</span>
+                </div>
+                <div style="margin-top:4px;font-size:11px;color:var(--text-muted)">
+                    💡 <b>Otomatik:</b> 1️⃣ Sol üstteki ▢ butonu ile haritada dikdörtgen çizin → 2️⃣ Sokakları Çek → 3️⃣ Rota Hesapla<br>
+                    ✏️ <b>Manuel:</b> Polyline çizerek elle rota oluşturun
+                </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:12px">⚙️ Parametreler</div>
+                    <div class="mode-tabs">
+                        <button class="mode-tab active" onclick="setMode('auto',this)">🤖 Otomatik</button>
+                        <button class="mode-tab" onclick="setMode('manual',this)">✏️ Manuel Çizim</button>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Mahalle</label>
+                        <select class="form-select" id="planNeighborhood"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Ulaşım Türü</label>
+                        <select class="form-select" id="planTransportType" onchange="calculateRouteIfFetched()">
+                            <option value="vehicle">🚗 Araçla İlaçlama (Tek Yön Kurallarına Uyar)</option>
+                            <option value="pedestrian">🚶 Yaya/Sırt Tipi (Trafik Yönü Önemsizdir)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Araç</label>
+                        <select class="form-select" id="planVehicle" onchange="updateVehicleInfo()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Personel Ata</label>
+                        <select class="form-select" id="planUser"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Planlanan Tarih</label>
+                        <input type="date" class="form-input" id="planDate">
+                    </div>
+                    <button class="btn btn-success" style="width:100%;justify-content:center" onclick="saveRoute()">💾 Rotayı Kaydet & Ata</button>
+                </div>
+                <div class="card">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <div class="card-title" style="margin:0">📊 Rota Bilgileri</div>
+                        <button class="btn btn-sm btn-primary" onclick="animateRoutePreview()" id="btnAnimate" style="display:none;font-size:10px;padding:4px 8px;">▶️ Animasyon</button>
+                    </div>
+                    <div id="routeInfo">
+                        <div class="route-stat"><span class="label">Toplam Mesafe</span><span class="value" id="rDist">-</span></div>
+                        <div class="route-stat"><span class="label">Tahmini Süre (20 km/h)</span><span class="value" id="rTime">-</span></div>
+                        <div class="route-stat"><span class="label">Tahmini İlaç</span><span class="value" id="rChem">-</span></div>
+                        <div class="route-stat"><span class="label">Sokak Sayısı</span><span class="value" id="rStreets">-</span></div>
+                        <div class="route-stat"><span class="label">Tank Dolum</span><span class="value" id="rRefills">-</span></div>
+                        <div class="route-stat"><span class="label">Ekstra Mesafe (tekrar)</span><span class="value" id="rExtra">-</span></div>
+                        <div class="route-stat"><span class="label">🔗 Bölge Geçiş Mesafesi</span><span class="value" id="rBridge">-</span></div>
+                        <div class="route-stat" style="border:none"><span class="label">🏘️ Bağlantısız Bölge</span><span class="value" id="rComponents">-</span></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:12px">📋 Kayıtlı Rotalar</div>
+                    <div id="savedRoutes" style="max-height:200px;overflow-y:auto"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+function logout(){localStorage.clear();window.location.href='/';}
+async function api(url,opts={}){const res=await fetch(url,{...opts,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json',...opts.headers}});return res.json();}
+function toast(msg,type='info'){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),5000);}
+function showLoading(v){document.getElementById('mapLoading').style.display=v?'flex':'none';}
+
+const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    attribution: '© Google Maps',
+    maxZoom: 22
+});
+const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+    attribution: '© Google Maps',
+    maxZoom: 22
+});
+const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    attribution: '© Google Maps',
+    maxZoom: 22
+});
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap',
+    maxZoom: 19
+});
+
+const map = L.map('planMap', {
+    center: [39.7477, 37.0179],
+    zoom: 14,
+    layers: [googleHybrid] // Google Hybrid as default
+});
+
+const baseMaps = {
+    "Google Uydu + Hibrit": googleHybrid,
+    "Google Harita": googleRoadmap,
+    "Google Uydu": googleSatellite,
+    "OpenStreetMap": osm
+};
+
+// Sivas municipality boundaries overlay
+const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}/{y}', {
+    maxZoom: 19,
+    opacity: 0.6
+}).addTo(map);
+
+const overlayMaps = {
+    "Sivas Mahalle Sınırları (Belediye)": sivasBorders
+};
+
+L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
+
+const drawnItems = new L.FeatureGroup().addTo(map);
+const streetLayer = L.layerGroup().addTo(map);
+const routeLayer = L.layerGroup().addTo(map);
+const sprayedLayer = L.layerGroup().addTo(map);
+
+let drawControl, currentMode='auto', fetchedGeoJSON=null, originalFetchedGeoJSON=null, calculatedResult=null, manualCoords=[], allNeighborhoods=[], activeNeighborhoodLayer=null, selectedNeighborhoodGeometry=null;
+
+function setupDrawControl(mode){
+    if(drawControl) map.removeControl(drawControl);
+    if(mode==='auto'){
+        drawControl = new L.Control.Draw({edit:{featureGroup:drawnItems},draw:{polygon:false,rectangle:true,circle:false,circlemarker:false,marker:false,polyline:false}});
+    } else {
+        drawControl = new L.Control.Draw({edit:{featureGroup:drawnItems},draw:{polygon:false,rectangle:false,circle:false,circlemarker:false,marker:false,polyline:{shapeOptions:{color:'#3b82f6',weight:4}}}});
+    }
+    map.addControl(drawControl);
+}
+setupDrawControl('auto');
+
+map.on(L.Draw.Event.CREATED,(e)=>{
+    if(currentMode==='auto'){drawnItems.clearLayers();drawnItems.addLayer(e.layer);}
+    else{
+        drawnItems.addLayer(e.layer);
+        const latlngs=e.layer.getLatLngs();
+        manualCoords.push(...latlngs.map(l=>[l.lat,l.lng]));
+        updateManualStats();
+    }
+});
+
+function setMode(mode,btn){
+    currentMode=mode;
+    document.querySelectorAll('.mode-tab').forEach(t=>t.classList.remove('active'));
+    btn.classList.add('active');
+    drawnItems.clearLayers();
+    manualCoords=[];
+    setupDrawControl(mode);
+    document.getElementById('btnFetch').style.display=mode==='auto'?'':'none';
+    document.getElementById('btnCalc').style.display=mode==='auto'?'':'none';
+}
+
+function updateManualStats(){
+    let dist=0;
+    for(let i=1;i<manualCoords.length;i++){
+        dist+=haversine(manualCoords[i-1][0],manualCoords[i-1][1],manualCoords[i][0],manualCoords[i][1]);
+    }
+    const km=dist/1000;
+    const time=(km/20)*60;
+    const opt=document.getElementById('planVehicle').selectedOptions[0];
+    const mtype=opt?.dataset.machine||'ulv';
+    const tank=parseFloat(opt?.dataset.tank)||100;
+    const rate=mtype==='ulv'?(100/22.5):(200/45);
+    const chem=time*rate;
+    document.getElementById('rDist').textContent=km.toFixed(2)+' km';
+    document.getElementById('rTime').textContent=Math.round(time)+' dk';
+    document.getElementById('rChem').textContent=chem.toFixed(1)+' lt';
+    document.getElementById('rStreets').textContent='-';
+    document.getElementById('rRefills').textContent=Math.max(0,Math.ceil(chem/tank)-1)+' kez';
+    document.getElementById('rExtra').textContent='-';
+    calculatedResult={route_coords:manualCoords,stats:{total_distance_km:km,estimated_time_min:Math.round(time),estimated_chemical_lt:Math.round(chem*10)/10,tank_refills:Math.max(0,Math.ceil(chem/tank)-1),street_count:0}};
+    if (manualCoords.length >= 2) {
+        document.getElementById('btnAnimate').style.display = 'block';
+    } else {
+        document.getElementById('btnAnimate').style.display = 'none';
+    }
+}
+
+function getSprayStyle(daysRemaining) {
+    if (daysRemaining <= 0) return { color: '#6b7280', opacity: 0.5, weight: 3, dashArray: '4 4' };
+    if (daysRemaining <= 2) return { color: '#991b1b', opacity: 0.9, weight: 6, className: 'blink' };
+    if (daysRemaining <= 5) return { color: '#dc2626', opacity: 0.85, weight: 5 };
+    if (daysRemaining <= 10) return { color: '#ef4444', opacity: 0.8, weight: 5 };
+    if (daysRemaining <= 15) return { color: '#f97316', opacity: 0.75, weight: 4 };
+    if (daysRemaining <= 20) return { color: '#f59e0b', opacity: 0.7, weight: 4 };
+    if (daysRemaining <= 25) return { color: '#84cc16', opacity: 0.65, weight: 4 };
+    return { color: '#10b981', opacity: 0.8, weight: 5 };
+}
+
+document.getElementById('planDate').value=new Date().toISOString().split('T')[0];
+
+async function init(){
+    const [neighborhoods,vehicles,users]=await Promise.all([
+        api('/api/routes/neighborhoods'),api('/api/vehicles'),api('/api/auth/users').catch(()=>[])
+    ]);
+    allNeighborhoods = neighborhoods;
+    document.getElementById('planNeighborhood').innerHTML='<option value="">Seçiniz</option>'+
+        neighborhoods.map(n=>`<option value="${n.name}">${n.name}</option>`).join('');
+    document.getElementById('planVehicle').innerHTML=
+        vehicles.filter(v=>v.usage_type==='sokak_ilacalama').map(v=>
+            `<option value="${v.id}" data-tank="${v.tank_capacity_lt}" data-machine="${v.machine_type||'ulv'}">${v.plate} - ${v.machine_name}</option>`
+        ).join('');
+    // Users (field)
+    const allUsers=await api('/api/personnel').catch(()=>[]);
+    document.getElementById('planUser').innerHTML='<option value="">Atama Yapılmadı</option>'+
+        allUsers.map(u=>`<option value="${u.user_id||''}">${u.name}</option>`).join('');
+    // Sprayed streets
+    const sprayed=await api('/api/reports/sprayed-streets');
+    (sprayed||[]).forEach(s=>{
+        if(s.geometry_geojson){try{
+            const geom=JSON.parse(s.geometry_geojson);
+            const remaining=s.days_remaining||0;
+            const style=getSprayStyle(remaining);
+            const layer=L.geoJSON(geom,{style:()=>style});
+            const daysText=remaining<=0?'<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>':`<b>${Math.round(remaining)} gün</b> kaldı`;
+            const sprayedDate = new Date(s.sprayed_at);
+            const sprayedStr = sprayedDate.toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+            const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
+            layer.bindPopup(`<b>${s.street_name||'İlaçlama Hattı'}</b><br>
+                📍 Mahalle: ${s.neighborhood||'-'}<br>
+                🕐 Ne Zaman: <b>${sprayedStr}</b><br>
+                📅 Bitiş: ${expiresStr}<br>
+                ⏳ ${daysText}<br>
+                🚐 Araç: ${s.plate||'-'}`);
+            layer.addTo(sprayedLayer);
+        }catch(e){}}
+    });
+    loadSavedRoutes();
+
+    // Neighborhood boundary overlay and focus listener
+    document.getElementById('planNeighborhood').addEventListener('change', function(e) {
+        const name = e.target.value;
+        if(activeNeighborhoodLayer) {
+            map.removeLayer(activeNeighborhoodLayer);
+            activeNeighborhoodLayer = null;
+        }
+        selectedNeighborhoodGeometry = null;
+
+        // Clear previous state and statistics
+        fetchedGeoJSON = null;
+        calculatedResult = null;
+        ['rDist','rTime','rChem','rStreets','rRefills','rExtra','rBridge','rComponents'].forEach(id => {
+            document.getElementById(id).textContent = '-';
+        });
+        streetLayer.clearLayers();
+        routeLayer.clearLayers();
+
+        if(!name) return;
+
+        const n = allNeighborhoods.find(nh => nh.name === name);
+        if(n && n.boundary_geojson) {
+            try {
+                const geom = JSON.parse(n.boundary_geojson);
+                selectedNeighborhoodGeometry = geom;
+                activeNeighborhoodLayer = L.geoJSON(geom, {
+                    style: {
+                        color: '#3b82f6',
+                        weight: 3,
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.12,
+                        dashArray: '4 4'
+                    }
+                }).addTo(map);
+                map.fitBounds(activeNeighborhoodLayer.getBounds());
+                toast(`${name} mahallesi sınırları gösterildi ve harita odaklandı.`, 'success');
+            } catch(err) {
+                console.error("Sınır çizilirken hata:", err);
+            }
+        } else {
+            toast(`${name} mahallesi için veri tabanında sınır bilgisi bulunamadı.`, 'warning');
+        }
+    });
+}
+
+function processFetchedStreets() {
+    if (!originalFetchedGeoJSON) return null;
+    
+    const transportType = document.getElementById('planTransportType').value;
+    
+    // Deep clone the original fetched GeoJSON so we don't modify it permanently
+    const geojson = JSON.parse(JSON.stringify(originalFetchedGeoJSON));
+    
+    // Dynamically assign sprayable status based on transportType
+    geojson.features.forEach(f => {
+        const h = f.properties.highway || 'residential';
+        const isPedestrianOnly = ['pedestrian', 'footway', 'path', 'steps', 'cycleway'].includes(h);
+        const isMotorway = ['motorway', 'motorway_link'].includes(h);
+        
+        if (transportType === 'vehicle') {
+            // Vehicles cannot enter pedestrian paths or walkways
+            f.properties.sprayable = !isPedestrianOnly && !isMotorway; // filter out motorways as they are high speed
+        } else {
+            // Pedestrians can walk on residential, pedestrian paths, and walkways, but not high-speed motorways!
+            f.properties.sprayable = !isMotorway;
+        }
+    });
+    
+    // Filter sprayable features for the CPP solver
+    const sprayable = {
+        type: 'FeatureCollection',
+        features: geojson.features.filter(f => f.properties.sprayable !== false)
+    };
+    
+    fetchedGeoJSON = sprayable.features.length > 0 ? sprayable : geojson;
+    
+    // Redraw the street layer
+    streetLayer.clearLayers();
+    const layer = L.geoJSON(geojson, {
+        style: f => {
+            const h = f.properties.highway || 'residential';
+            const isSpr = f.properties.sprayable !== false;
+            
+            if (!isSpr) return { color: '#475569', weight: 1.5, opacity: 0.4, dashArray: '4 4' };
+            
+            let color = '#94a3b8';
+            if (['primary', 'trunk', 'motorway'].includes(h)) color = '#f59e0b';
+            else if (h === 'secondary') color = '#3b82f6';
+            else if (h === 'tertiary') color = '#06b6d4';
+            else if (['pedestrian', 'footway', 'path'].includes(h)) color = '#10b981'; // Sleek premium green for walkways!
+            
+            return {
+                color,
+                weight: 3,
+                opacity: 0.85
+            };
+        },
+        onEachFeature: (f, l) => {
+            const isSpr = f.properties.sprayable !== false;
+            l.bindPopup(`
+                <div style="font-family: inherit; font-size: 12px; line-height: 1.4;">
+                    <b style="font-size: 13px; color: var(--accent);">${f.properties.name}</b><br>
+                    <b>Yol Tipi:</b> <code style="background: var(--bg-secondary); padding: 2px 4px; border-radius: 4px;">${f.properties.highway}</code><br>
+                    <b>Uzunluk:</b> ${f.properties.length_m} m<br>
+                    <b>Trafik Akışı:</b> ${f.properties.oneway ? '➡️ Tek Yönlü (Adresine Uygun)' : '🔄 Çift Yönlü (Serbest)'}<br>
+                    <hr style="border: none; border-top: 1px solid var(--border); margin: 6px 0;">
+                    <span style="font-weight: bold; color: ${isSpr ? 'var(--success)' : 'var(--danger)'};">
+                        ${isSpr ? '✅ İlaçlanabilir (Giriş Serbest)' : '⛔ İlaçlanamaz (Araç Girişi Yasak!)'}
+                    </span>
+                </div>
+            `);
+        }
+    });
+    streetLayer.addLayer(layer);
+    
+    const sprayCount = geojson.features.filter(f => f.properties.sprayable !== false).length;
+    return { total: geojson.features.length, sprayable: sprayCount, layer };
+}
+
+async function fetchOSMStreets(){
+    let bounds = null;
+    const drawnBounds = drawnItems.getBounds();
+    if (drawnBounds && drawnBounds.isValid()) {
+        bounds = drawnBounds;
+    } else if (activeNeighborhoodLayer) {
+        bounds = activeNeighborhoodLayer.getBounds();
+    }
+    if(!bounds || !bounds.isValid()){toast('Önce sol üstteki ▢ butonuna tıklayıp haritada dikdörtgen çizin veya üstten Mahalle seçin!','error');return;}
+    showLoading(true);
+    try{
+        const neighborhoodVal = document.getElementById('planNeighborhood').value;
+        const res=await fetch('/api/routes/fetch-streets',{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({
+            south:bounds.getSouth(),west:bounds.getWest(),north:bounds.getNorth(),east:bounds.getEast(),
+            neighborhood: neighborhoodVal
+        })});
+        if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.error||'Sunucu hatası: '+res.status);}
+        const geojson=await res.json();
+        
+        // Clip features to selected neighborhood boundary if active
+        if (selectedNeighborhoodGeometry) {
+            const clippedFeatures = [];
+            for (const f of geojson.features) {
+                if (f.geometry && f.geometry.type === 'LineString') {
+                    const clippedSegments = clipLineStringToPolygon(f.geometry.coordinates, selectedNeighborhoodGeometry);
+                    for (let idx = 0; idx < clippedSegments.length; idx++) {
+                        const segment = clippedSegments[idx];
+                        const newFeature = JSON.parse(JSON.stringify(f));
+                        newFeature.geometry.coordinates = segment;
+                        
+                        // Recalculate length
+                        const newLength = getCoordinatesLengthMeters(segment);
+                        newFeature.properties.length_m = Math.round(newLength);
+                        
+                        if (newFeature.id) {
+                            newFeature.id = f.id + '_s' + idx;
+                        } else {
+                            newFeature.id = 'clipped_' + Math.random().toString(36).substr(2, 9);
+                        }
+                        clippedFeatures.push(newFeature);
+                    }
+                } else {
+                    clippedFeatures.push(f);
+                }
+            }
+            geojson.features = clippedFeatures;
+        }
+
+        if(!geojson.features||geojson.features.length===0){
+            toast('Seçilen mahalle sınırları içerisinde yol bulunamadı.','error');
+            showLoading(false);return;
+        }
+        
+        originalFetchedGeoJSON = geojson;
+        const stats = processFetchedStreets();
+        
+        if (stats && stats.layer) {
+            map.fitBounds(stats.layer.getBounds());
+            toast(`${stats.total} yol bulundu (${stats.sprayable} ilaçlanabilir)`,'success');
+        }
+    }catch(e){
+        let msg=e.message||'Bilinmeyen hata';
+        if(msg.includes('Failed to fetch')||msg.includes('NetworkError'))msg='Sunucuya bağlanılamıyor! Sunucu çalışıyor mu?';
+        toast('Sokak verisi alınamadı: '+msg,'error');
+    }
+    showLoading(false);
+}
+
+async function calculateRoute(){
+    if(!fetchedGeoJSON || !fetchedGeoJSON.features || fetchedGeoJSON.features.length === 0){
+        toast('Hesaplanacak sokak bulunamadı. Lütfen önce haritadaki sınırları veya seçilen mahalleyi kontrol edip sokakları çekin.','error');
+        return;
+    }
+    showLoading(true);
+    const opt=document.getElementById('planVehicle').selectedOptions[0];
+    try{
+        const result=await api('/api/routes/calculate-route',{method:'POST',body:JSON.stringify({
+            geojson:fetchedGeoJSON,
+            machine_type:opt?.dataset.machine||'ulv',
+            tank_capacity:opt?.dataset.tank||100,
+            transport_type:document.getElementById('planTransportType').value
+        })});
+        if(result.error){toast(result.error,'error');showLoading(false);return;}
+        calculatedResult=result;
+        routeLayer.clearLayers();
+        // Draw route
+        if(result.route_geojson){
+            const rl=L.geoJSON(result.route_geojson,{
+                style:f=>{
+                    if(f.properties.bridge) return {color:'#f59e0b',weight:3,opacity:0.85,dashArray:'8 6'};
+                    if(f.properties.duplicate) return {color:'#b91c1c',weight:4,opacity:0.9,dashArray:'8 4'};
+                    return {color:'#ef4444',weight:4,opacity:0.9};
+                },
+                onEachFeature:(f,l)=>{
+                    if(f.properties.bridge){
+                        l.bindPopup(`↗️ <b>Bölge Geçişi</b><br>Mesafe: ${f.properties.distance_m}m<br>⚠️ İlaçlama yapılmadan geçilecek`);
+                    } else {
+                        l.bindPopup(`<b>${f.properties.name||'Segment'}</b><br>Mesafe: ${f.properties.distance_m}m${f.properties.duplicate?' (tekrar)':''}`);
+                    }
+                }
+            });
+            routeLayer.addLayer(rl);
+        }
+        // Start/end markers
+        if(result.route_coords&&result.route_coords.length>0){
+            L.circleMarker(result.route_coords[0],{radius:8,color:'#10b981',fillColor:'#10b981',fillOpacity:1}).bindPopup('🏁 Başlangıç').addTo(routeLayer);
+            L.circleMarker(result.route_coords[result.route_coords.length-1],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1}).bindPopup('🏁 Bitiş').addTo(routeLayer);
+        }
+        const s=result.stats;
+        document.getElementById('rDist').textContent=s.total_distance_km+' km';
+        document.getElementById('rTime').textContent=s.estimated_time_min+' dk';
+        document.getElementById('rChem').textContent=s.estimated_chemical_lt+' lt';
+        document.getElementById('rStreets').textContent=s.street_count;
+        document.getElementById('rRefills').textContent=s.tank_refills+' kez';
+        document.getElementById('rExtra').textContent=(s.extra_distance_km||0)+' km';
+        document.getElementById('rBridge').textContent=(s.bridge_distance_km||0)+' km';
+        document.getElementById('rComponents').textContent=(s.connected_components||1)+' bölge';
+        const compMsg = s.connected_components > 1 ? ` (${s.connected_components} bağlantısız bölge birleştirildi)` : '';
+        toast('Rota hesaplandı! (Chinese Postman)' + compMsg,'success');
+        document.getElementById('btnAnimate').style.display = 'block';
+    }catch(e){toast('Rota hesaplanamadı: '+e.message,'error');}
+    showLoading(false);
+}
+
+function clearAll(){
+    if (typeof previewAnimationActive !== 'undefined' && previewAnimationActive) {
+        animateRoutePreview();
+    }
+    document.getElementById('btnAnimate').style.display = 'none';
+    routeLayer.clearLayers();streetLayer.clearLayers();drawnItems.clearLayers();
+    if(activeNeighborhoodLayer){map.removeLayer(activeNeighborhoodLayer);activeNeighborhoodLayer=null;}
+    document.getElementById('planNeighborhood').value = '';
+    selectedNeighborhoodGeometry = null;
+    fetchedGeoJSON=null;calculatedResult=null;manualCoords=[];
+    ['rDist','rTime','rChem','rStreets','rRefills','rExtra','rBridge','rComponents'].forEach(id=>document.getElementById(id).textContent='-');
+    toast('Temizlendi');
+}
+
+async function saveRoute(){
+    if(!calculatedResult){toast('Önce rota oluşturun','error');return;}
+    const s=calculatedResult.stats;
+    const userId=document.getElementById('planUser').value;
+    const body={
+        name:(document.getElementById('planNeighborhood').value||'Rota')+' - '+document.getElementById('planDate').value,
+        neighborhood:document.getElementById('planNeighborhood').value||'Belirsiz',
+        vehicle_id:document.getElementById('planVehicle').value,
+        route_geojson:calculatedResult.route_geojson?JSON.stringify(calculatedResult.route_geojson):null,
+        route_coords:JSON.stringify(calculatedResult.route_coords||[]),
+        total_distance_km:s.total_distance_km,
+        estimated_time_min:s.estimated_time_min,
+        estimated_chemical_lt:s.estimated_chemical_lt,
+        street_count:s.street_count||0,
+        route_type:currentMode,
+        planned_date:document.getElementById('planDate').value,
+        transport_type:document.getElementById('planTransportType').value
+    };
+    
+    try {
+        const res=await api('/api/routes/planned-routes',{method:'POST',body:JSON.stringify(body)});
+        if(res.error) {
+            throw new Error(res.error);
+        }
+        
+        // Assign if user selected
+        if(userId && res.id){
+            const assignRes = await api(`/api/routes/planned-routes/${res.id}/assign`,{
+                method:'POST',
+                body:JSON.stringify({
+                    user_id: parseInt(userId),
+                    personnel_ids: [parseInt(userId)]
+                })
+            });
+            if(assignRes.error) {
+                throw new Error('Rota kaydedildi ancak personele atanamadı: ' + assignRes.error);
+            }
+            toast('Rota başarıyla kaydedildi ve personele atandı!','success');
+        } else {
+            toast('Rota başarıyla kaydedildi (Personel atanmadı)','success');
+        }
+    } catch(e) {
+        toast('Hata oluştu: ' + e.message, 'error');
+    }
+    loadSavedRoutes();
+}
+
+async function loadSavedRoutes(){
+    const routes=await api('/api/routes/planned-routes');
+    document.getElementById('savedRoutes').innerHTML=(routes||[]).slice(0,10).map(r=>`
+        <div class="assign-row">
+            <div style="flex:1">
+                <div style="font-weight:500">${r.name||r.neighborhood} ${r.plate?'- '+r.plate:''}</div>
+                <div style="color:var(--text-muted);font-size:11px">${r.planned_date||''} • ${Number(r.total_distance_km||0).toFixed(1)}km • ${Number(r.estimated_chemical_lt||0).toFixed(1)}lt • ${r.transport_type === 'pedestrian' ? '🚶 Yaya' : '🚗 Araç'}</div>
+                <div style="font-size:10px;color:${r.status==='assigned'?'var(--success)':r.status==='completed'?'var(--cyan)':'var(--text-muted)'}">${r.assigned_user_name||'Atanmamış'} • ${r.status}</div>
+            </div>
+            <button class="btn btn-sm btn-outline" onclick="deleteRoute(${r.id})">🗑️</button>
+        </div>
+    `).join('')||'<div style="color:var(--text-muted);font-size:12px">Kayıtlı rota yok</div>';
+}
+
+function calculateRouteIfFetched() {
+    if (originalFetchedGeoJSON) {
+        processFetchedStreets();
+        calculateRoute();
+    }
+}
+
+async function deleteRoute(id){
+    await api(`/api/routes/planned-routes/${id}`,{method:'DELETE'});
+    toast('Rota silindi');loadSavedRoutes();
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+    const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function isPointInPolygon(point, vs) {
+    const x = point[0], y = point[1];
+    let inside = false;
+    for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+        const xi = vs[i][0], yi = vs[i][1];
+        const xj = vs[j][0], yj = vs[j][1];
+        const intersect = ((yi > y) !== (yj > y))
+            && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+    }
+    return inside;
+}
+
+function isPointInPolygonCoords(point, polygonCoords) {
+    const insideOuter = isPointInPolygon(point, polygonCoords[0]);
+    if (!insideOuter) return false;
+    for (let i = 1; i < polygonCoords.length; i++) {
+        if (isPointInPolygon(point, polygonCoords[i])) {
+            return false; // Point is inside a hole!
+        }
+    }
+    return true;
+}
+
+function isPointInGeoJSONGeometry(point, geom) {
+    if (!geom) return false;
+    if (geom.type === 'Polygon') {
+        return isPointInPolygonCoords(point, geom.coordinates);
+    } else if (geom.type === 'MultiPolygon') {
+        for (const polyCoords of geom.coordinates) {
+            if (isPointInPolygonCoords(point, polyCoords)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function clipLineStringToPolygon(coordinates, geom) {
+    const segments = [];
+    let currentSegment = [];
+    
+    for (let i = 0; i < coordinates.length; i++) {
+        const pt = coordinates[i];
+        const isInside = isPointInGeoJSONGeometry(pt, geom);
+        
+        if (isInside) {
+            currentSegment.push(pt);
+        } else {
+            // Point is outside
+            if (currentSegment.length > 0) {
+                // To keep the transitioning segment, include the first outside point
+                currentSegment.push(pt);
+                if (currentSegment.length >= 2) {
+                    segments.push(currentSegment);
+                }
+                currentSegment = [];
+            }
+            // Check if next point is inside. If so, start a new segment starting with this outside point
+            if (i < coordinates.length - 1) {
+                const nextPt = coordinates[i + 1];
+                if (isPointInGeoJSONGeometry(nextPt, geom)) {
+                    currentSegment.push(pt);
+                }
+            }
+        }
+    }
+    if (currentSegment.length >= 2) {
+        segments.push(currentSegment);
+    }
+    return segments;
+}
+
+function getCoordinatesLengthMeters(coords) {
+    let length = 0;
+    for (let i = 1; i < coords.length; i++) {
+        length += haversine(coords[i-1][1], coords[i-1][0], coords[i][1], coords[i][0]);
+    }
+    return length;
+}
+
+function getBearing(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+}
+
+let previewAnimationActive = false;
+let previewMarker = null;
+
+function animateRoutePreview() {
+    if (!calculatedResult || !calculatedResult.route_coords) {
+        toast("Animasyon yapılacak rota bulunamadı.", "error");
+        return;
+    }
+    const btn = document.getElementById('btnAnimate');
+    if (previewAnimationActive) {
+        // Stop active animation
+        previewAnimationActive = false;
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+            previewMarker = null;
+        }
+        btn.textContent = "▶️ Animasyon";
+        btn.className = "btn btn-sm btn-primary";
+        return;
+    }
+    
+    try {
+        const coords = typeof calculatedResult.route_coords === 'string' 
+            ? JSON.parse(calculatedResult.route_coords) 
+            : calculatedResult.route_coords;
+            
+        if (!coords || coords.length < 2) return;
+        
+        previewAnimationActive = true;
+        btn.textContent = "⏹️ Durdur";
+        btn.className = "btn btn-sm btn-danger";
+        
+        // Remove previous marker if any
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+        }
+        
+        // Premium smart rotating vehicle arrow icon
+        const arrowSvg = `<svg viewBox="0 0 24 24" width="28" height="28" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"><path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`;
+        const arrowIcon = L.divIcon({
+            className: 'preview-arrow-icon',
+            html: `<div id="previewArrowInner" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: transform 0.15s linear;">${arrowSvg}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+        
+        previewMarker = L.marker(coords[0], { icon: arrowIcon }).addTo(map);
+        map.setView(coords[0], 16);
+        
+        let pointIdx = 0;
+        let subStep = 0;
+        const totalSubSteps = 10; // Number of interpolation steps between points
+        
+        function tick() {
+            if (!previewAnimationActive) return;
+            
+            if (pointIdx >= coords.length - 1) {
+                // Animation finished!
+                previewAnimationActive = false;
+                if (previewMarker) {
+                    map.removeLayer(previewMarker);
+                    previewMarker = null;
+                }
+                btn.textContent = "▶️ Animasyon";
+                btn.className = "btn btn-sm btn-primary";
+                toast("Rota önizleme animasyonu tamamlandı! 🏁", "success");
+                return;
+            }
+            
+            const startPt = coords[pointIdx];
+            const endPt = coords[pointIdx + 1];
+            
+            // Interpolate coordinates for smooth animation
+            const lat = startPt[0] + (endPt[0] - startPt[0]) * (subStep / totalSubSteps);
+            const lng = startPt[1] + (endPt[1] - startPt[1]) * (subStep / totalSubSteps);
+            
+            previewMarker.setLatLng([lat, lng]);
+            map.panTo([lat, lng]);
+            
+            // Rotate the arrow inside the marker based on heading bearing
+            const bearing = getBearing(startPt[0], startPt[1], endPt[0], endPt[1]);
+            const inner = document.getElementById('previewArrowInner');
+            if (inner) {
+                inner.style.transform = `rotate(${bearing}deg)`;
+            }
+            
+            subStep++;
+            if (subStep > totalSubSteps) {
+                subStep = 0;
+                pointIdx++;
+            }
+            
+            setTimeout(tick, 30); // 30ms step time (very smooth 33 FPS)
+        }
+        
+        tick();
+    } catch(e) {
+        console.error("Önizleme hatası:", e);
+        previewAnimationActive = false;
+        btn.textContent = "▶️ Animasyon";
+        btn.className = "btn btn-sm btn-primary";
+    }
+}
+
+function updateVehicleInfo(){updateManualStats();}
+init();
+</script>
+</body>
+</html>

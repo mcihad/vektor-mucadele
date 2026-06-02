@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Personel</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item active"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar"><div class="topbar-title">👥 Personel Yönetimi</div></header>
+    <div class="page-content">
+        <div class="card">
+            <div class="card-header"><span class="card-title">Tüm Personel (9 Kişi)</span></div>
+            <div class="table-container">
+                <table>
+                    <thead><tr><th>ID</th><th>Ad Soyad</th><th>Görev</th><th>Durum</th></tr></thead>
+                    <tbody id="personnelTable"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title" style="margin-bottom:16px;">👥 Ekip Oluşturma</div>
+            <p style="font-size:13px;color:var(--text-secondary);">Her araçta 2 kişi görev yapar: 1 şoför + 1 ilaçlama operatörü. İlaçlama oturumu oluştururken ekip ataması yapılır.</p>
+            <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;" id="teamSuggestions"></div>
+        </div>
+    </div>
+</div>
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+function logout() { localStorage.clear(); window.location.href = '/'; }
+async function api(url) { const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } }); return res.json(); }
+async function load() {
+    const personnel = await api('/api/personnel');
+    document.getElementById('personnelTable').innerHTML = personnel.map(p => `
+        <tr>
+            <td>#${p.id}</td>
+            <td><strong>${p.name}</strong></td>
+            <td><span class="badge badge-info">${p.role === 'sofor' ? 'Şoför' : 'Operatör'}</span></td>
+            <td><span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Aktif' : 'Pasif'}</span></td>
+        </tr>
+    `).join('');
+
+    const vehicles = await api('/api/vehicles');
+    const streetVehicles = vehicles.filter(v => v.usage_type === 'sokak_ilacalama');
+    const larvaVehicles = vehicles.filter(v => v.usage_type !== 'sokak_ilacalama');
+    const colors = ['blue','green','orange','purple'];
+    document.getElementById('teamSuggestions').innerHTML = vehicles.map((v,i) => `
+        <div class="stat-card ${colors[i%4]}" style="flex-direction:column;align-items:flex-start;gap:8px;">
+            <div style="font-weight:700;">${v.plate}</div>
+            <div style="font-size:11px;color:var(--text-muted);">${v.machine_name} - ${v.usage_type === 'sokak_ilacalama' ? 'Sokak' : 'Larva/Gübre'}</div>
+            <div style="font-size:12px;">👤 Şoför: <em>Atanacak</em></div>
+            <div style="font-size:12px;">👤 Operatör: <em>Atanacak</em></div>
+        </div>
+    `).join('');
+}
+load();
+</script>
+</body>
+</html>

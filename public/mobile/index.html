@@ -1,0 +1,1865 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0a0e1a">
+    <title>VMS Saha</title>
+    <link rel="manifest" href="/mobile/manifest.json">
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        body{background:#0a0e1a;overflow:hidden;font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif}
+        .mobile-app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+        .mobile-header{background:rgba(21, 31, 58, 0.95);padding:8px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}
+        .mobile-header h1{font-size:13px;font-weight:700;background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .mobile-map{flex:1;position:relative}
+        #mobileMap{width:100%;height:100%}
+        .mobile-panel{background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:6px 10px;flex-shrink:0;max-height:28dvh;border-top-left-radius:12px;border-top-right-radius:12px;box-shadow:0 -8px 24px rgba(0,0,0,0.4)}
+        .mobile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px}
+        .mobile-stat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:4px;text-align:center}
+        .mobile-stat .val{font-size:13px;font-weight:700;color:#fff}
+        .mobile-stat .lbl{font-size:8px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.3px;margin-top:1px}
+        .spray-btn{width:100%;padding:8px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:var(--transition);display:flex;align-items:center;justify-content:center;gap:6px;text-transform:uppercase;letter-spacing:0.5px}
+        .spray-btn.start{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff}
+        .spray-btn.pause{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
+        .spray-btn.resume{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+        .spray-btn.finish{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;animation:pulse 2s infinite}
+        .spray-btn:disabled{opacity:0.5;cursor:not-allowed}
+        .gps-status{font-size:9px;text-align:center;margin-top:4px;color:var(--text-muted)}
+
+        /* Mobile Drawer Styles */
+        .mobile-drawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5000;
+            display: flex;
+        }
+        .drawer-content {
+            width: 280px;
+            background: rgba(15, 23, 42, 0.98);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255,255,255,0.1);
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 8px 0 32px rgba(0,0,0,0.5);
+            animation: slideRight 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 5002;
+        }
+        .drawer-overlay {
+            flex: 1;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            height: 100%;
+            z-index: 5001;
+        }
+        .drawer-header {
+            padding: 20px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            position: relative;
+        }
+        .drawer-header .logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: #fff;
+        }
+        .drawer-header .sub {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+        .drawer-close {
+            position: absolute;
+            right: 16px;
+            top: 18px;
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .drawer-nav {
+            flex: 1;
+            padding: 16px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+        }
+        .drawer-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        .drawer-item:hover, .drawer-item:active {
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        @keyframes slideRight {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        .alert-banner{position:fixed;top:45px;left:10px;right:10px;z-index:2000;padding:10px 14px;font-size:12px;font-weight:600;text-align:center;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.3);animation:slideDown 0.3s ease;display:none}
+        .alert-banner.route-off{background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff}
+        .alert-banner.already-sprayed{background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff}
+        @keyframes slideDown{from{transform:translateY(-120%)}to{transform:translateY(0)}}
+        .route-info-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+        #mRole{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;cursor:pointer;outline:none;font-family:inherit}
+        #mRole option{background:#111827;color:#fff}
+        .summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin:16px;text-align:center}
+        .summary-card h2{font-size:18px;margin-bottom:16px;color:var(--success)}
+        .summary-card .stat-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
+        .no-route-card{background:rgba(255,255,255,0.02);border:1px dashed rgba(255,255,255,0.08);border-radius:8px;padding:8px 12px;margin-bottom:6px;text-align:center;font-size:11px;color:var(--text-muted)}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+        .blink{animation:blink 1.5s ease-in-out infinite}
+        .preview-arrow-icon, .route-direction-arrow {background:none !important;border:none !important;box-shadow:none !important}
+    </style>
+</head>
+<body>
+<!-- Alert Banners -->
+<div class="alert-banner route-off" id="alertRouteOff">🚨 ROTADAN ÇIKTINIZ! Lütfen rotanıza geri dönün.</div>
+<div class="alert-banner already-sprayed" id="alertSprayed">⚠️ Bu alan zaten ilaçlanmış! İlaçlama yapmayın.</div>
+
+
+
+<!-- Mobile Drawer -->
+<div id="mobileDrawer" class="mobile-drawer" style="display:none">
+    <div class="drawer-overlay" onclick="toggleDrawer(false)"></div>
+    <div class="drawer-content">
+        <div class="drawer-header">
+            <div class="logo">🦟 Sivas VMS</div>
+            <div class="sub">Yönetici Paneli</div>
+            <button class="drawer-close" onclick="toggleDrawer(false)">&times;</button>
+        </div>
+        <nav class="drawer-nav">
+            <div style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">YÖNETİM SAYFALARI</div>
+            <a href="/admin/dashboard" class="drawer-item">📊 Ana Ekran</a>
+            <a href="/admin/planning" class="drawer-item">🗺️ Rota Planlama</a>
+            <a href="/admin/sessions" class="drawer-item">💉 İlaçlama Kayıtları</a>
+            <a href="/admin/vehicles" class="drawer-item">🚐 Araçlar</a>
+            <a href="/admin/personnel" class="drawer-item">👥 Personel</a>
+            <a href="/admin/chemicals" class="drawer-item">🧪 İlaç Stok</a>
+            <a href="/admin/reports" class="drawer-item">📈 Raporlar</a>
+            <a href="/admin/citizen-reports" class="drawer-item">📋 Vatandaş İhbar</a>
+        </nav>
+    </div>
+</div>
+
+<!-- Main App -->
+<div id="appScreen" class="mobile-app" style="display:none">
+    <div class="mobile-header">
+        <div style="display:flex;align-items:center;gap:8px">
+            <button id="hamburgerBtn" onclick="toggleDrawer(true)" style="background:transparent;border:none;color:#fff;font-size:20px;cursor:pointer;padding:4px;display:none;align-items:center;justify-content:center;line-height:1">☰</button>
+            <h1>🦟 VMS Saha</h1>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+            <span id="mPlate" class="badge badge-info" style="font-size:10px;padding:3px 6px"></span>
+            <select id="mRole">
+                <option value="driver">🚗 Şoför</option>
+                <option value="operator">🔧 Operatör</option>
+            </select>
+            <span id="mUserName" style="font-size:11px;opacity:0.9"></span>
+            <button class="btn btn-sm btn-outline" onclick="mobileLogout()" style="padding:4px 6px;border:none;background:transparent">🚪</button>
+        </div>
+    </div>
+    <div class="mobile-map"><div id="mobileMap"></div></div>
+    <div class="mobile-panel">
+        <!-- Route Info -->
+        <div id="routeInfoCard" class="route-info-card" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
+                <div style="flex:1">
+                    <div style="font-weight:600;color:#fff;font-size:11px;">📋 <span id="riNeighborhood">-</span></div>
+                    <div id="riSpecs" style="color:var(--accent);font-weight:700;font-size:10px;letter-spacing:0.3px;margin-top:2px">- km • - dk • - lt</div>
+                </div>
+                <div style="display:flex;gap:4px">
+                    <button class="btn btn-sm" onclick="animateRoutePreview()" id="btnAnimate" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#10b981;color:#fff;border:none;font-weight:700;cursor:pointer;">
+                        ▶️ Önizle
+                    </button>
+                    <button class="btn btn-sm" onclick="openGoogleNavigation()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#4285f4;color:#fff;border:none;font-weight:700;cursor:pointer;">
+                        🗺️ Navigasyon
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Selected Citizen Report Info -->
+        <div id="selectedReportCard" class="route-info-card" style="display:none; border-left: 3px solid #10b981; background: rgba(16, 185, 129, 0.08); border-color: #10b981;">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#10b981;font-size:11px;">📢 SEÇİLİ İHBAR GÖREVİ</div>
+                    <div style="font-weight:600;color:#fff;font-size:11px;margin-top:2px;" id="srTitle">-</div>
+                    <div id="srAdminNotes" style="color:#60a5fa;font-size:9.5px;margin-top:2px;font-weight:600;">-</div>
+                </div>
+                <div style="display:flex;gap:4px;align-items:center;">
+                    <button class="btn btn-sm" onclick="reportIssueActive()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;">
+                        ⚠️ Sorun Bildir
+                    </button>
+                    <button class="btn btn-sm" onclick="clearSelectedReport()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:rgba(239, 68, 68, 0.2);color:#ef4444;border:1px solid rgba(239, 68, 68, 0.4);font-weight:700;cursor:pointer;">
+                        ✕
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Task Info -->
+        <div id="taskInfoCard" class="route-info-card" style="display:none; border-left: 3px solid var(--accent);">
+            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
+                <div style="flex:1">
+                    <div style="font-weight:700;color:#fff;font-size:11px;">🎯 ATANMIŞ GÖREV (Rotasız)</div>
+                    <div style="color:var(--text-muted);font-size:10px;margin-top:2px;">
+                        📍 <span id="tiNeighborhood">-</span> • 🛢️ <span id="tiChemical">-</span>
+                    </div>
+                    <div id="tiStatus" style="font-size:9px;font-weight:600;color:var(--warning);margin-top:2px;">
+                        Oturum bekleniyor
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Citizen Reports Tasks Info -->
+        <div id="citizenReportsCard" class="route-info-card" style="display:none; border-left: 3px solid #10b981; margin-top:4px;">
+            <div style="font-weight:700;color:#fff;font-size:11px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                <span>📢 ATANMIŞ İHBAR GÖREVLERİM</span>
+                <span class="badge badge-success" id="crCount" style="font-size:9px;padding:2px 6px;background:#10b981;">0 Görev</span>
+            </div>
+            <div id="crTaskList" style="max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding-right:4px;">
+                <!-- Dynamically filled with assigned reports -->
+            </div>
+        </div>
+        <div id="noRouteCard" class="no-route-card" style="display:none">
+            ℹ️ Rota atanmadı. Yöneticinizden atama bekleyin.
+        </div>
+        <div class="mobile-stats">
+            <div class="mobile-stat"><div class="val" id="mSpeed">0</div><div class="lbl">km/s Hız</div></div>
+            <div class="mobile-stat"><div class="val" id="mDistance">0.0</div><div class="lbl">km Mesafe</div></div>
+            <div class="mobile-stat"><div class="val" id="mTime">00:00</div><div class="lbl">Süre</div></div>
+        </div>
+        <div id="sessionControls" style="display:flex;gap:8px;width:100%">
+            <button class="spray-btn start" id="btnStart" onclick="startSessionClick()" style="width:100%">▶️ İLAÇLAMA BAŞLAT</button>
+            <button class="spray-btn pause" id="btnPause" onclick="pauseSessionClick()" style="display:none;flex:1">⏸️ DURAKLAT</button>
+            <button class="spray-btn resume" id="btnResume" onclick="resumeSessionClick()" style="display:none;flex:1">▶️ DEVAM ET</button>
+            <button class="spray-btn finish" id="btnFinish" onclick="finishSessionClick()" style="display:none;flex:1">⏹️ BİTİR</button>
+        </div>
+        <div id="sessionIssueControls" style="display:none;margin-top:6px;width:100%">
+            <button class="spray-btn" id="btnSessionIssue" onclick="reportSessionIssueClick()" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:12px;font-weight:700;">⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR</button>
+        </div>
+        <div class="gps-status" id="gpsStatus">📡 GPS bekleniyor...</div>
+    </div>
+</div>
+
+<!-- Summary Screen -->
+<div id="summaryScreen" style="display:none;background:var(--bg-primary);min-height:100vh;padding-top:60px">
+    <div class="summary-card">
+        <h2>✅ İlaçlama Tamamlandı</h2>
+        <div class="stat-row"><span>Süre</span><span id="sumTime">-</span></div>
+        <div class="stat-row"><span>Mesafe</span><span id="sumDist">-</span></div>
+        <div class="stat-row"><span>İlaç Tüketimi</span><span id="sumChem">-</span></div>
+        <div class="stat-row"><span>Kaplanan Alan</span><span id="sumArea">-</span></div>
+        <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:20px" onclick="closeSummary()">Tamam</button>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+let TOKEN=localStorage.getItem('vms_token');
+let USER=JSON.parse(localStorage.getItem('vms_user')||'{}');
+let vehicleId=localStorage.getItem('vms_vehicle_id');
+let vehiclePlate=localStorage.getItem('vms_vehicle_plate');
+
+let map,socket,watchId;
+let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null;
+let routeCoords=[],routeLine=null,positionMarker=null;
+let assignedRoute=null,assignedRouteLayer=null,sprayedStreetsLayer=null,assignedSession=null;
+let routeSegmentsGroup=null,sessionPathPoints=[];
+let routeOffTimeout=null,sprayedAlertTimeout=null;
+let reportMarkersLayer=null,allActiveReports=[],selectedReport=null;
+
+if (TOKEN && USER.id) {
+    showApp();
+} else {
+    window.location.href = '/';
+}
+
+async function showApp(){
+    document.getElementById('appScreen').style.display='flex';
+    document.getElementById('mUserName').textContent=USER.full_name||'';
+    const hamburgerBtn = document.getElementById('hamburgerBtn');
+    if (USER.role === 'admin') {
+        hamburgerBtn.style.display = 'flex';
+    } else {
+        hamburgerBtn.style.display = 'none';
+    }
+    initMap();initSocket();startGPS();
+    await loadAssignedRoute();
+    loadMyAssignedReports();
+    setInterval(loadMyAssignedReports, 30000);
+}
+
+let crMarkerPulse = null;
+
+function getReportCoordinates(r) {
+    if (r.latitude && r.longitude) {
+        return [parseFloat(r.latitude), parseFloat(r.longitude)];
+    }
+    if (r.work_area_geojson) {
+        try {
+            const geojson = JSON.parse(r.work_area_geojson);
+            // If it's a Polygon
+            if (geojson.type === 'Polygon' && geojson.coordinates && geojson.coordinates[0] && geojson.coordinates[0][0]) {
+                const coord = geojson.coordinates[0][0]; // [lng, lat]
+                return [coord[1], coord[0]];
+            }
+            // If it's a LineString / Polyline
+            if (geojson.type === 'LineString' && geojson.coordinates && geojson.coordinates[0]) {
+                const coord = geojson.coordinates[0]; // [lng, lat]
+                return [coord[1], coord[0]];
+            }
+        } catch (e) {
+            console.error("GeoJSON parse error in coordinates extractor:", e);
+        }
+    }
+    return null;
+}
+
+function goToReport(reportId) {
+    if (!map) return;
+    
+    // Find the report object in our active list
+    const r = (allActiveReports || []).find(x => x.id === reportId);
+    if (!r) return;
+    
+    selectedReport = r;
+    
+    // Hide regular route / task cards to prevent confusion
+    document.getElementById('routeInfoCard').style.display = 'none';
+    document.getElementById('taskInfoCard').style.display = 'none';
+    if (document.getElementById('noRouteCard')) {
+        document.getElementById('noRouteCard').style.display = 'none';
+    }
+    
+    // Show selected report card
+    const card = document.getElementById('selectedReportCard');
+    card.style.display = 'block';
+    document.getElementById('srTitle').textContent = `${r.report_type.toUpperCase()} - ${r.neighborhood || ''}`;
+    document.getElementById('srAdminNotes').textContent = r.admin_notes ? `Not: ${r.admin_notes}` : 'Yönetici notu yok';
+    
+    const coords = getReportCoordinates(r);
+    if (coords) {
+        const [lat, lng] = coords;
+        map.setView([lat, lng], 17);
+        
+        if (crMarkerPulse) {
+            map.removeLayer(crMarkerPulse);
+        }
+        crMarkerPulse = L.circleMarker([lat, lng], {
+            radius: 14,
+            color: '#10b981',
+            fillColor: '#10b981',
+            fillOpacity: 0.45,
+            className: 'blink'
+        }).addTo(map).bindPopup(`<b>📢 Görev Noktası</b><br>${r.report_type.toUpperCase()}`).openPopup();
+        
+        // Highlight work area if exists for this report
+        if (typeof reportWorkAreaLayers !== 'undefined') {
+            // Flash the work area layers
+            reportWorkAreaLayers.eachLayer(layer => {
+                if (layer.setStyle) {
+                    layer.setStyle({ weight: 5, opacity: 1, fillOpacity: 0.3 });
+                    setTimeout(() => {
+                        layer.setStyle({ weight: 3, opacity: 0.8, fillOpacity: 0.15 });
+                    }, 3000);
+                }
+            });
+        }
+        
+        // Remove pulse after 8 seconds to prevent clutter
+        setTimeout(() => {
+            if (crMarkerPulse) {
+                map.removeLayer(crMarkerPulse);
+                crMarkerPulse = null;
+            }
+        }, 8000);
+
+        // AUTOMATICALLY TRIGGER GOOGLE MAPS DIRECTIONS / YOL TARİFİ INSTANTLY!
+        let origin = "";
+        if (lastPos && lastPos.lat && lastPos.lng) {
+            origin = `${lastPos.lat},${lastPos.lng}`;
+        }
+        const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${lat},${lng}`;
+        window.open(navUrl, '_blank');
+    } else {
+        // If no coordinates, alert the user with details
+        alert(`ℹ️ Bu ihbarın harita koordinatı veya çizilmiş bir çalışma alanı bulunmamaktadır.\n\n📍 Mahalle: ${r.neighborhood || '-'}\n🏠 Adres: ${r.address || 'Belirtilmedi'}`);
+    }
+}
+
+function clearSelectedReport() {
+    selectedReport = null;
+    document.getElementById('selectedReportCard').style.display = 'none';
+    
+    // Restore regular route or task cards if they exist
+    if (assignedRoute) {
+        document.getElementById('routeInfoCard').style.display = 'block';
+    } else if (assignedSession) {
+        document.getElementById('taskInfoCard').style.display = 'block';
+    } else {
+        if (document.getElementById('noRouteCard')) {
+            document.getElementById('noRouteCard').style.display = 'block';
+        }
+    }
+}
+
+async function reportIssueActive() {
+    if (!selectedReport) return;
+    const sorun = prompt("İlaçlama yaparken karşılaştığınız sorunu açıklayın (Yöneticiye anlık olarak iletilecektir):");
+    if (sorun === null) return; // Cancelled
+    if (!sorun.trim()) {
+        alert("Lütfen geçerli bir sorun açıklaması yazın.");
+        return;
+    }
+    
+    try {
+        const r = selectedReport;
+        const currentNotes = r.admin_notes || "";
+        const formattedDate = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        
+        // Calculate sprayed vs. unsprayed parts
+        let sprayInfo = "";
+        if (sessionId) {
+            const distMeters = Math.round(totalDistance);
+            if (distMeters === 0) {
+                sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI";
+            } else {
+                sprayInfo = `⚠️ KISMEN İLAÇLAMA YAPILDI (İlaçlanan Mesafe: ${distMeters} metre)`;
+            }
+        } else {
+            sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI (Oturum başlatılmadan bildirildi)";
+        }
+        
+        const newNotes = currentNotes 
+            ? `${currentNotes}\n[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`
+            : `[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`;
+            
+        const res = await fetch(`/api/citizen-reports/${r.id}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                admin_notes: newNotes,
+                status: 'sorunlu'
+            })
+        });
+        
+        if (res.ok) {
+            alert("⚠️ Sorun başarıyla yöneticiye bildirildi. Geçmiş olsun.");
+            await loadMyAssignedReports();
+        } else {
+            alert("Sorun bildirilirken hata oluştu.");
+        }
+    } catch(e) {
+        console.error("Sorun bildirme hatası:", e);
+    }
+}
+
+async function updateMobileReportStatus(id, status, silent = false) {
+    try {
+        const res = await fetch(`/api/citizen-reports/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+        if (res.ok) {
+            if (!silent) {
+                alert(status === 'çözüldü' ? 'İhbar görevi başarıyla tamamlandı! Tebrikler. 🏁' : 'Görev başarıyla başlatıldı, kolay gelsin!');
+            }
+            await loadMyAssignedReports();
+            if (typeof loadSprayedStreets === 'function') loadSprayedStreets();
+        } else {
+            if (!silent) alert('Durum güncellenirken hata oluştu.');
+        }
+    } catch (e) {
+        console.error("Durum güncellenirken hata:", e);
+    }
+}
+
+async function loadMyAssignedReports() {
+    try {
+        const reports = await fetch(`/api/citizen-reports?assigned_user_id=${USER.id}`, {
+            headers: { 'Authorization': 'Bearer ' + TOKEN }
+        }).then(res => res.json());
+        
+        const card = document.getElementById('citizenReportsCard');
+        const list = document.getElementById('crTaskList');
+        const count = document.getElementById('crCount');
+        
+        const activeReports = (reports || []).filter(r => r.status !== 'çözüldü');
+        allActiveReports = activeReports;
+        
+        // Check if our currently selected report is still active
+        if (selectedReport) {
+            const stillActive = activeReports.find(x => x.id === selectedReport.id);
+            if (!stillActive) {
+                clearSelectedReport();
+            } else {
+                selectedReport = stillActive;
+                document.getElementById('srTitle').textContent = `${stillActive.report_type.toUpperCase()} - ${stillActive.neighborhood || ''}`;
+                document.getElementById('srAdminNotes').textContent = stillActive.admin_notes ? `Not: ${stillActive.admin_notes}` : 'Yönetici notu yok';
+            }
+        }
+        
+        // Draw work areas on map
+        if (typeof reportWorkAreaLayers !== 'undefined') {
+            reportWorkAreaLayers.clearLayers();
+            activeReports.forEach(r => {
+                if (r.work_area_geojson) {
+                    try {
+                        const geojson = JSON.parse(r.work_area_geojson);
+                        const areaLayer = L.geoJSON(geojson, {
+                            style: () => ({
+                                color: '#3b82f6',
+                                weight: 3,
+                                opacity: 0.8,
+                                fillOpacity: 0.15,
+                                fillColor: '#3b82f6',
+                                dashArray: '6 4'
+                            }),
+                            pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 8 })
+                        });
+                        areaLayer.bindPopup(`<b>Çalışma Alanı</b><br>📢 ${r.report_type} - ${r.neighborhood || ''}<br>${r.admin_notes ? '📝 Not: ' + r.admin_notes : ''}`);
+                        reportWorkAreaLayers.addLayer(areaLayer);
+                    } catch (e) {}
+                }
+            });
+        }
+
+        // Draw persistent markers on map for active citizen reports
+        if (typeof reportMarkersLayer !== 'undefined' && reportMarkersLayer !== null) {
+            reportMarkersLayer.clearLayers();
+            activeReports.forEach(r => {
+                const coords = getReportCoordinates(r);
+                if (coords) {
+                    const [lat, lng] = coords;
+                    const color = r.status === 'işlemde' ? '#f59e0b' : '#ef4444';
+                    const emoji = r.status === 'işlemde' ? '🟡' : '🔴';
+                    const marker = L.marker([lat, lng], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: `<div style="position:relative; font-size:22px; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));" class="blink">
+                                ${emoji}
+                            </div>`,
+                            iconSize: [24, 24], iconAnchor: [12, 12]
+                        })
+                    }).addTo(reportMarkersLayer);
+                    
+                    marker.bindPopup(`
+                        <div style="min-width:180px; font-family:inherit; color:#fff;">
+                            <b style="font-size:13px; color:#f87171;">📢 Vatandaş İhbarı (#${r.id})</b><br>
+                            <b>Tür:</b> ${r.report_type.toUpperCase()}<br>
+                            <b>Açıklama:</b> ${r.description}<br>
+                            <b>Öncelik:</b> <span class="badge ${r.priority === 'acil' ? 'badge-danger' : r.priority === 'yüksek' ? 'badge-warning' : 'badge-info'}">${r.priority}</span><br>
+                            ${r.admin_notes ? '<b style="color:#60a5fa;">Yönetici Notu:</b> ' + r.admin_notes : ''}
+                        </div>
+                    `);
+                    marker.on('click', () => {
+                        goToReport(r.id);
+                    });
+                }
+            });
+        }
+        
+        if (activeReports.length > 0) {
+            card.style.display = 'block';
+            count.textContent = `${activeReports.length} Görev`;
+            
+            list.innerHTML = activeReports.map(r => `
+                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:8px;">
+                    <div style="flex:1;">
+                        <div style="font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;">
+                            <span>📢 ${r.report_type.toUpperCase()}</span>
+                            <span class="badge ${r.priority === 'acil' ? 'badge-danger' : r.priority === 'yüksek' ? 'badge-warning' : 'badge-info'}" style="font-size:8px;padding:1px 4px;font-weight:700;">${r.priority}</span>
+                            ${r.work_area_geojson ? '<span style="font-size:8px;color:#3b82f6;font-weight:700;">✉️ ALAN</span>' : ''}
+                        </div>
+                        <div style="color:rgba(255,255,255,0.9);font-size:10px;margin-top:2px;font-weight:500;">${r.description}</div>
+                        <div style="color:var(--text-muted);font-size:9px;margin-top:2px;">📍 Mahalle: ${r.neighborhood || '-'}</div>
+                        <div style="color:var(--text-muted);font-size:9px;">🏠 Adres: ${r.address || ''}</div>
+                        ${r.admin_notes ? '<div style="color:#60a5fa;font-size:9px;margin-top:2px;font-weight:600;">📝 Yönetici Notu: ' + r.admin_notes + '</div>' : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+                        <button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#3b82f6;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="goToReport(${r.id})">📍 Git</button>
+                        ${r.status === 'beklemede' 
+                            ? `<button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="updateMobileReportStatus(${r.id}, 'işlemde')">Başla</button>` 
+                            : `<button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#10b981;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="updateMobileReportStatus(${r.id}, 'çözüldü')">Çözüldü</button>`}
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            card.style.display = 'none';
+        }
+    } catch (e) {
+        console.error("İhbar görevleri yüklenemedi:", e);
+    }
+}
+
+function initMap(){
+    map=L.map('mobileMap',{zoomControl:false}).setView([39.7477,37.0179],15);
+    
+    const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
+    });
+    const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
+    });
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
+    }).addTo(map); // Google Hybrid by default
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+    });
+
+    const baseMaps = {
+        "Google Uydu + Hibrit": googleHybrid,
+        "Google Harita": googleRoadmap,
+        "Google Uydu": googleSatellite,
+        "OpenStreetMap": osm
+    };
+    
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+    L.control.zoom({position:'topright'}).addTo(map);
+    sprayedStreetsLayer=L.layerGroup().addTo(map);
+    routeSegmentsGroup=L.layerGroup().addTo(map);
+    reportWorkAreaLayers=L.layerGroup().addTo(map);
+    reportMarkersLayer=L.layerGroup().addTo(map);
+    loadSprayedStreets();
+}
+
+function getSprayStyle(daysRemaining){
+    if(daysRemaining<=0) return{color:'#6b7280',opacity:0.5,weight:3,dashArray:'4 4'};
+    if(daysRemaining<=2) return{color:'#991b1b',opacity:0.9,weight:6,className:'blink'};
+    if(daysRemaining<=5) return{color:'#dc2626',opacity:0.85,weight:5};
+    if(daysRemaining<=10) return{color:'#ef4444',opacity:0.8,weight:5};
+    if(daysRemaining<=15) return{color:'#f97316',opacity:0.75,weight:4};
+    if(daysRemaining<=20) return{color:'#f59e0b',opacity:0.7,weight:4};
+    if(daysRemaining<=25) return{color:'#84cc16',opacity:0.65,weight:4};
+    return{color:'#10b981',opacity:0.8,weight:5};
+}
+
+async function loadSprayedStreets(){
+    try{
+        const res=await fetch('/api/reports/sprayed-streets',{headers:{'Authorization':'Bearer '+TOKEN}});
+        const streets=await res.json();
+        (streets||[]).forEach(s=>{
+            if(s.geometry_geojson){try{
+                const geom=JSON.parse(s.geometry_geojson);
+                const rem=s.days_remaining||0;
+                const style=getSprayStyle(rem);
+                const layer=L.geoJSON(geom,{style:()=>style}).addTo(sprayedStreetsLayer);
+                
+                const daysText=rem<=0?'<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>':`<b>${Math.round(rem)} gün</b> kaldı`;
+                const sprayedDate=new Date(s.sprayed_at);
+                const sprayedStr=sprayedDate.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+                const expiresStr=new Date(s.expires_at).toLocaleDateString('tr-TR');
+                
+                layer.bindPopup(`<b>${s.street_name||'İlaçlama Hattı'}</b><br>
+                    📍 Mahalle: ${s.neighborhood||'-'}<br>
+                    🕐 Ne Zaman: <b>${sprayedStr}</b><br>
+                    📅 Bitiş: ${expiresStr}<br>
+                    ⏳ ${daysText}<br>
+                    🚐 Araç: ${s.plate||'-'}`);
+            }catch(e){}}
+        });
+    }catch(e){}
+}
+
+async function loadAssignedRoute(){
+    let hasRoute = false;
+    // 1. Planlanmış Rota sorgula
+    try{
+        const res=await fetch(`/api/routes/assigned/${USER.id}`,{headers:{'Authorization':'Bearer '+TOKEN}});
+        const route=await res.json();
+        if(route){
+            assignedRoute=route;
+            vehicleId=route.vehicle_id;
+            vehiclePlate=route.plate||'';
+            localStorage.setItem('vms_vehicle_id',vehicleId);
+            localStorage.setItem('vms_vehicle_plate',vehiclePlate);
+            document.getElementById('mPlate').textContent=vehiclePlate;
+            // Show route info
+            document.getElementById('routeInfoCard').style.display='block';
+            document.getElementById('noRouteCard').style.display='none';
+            document.getElementById('riNeighborhood').textContent=route.neighborhood||'-';
+            const dist = Number(route.total_distance_km||0).toFixed(1);
+            const time = Math.round(route.estimated_time_min||0);
+            const chem = Number(route.estimated_chemical_lt||0).toFixed(0);
+            document.getElementById('riSpecs').textContent=`${dist} km • ${time} dk • ${chem} lt`;
+            // Draw route on map with direction arrows
+            if(route.route_coords){
+                try{
+                    const coords=JSON.parse(route.route_coords);
+                    if(coords.length>0){
+                        // Main route line (calculated route in red)
+                        assignedRouteLayer=L.polyline(coords,{color:'#ef4444',weight:5,opacity:0.7,dashArray:'10 6'}).addTo(map);
+                        // Start marker
+                        L.circleMarker(coords[0],{radius:10,color:'#10b981',fillColor:'#10b981',fillOpacity:1}).bindPopup('🏁 BAŞLANGIÇ').addTo(map);
+                        // End marker
+                        L.circleMarker(coords[coords.length-1],{radius:10,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1}).bindPopup('🏁 BİTİŞ').addTo(map);
+                        // Direction arrows every ~500m
+                        let accDist=0;
+                        for(let i=1;i<coords.length;i++){
+                            accDist+=haversine(coords[i-1][0],coords[i-1][1],coords[i][0],coords[i][1]);
+                            if(accDist>500){
+                                accDist=0;
+                                const angle=Math.atan2(coords[i][1]-coords[i-1][1],coords[i][0]-coords[i-1][0])*180/Math.PI;
+                                L.marker(coords[i],{icon:L.divIcon({className:'route-direction-arrow',html:`<div style="font-size:16px;color:#ef4444;transform:rotate(${-angle+90}deg)">▲</div>`,iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
+                            }
+                        }
+                        map.fitBounds(assignedRouteLayer.getBounds(),{padding:[50,50]});
+                    }
+                }catch(e){console.error('Rota parse hatası:',e);}
+            }
+            hasRoute = true;
+        }
+    }catch(e){console.error('Planlı rota sorgulama hatası:', e);}
+
+    // 2. Aktif veya Planlanmış Görevi sorgula
+    try{
+        const sRes=await fetch(`/api/sessions/field-active/${USER.id}`,{headers:{'Authorization':'Bearer '+TOKEN}});
+        const session=await sRes.json();
+        if(session){
+            assignedSession=session;
+            vehicleId=session.vehicle_id;
+            vehiclePlate=session.plate||'';
+            localStorage.setItem('vms_vehicle_id',vehicleId);
+            localStorage.setItem('vms_vehicle_plate',vehiclePlate);
+            document.getElementById('mPlate').textContent=vehiclePlate;
+            if(socket) { socket.emit('join-field',vehicleId); }
+
+            // Rota atanmamışsa görev detaylarını göster
+            if(!hasRoute){
+                document.getElementById('noRouteCard').style.display='none';
+                document.getElementById('taskInfoCard').style.display='block';
+                document.getElementById('tiNeighborhood').textContent=session.neighborhood||'Belirtilmedi';
+                document.getElementById('tiChemical').textContent=session.chemical_name||'İlaç Seçilmedi';
+                
+                if(session.status==='active'){
+                    document.getElementById('tiStatus').textContent='⚡ Görev Aktif - İlaçlama Yapılıyor';
+                    document.getElementById('tiStatus').style.color='var(--success)';
+                } else {
+                    document.getElementById('tiStatus').textContent='📋 Görev Planlandı - Başlatılması Bekleniyor';
+                    document.getElementById('tiStatus').style.color='var(--warning)';
+                }
+            }
+
+            // Eğer oturum aktifse (sayfa yenilenmişse veya uygulama geri gelmişse) durumu restore et
+            if(session.status==='active'){
+                sessionId=session.id;
+                startTime=session.start_time ? new Date(session.start_time).getTime() : Date.now();
+                
+                const storedSpraying = localStorage.getItem('vms_is_spraying');
+                isSpraying = storedSpraying !== 'false';
+                
+                updateControlButtons();
+                
+                // WebSocket durumunu bildir
+                if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:isSpraying ? 'İlaçlama devam ediyor (yenilendi)' : 'İlaçlama duraklatıldı (yenilendi)',status:'active'});
+                
+                // Kronometreyi başlat
+                updateTimer();
+
+                // Kayıtlı rota koordinatlarını çekip çiz
+                try{
+                    const rRes=await fetch(`/api/sessions/${session.id}/route`,{headers:{'Authorization':'Bearer '+TOKEN}});
+                    const points=await rRes.json();
+                    if(points&&points.length>0){
+                        sessionPathPoints = points.map(p => ({
+                            lat: p.latitude,
+                            lng: p.longitude,
+                            is_spraying: p.is_spraying !== undefined ? p.is_spraying : 1
+                        }));
+                        
+                        drawSessionPath();
+                        
+                        const lastPoint = sessionPathPoints[sessionPathPoints.length - 1];
+                        map.setView([lastPoint.lat, lastPoint.lng], 16);
+                        
+                        // Mesafeyi ve süreyi geçmiş noktalara göre hesaplamaya başla
+                        let tempDist=0;
+                        for(let i=1;i<sessionPathPoints.length;i++){
+                            tempDist+=haversine(sessionPathPoints[i-1].lat, sessionPathPoints[i-1].lng, sessionPathPoints[i].lat, sessionPathPoints[i].lng);
+                        }
+                        totalDistance=tempDist;
+                        document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
+                    }
+                }catch(re){console.error('Oturum rota koordinatları yüklenemedi:',re);}
+            }
+        } else {
+            // Hiçbiri yoksa ve rota da yoksa
+            if(!hasRoute){
+                document.getElementById('noRouteCard').style.display='block';
+                document.getElementById('taskInfoCard').style.display='none';
+            }
+        }
+    }catch(e){
+        console.error('Görev sorgulama hatası:', e);
+        if(!hasRoute){
+            document.getElementById('noRouteCard').style.display='block';
+        }
+    }
+}
+
+function initSocket(){
+    socket=io();
+    if(vehicleId) socket.emit('join-field',vehicleId);
+    // Join user-specific room for citizen report notifications
+    if(USER && USER.id) socket.emit('join-field-user', USER.id);
+    socket.on('citizen-report-assigned', (data) => {
+        alert('📢 Yeni ihbar görevi atandı! Görevlerinizi kontrol edin.');
+        loadMyAssignedReports();
+    });
+}
+
+function startGPS(){
+    if(!navigator.geolocation){document.getElementById('gpsStatus').textContent='❌ GPS desteklenmiyor';return;}
+    watchId=navigator.geolocation.watchPosition(
+        pos=>{
+            const{latitude,longitude,speed,accuracy}=pos.coords;
+            document.getElementById('gpsStatus').textContent=`📡 GPS Aktif • Doğruluk: ${Math.round(accuracy)}m`;
+            // Premium Navigation Arrow (Google Maps Style)
+            const arrowSvg = `<svg viewBox="0 0 24 24" width="28" height="28" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"><path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`;
+            let currentHeading = 0;
+            if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
+                currentHeading = pos.coords.heading;
+            } else if (lastPos) {
+                const distMoved = haversine(lastPos.lat, lastPos.lng, latitude, longitude);
+                if (distMoved > 2) {
+                    currentHeading = getBearing(lastPos.lat, lastPos.lng, latitude, longitude);
+                } else if (positionMarker && positionMarker._currentHeading !== undefined) {
+                    currentHeading = positionMarker._currentHeading;
+                }
+            }
+            const arrowIcon = L.divIcon({
+                className: 'preview-arrow-icon',
+                html: `<div style="transform: rotate(${currentHeading}deg); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease-in-out;">${arrowSvg}</div>`,
+                iconSize: [28, 28],
+                iconAnchor: [14, 14]
+            });
+            if(positionMarker){
+                positionMarker.setLatLng([latitude,longitude]);
+                positionMarker.setIcon(arrowIcon);
+                positionMarker._currentHeading = currentHeading;
+            }else{
+                positionMarker=L.marker([latitude,longitude],{icon:arrowIcon}).addTo(map);
+                positionMarker._currentHeading = currentHeading;
+                map.setView([latitude,longitude],16);
+            }
+            // Speed
+            const speedKmh=speed?(speed*3.6).toFixed(0):0;
+            document.getElementById('mSpeed').textContent=speedKmh;
+            
+            // Speed alerts logic
+            const speedVal = parseFloat(speedKmh) || 0;
+            if (isSpraying) {
+                if (speedVal > 25) {
+                    showMobileSpeedWarning(speedVal);
+                } else {
+                    hideMobileSpeedWarning();
+                }
+                if (speedVal > 40) {
+                    sendSpeedViolationToManager(speedVal);
+                }
+            } else {
+                hideMobileSpeedWarning();
+            }
+            // Distance & route
+            if(sessionId){
+                const activeSpraying = isSpraying ? 1 : 0;
+                if(sessionPathPoints.length === 0){
+                    sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
+                    drawSessionPath();
+                } else {
+                    const lastRecorded = sessionPathPoints[sessionPathPoints.length - 1];
+                    const d = haversine(lastRecorded.lat, lastRecorded.lng, latitude, longitude);
+                    if(d > 3){// Min 3m to avoid GPS jitter
+                        totalDistance+=d;
+                        document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
+                        sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
+                        drawSessionPath();
+                    }
+                }
+                // ─── Route deviation & already sprayed check ───
+                if(isSpraying) {
+                    checkRouteDeviation(latitude,longitude);
+                    checkAlreadySprayed(latitude,longitude);
+                }
+            }
+            lastPos={lat:latitude,lng:longitude};
+            // Send to server
+            if(sessionId){
+                const activeSpraying = isSpraying ? 1 : 0;
+                fetch(`/api/sessions/${sessionId}/track`,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({latitude,longitude,speed_kmh:speedKmh,is_spraying:activeSpraying})}).catch(()=>{});
+            }
+            if(socket){
+                const activeSpraying = isSpraying ? 1 : 0;
+                socket.emit('vehicle-location',{vehicle_id:vehicleId,plate:vehiclePlate,latitude,longitude,speed:speedKmh,is_spraying:activeSpraying});
+            }
+            if(sessionId && isSpraying) map.panTo([latitude,longitude]);
+        },
+        err=>{document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${err.message}`;},
+        {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+    );
+}
+
+function checkRouteDeviation(lat,lng){
+    if(!assignedRoute||!assignedRoute.route_coords) return;
+    try{
+        const coords=JSON.parse(assignedRoute.route_coords);
+        let minDist=Infinity;
+        coords.forEach(c=>{const d=haversine(lat,lng,c[0],c[1]);if(d<minDist) minDist=d;});
+        const alertEl=document.getElementById('alertRouteOff');
+        if(minDist>50){// 50m den fazla sapma
+            alertEl.style.display='block';
+            if(!routeOffTimeout){
+                try{navigator.vibrate([200,100,200]);}catch(e){}
+            }
+            clearTimeout(routeOffTimeout);
+            routeOffTimeout=setTimeout(()=>{alertEl.style.display='none';routeOffTimeout=null;},8000);
+        }else{alertEl.style.display='none';}
+    }catch(e){}
+}
+
+function getBearing(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    
+    let bearing = Math.atan2(y, x) * 180 / Math.PI;
+    return (bearing + 360) % 360;
+}
+
+function getCurrentStreetOneway(lat, lng) {
+    let closestOneway = false;
+    let minDist = Infinity;
+
+    // 1. Check against assigned route segments
+    if (assignedRoute && assignedRoute.route_geojson) {
+        try {
+            const geojson = typeof assignedRoute.route_geojson === 'string' ? JSON.parse(assignedRoute.route_geojson) : assignedRoute.route_geojson;
+            if (geojson && geojson.features) {
+                geojson.features.forEach(f => {
+                    if (f.geometry && f.geometry.coordinates) {
+                        const coords = f.geometry.coordinates;
+                        coords.forEach(c => {
+                            const d = haversine(lat, lng, c[1], c[0]);
+                            if (d < minDist) {
+                                minDist = d;
+                                closestOneway = !!(f.properties && f.properties.oneway);
+                            }
+                        });
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("assignedRoute parsing error:", e);
+        }
+    }
+
+    // 2. Check against sprayedStreetsLayer segments
+    if (sprayedStreetsLayer) {
+        sprayedStreetsLayer.eachLayer(layer => {
+            if (layer.eachLayer) {
+                layer.eachLayer(subLayer => {
+                    if (subLayer.getLatLngs) {
+                        const latlngs = subLayer.getLatLngs();
+                        let isOneway = false;
+                        if (subLayer.feature && subLayer.feature.properties) {
+                            isOneway = !!subLayer.feature.properties.oneway;
+                        } else if (layer.feature && layer.feature.properties) {
+                            isOneway = !!layer.feature.properties.oneway;
+                        }
+                        
+                        const checkLatLngs = Array.isArray(latlngs) ? (Array.isArray(latlngs[0]) ? latlngs[0] : latlngs) : [];
+                        checkLatLngs.forEach(p => {
+                            if (p && p.lat) {
+                                const d = haversine(lat, lng, p.lat, p.lng);
+                                if (d < minDist) {
+                                    minDist = d;
+                                    closestOneway = isOneway;
+                                }
+                            }
+                        });
+                    }
+                });
+            } else if (layer.getLatLngs) {
+                const latlngs = layer.getLatLngs();
+                let isOneway = false;
+                if (layer.feature && layer.feature.properties) {
+                    isOneway = !!layer.feature.properties.oneway;
+                }
+                const checkLatLngs = Array.isArray(latlngs) ? (Array.isArray(latlngs[0]) ? latlngs[0] : latlngs) : [];
+                checkLatLngs.forEach(p => {
+                    if (p && p.lat) {
+                        const d = haversine(lat, lng, p.lat, p.lng);
+                        if (d < minDist) {
+                            minDist = d;
+                            closestOneway = isOneway;
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    // If we are within 25 meters of the closest segment, return its oneway status.
+    // Otherwise default to false (two-way)
+    if (minDist <= 25) {
+        return closestOneway;
+    }
+    return false;
+}
+
+function checkAlreadySprayed(lat,lng){
+    // Calculate current bearing if we have a previous position with sufficient distance
+    let currentBearing = null;
+    if (lastPos && haversine(lastPos.lat, lastPos.lng, lat, lng) > 2) {
+        currentBearing = getBearing(lastPos.lat, lastPos.lng, lat, lng);
+    }
+
+    const currentIsOneway = getCurrentStreetOneway(lat, lng);
+    let isOnSprayed=false;
+    
+    // Helper to check if a point is duplicate based on distance, bearing and oneway status
+    function isDuplicatePoint(hLat, hLng, histBearing, oneway = false) {
+        const dist = haversine(lat, lng, hLat, hLng);
+        if (dist < 5) {
+            // If the street is geliş-gidiş (oneway is false), check bearing difference
+            if (!oneway) {
+                // If we have bearing info for both, check if they are in the same direction
+                if (currentBearing !== null && histBearing !== null) {
+                    let diff = Math.abs(currentBearing - histBearing);
+                    if (diff > 180) {
+                        diff = 360 - diff;
+                    }
+                    // If diff >= 120, they are in opposite directions (gidiş-geliş) -> not a duplicate!
+                    if (diff >= 120) {
+                        return false; 
+                    }
+                }
+            }
+            // If it is a one-way street, or if bearing difference is < 120 on a two-way street, it is a duplicate!
+            return true;
+        }
+        return false;
+    }
+
+    // Check against sprayed streets layer
+    if(sprayedStreetsLayer){
+        sprayedStreetsLayer.eachLayer(layer=>{
+            if(layer.getBounds){
+                try{
+                    const bounds=layer.getBounds();
+                    if(bounds.contains([lat,lng])){
+                        // Check precise distance to line segments
+                        layer.eachLayer(subLayer=>{
+                            if(subLayer.getLatLngs){
+                                const latlngs=subLayer.getLatLngs();
+                                if(Array.isArray(latlngs)){
+                                    latlngs.forEach((ll, idx)=>{
+                                        if(Array.isArray(ll)){
+                                            ll.forEach((p, pIdx)=>{
+                                                let histBearing = null;
+                                                const nextP = ll[pIdx + 1];
+                                                if (nextP) {
+                                                    histBearing = getBearing(p.lat, p.lng, nextP.lat, nextP.lng);
+                                                }
+                                                if (isDuplicatePoint(p.lat, p.lng, histBearing, currentIsOneway)) {
+                                                    isOnSprayed = true;
+                                                }
+                                            });
+                                        }else{
+                                            let histBearing = null;
+                                            const nextP = latlngs[idx + 1];
+                                            if (nextP && !Array.isArray(nextP)) {
+                                                histBearing = getBearing(ll.lat, ll.lng, nextP.lat, nextP.lng);
+                                            }
+                                            if (isDuplicatePoint(ll.lat, ll.lng, histBearing, currentIsOneway)) {
+                                                isOnSprayed = true;
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                        });
+                    }
+                }catch(e){}
+            }
+        });
+    }
+
+    // Also check own route (same road twice)
+    if(routeCoords.length>20){
+        for(let i=0;i<routeCoords.length-20;i++){
+            let histBearing = null;
+            if (routeCoords[i+1]) {
+                histBearing = getBearing(routeCoords[i][0], routeCoords[i][1], routeCoords[i+1][0], routeCoords[i+1][1]);
+            }
+            if (isDuplicatePoint(routeCoords[i][0], routeCoords[i][1], histBearing, currentIsOneway)){
+                isOnSprayed=true;
+                break;
+            }
+        }
+    }
+
+    const alertEl=document.getElementById('alertSprayed');
+    if(isOnSprayed&&isSpraying){
+        alertEl.textContent = "⚠️ Bu güzergahtan daha önce geçtiniz! Mükerrer ilaçlama yapıyorsunuz.";
+        alertEl.style.display='block';
+        try{ if(navigator.vibrate) navigator.vibrate([300, 150, 300]); }catch(e){}
+        clearTimeout(sprayedAlertTimeout);
+        sprayedAlertTimeout=setTimeout(()=>{alertEl.style.display='none';},6000);
+    }
+}
+
+function toggleDrawer(open) {
+    const drawer = document.getElementById('mobileDrawer');
+    if (drawer) {
+        drawer.style.display = open ? 'flex' : 'none';
+    }
+}
+
+function updateControlButtons() {
+    const btnStart = document.getElementById('btnStart');
+    const btnPause = document.getElementById('btnPause');
+    const btnResume = document.getElementById('btnResume');
+    const btnFinish = document.getElementById('btnFinish');
+    const issueControls = document.getElementById('sessionIssueControls');
+    
+    if (!btnStart || !btnPause || !btnResume || !btnFinish) return;
+    
+    if (sessionId === null) {
+        btnStart.style.display = 'block';
+        btnPause.style.display = 'none';
+        btnResume.style.display = 'none';
+        btnFinish.style.display = 'none';
+        if (issueControls) issueControls.style.display = 'none';
+    } else {
+        btnStart.style.display = 'none';
+        btnFinish.style.display = 'block';
+        if (issueControls) issueControls.style.display = 'block';
+        if (isSpraying) {
+            btnPause.style.display = 'block';
+            btnResume.style.display = 'none';
+        } else {
+            btnPause.style.display = 'none';
+            btnResume.style.display = 'block';
+        }
+    }
+}
+
+async function reportSessionIssueClick() {
+    if (!sessionId) return;
+    const sorun = prompt("İlaçlama oturumu esnasında karşılaştığınız sorunu açıklayın (Yöneticiye anlık olarak iletilecektir):");
+    if (sorun === null) return; // Cancelled
+    if (!sorun.trim()) {
+        alert("Lütfen geçerli bir sorun açıklaması yazın.");
+        return;
+    }
+    
+    const btnIssue = document.getElementById('btnSessionIssue');
+    if (btnIssue) {
+        btnIssue.disabled = true;
+        btnIssue.textContent = '⏳ Gönderiliyor...';
+    }
+    
+    try {
+        const formattedDate = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        
+        // Calculate distance
+        const distMeters = Math.round(totalDistance);
+        let sprayInfo = "";
+        if (distMeters === 0) {
+            sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI";
+        } else {
+            sprayInfo = `⚠️ KISMEN İLAÇLAMA YAPILDI (İlaçlanan Mesafe: ${distMeters} metre)`;
+        }
+        
+        const issueNotes = `[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`;
+        
+        const res = await fetch(`/api/sessions/${sessionId}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                status: 'sorunlu',
+                notes: issueNotes,
+                total_km: totalDistance / 1000,
+                chemical_used_lt: 0
+            })
+        });
+        
+        if (res.ok) {
+            alert("⚠️ Sorun başarıyla yöneticiye bildirildi. Oturum sonlandırıldı.");
+            
+            // Local state cleanup
+            isSpraying = false;
+            sessionId = null;
+            localStorage.removeItem('vms_is_spraying');
+            updateControlButtons();
+            
+            if (socket) {
+                socket.emit('spray-status', {
+                    plate: vehiclePlate,
+                    message: `İlaçlama yarıda kaldı - Sorun bildirildi: ${sorun.trim()}`,
+                    status: 'sorunlu'
+                });
+            }
+            
+            if (assignedSession) {
+                document.getElementById('taskInfoCard').style.display = 'none';
+                assignedSession = null;
+            }
+            
+            // Refresh local maps / assignments
+            await loadAssignedRoute();
+        } else {
+            alert("Sorun bildirilirken hata oluştu.");
+        }
+    } catch (e) {
+        console.error("Sorun bildirme hatası:", e);
+        alert("Bağlantı hatası oluştu.");
+    } finally {
+        if (btnIssue) {
+            btnIssue.disabled = false;
+            btnIssue.textContent = '⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR';
+        }
+    }
+}
+
+function drawSessionPath() {
+    if (!routeSegmentsGroup) return;
+    routeSegmentsGroup.clearLayers();
+    if (sessionPathPoints.length < 2) return;
+    
+    let currentSegment = [sessionPathPoints[0]];
+    let currentSpraying = sessionPathPoints[0].is_spraying;
+    
+    for (let i = 1; i < sessionPathPoints.length; i++) {
+        const pt = sessionPathPoints[i];
+        if (pt.is_spraying === currentSpraying) {
+            currentSegment.push(pt);
+        } else {
+            drawPathSegment(currentSegment, currentSpraying);
+            currentSegment = [sessionPathPoints[i - 1], pt];
+            currentSpraying = pt.is_spraying;
+        }
+    }
+    if (currentSegment.length >= 2) {
+        drawPathSegment(currentSegment, currentSpraying);
+    }
+}
+
+function drawPathSegment(pts, isSprayingVal) {
+    const latlngs = pts.map(p => [p.lat, p.lng]);
+    const style = isSprayingVal === 1 
+        ? { color: '#10b981', weight: 8, opacity: 0.85 } 
+        : { color: '#6b7280', weight: 6, opacity: 0.7, dashArray: '8 8' };
+        
+    L.polyline(latlngs, style).addTo(routeSegmentsGroup);
+}
+
+async function startSessionClick() {
+    if(!assignedRoute && !assignedSession && !selectedReport){
+        alert("Size atanmış bir görev bulunmuyor. İlaçlamaya başlamak için yöneticinizden görev atamasını bekleyin.");
+        return;
+    }
+    
+    // Gate on chemical intake form data
+    if (!chemicalIntakeData) {
+        openIntakeModal();
+        return;
+    }
+    
+    const btnStart = document.getElementById('btnStart');
+    btnStart.disabled = true; btnStart.textContent = '⏳ Başlatılıyor...';
+    try {
+        const payload = {
+            ...chemicalIntakeData
+        };
+        
+        if(assignedSession && assignedSession.status === 'planned'){
+            sessionId = assignedSession.id;
+            await fetch(`/api/sessions/${sessionId}/start`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            assignedSession.status = 'active';
+            
+            const tiStatus = document.getElementById('tiStatus');
+            if(tiStatus){
+                tiStatus.textContent = '⚡ Görev Aktif - İlaçlama Yapılıyor';
+                tiStatus.style.color = 'var(--success)';
+            }
+        } else {
+            const role=document.getElementById('mRole').value;
+            const personnelRes=await fetch('/api/personnel',{headers:{'Authorization':'Bearer '+TOKEN}});
+            const allPersonnel=await personnelRes.json();
+            const myPersonnel=allPersonnel.find(p=>p.user_id===USER.id);
+            const myId=myPersonnel?myPersonnel.id:1;
+            const body={
+                vehicle_id:vehicleId||1,
+                driver_id:role==='driver'?myId:1,
+                operator_id:role==='operator'?myId:2,
+                application_type:'sokak_ilacalama',
+                ...payload
+            };
+            if(assignedRoute) body.route_id=assignedRoute.id;
+            const res=await fetch('/api/sessions',{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify(body)});
+            const data=await res.json();
+            sessionId=data.id;
+            await fetch(`/api/sessions/${sessionId}/start`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+        }
+        
+        isSpraying=true;
+        localStorage.setItem('vms_is_spraying', 'true');
+        startTime=Date.now();
+        totalDistance=0;
+        sessionPathPoints=[];
+        routeSegmentsGroup.clearLayers();
+        
+        if(lastPos){
+            sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 1 });
+            drawSessionPath();
+        }
+        
+        updateControlButtons();
+        if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama başladı',status:'active'});
+        updateTimer();
+        
+        // Reset intake data once started successfully
+        chemicalIntakeData = null;
+    } catch(err) {
+        alert('Başlatılamadı: '+err.message);
+        chemicalIntakeData = null;
+    } finally {
+        btnStart.disabled = false;
+        btnStart.textContent = '▶️ İLAÇLAMA BAŞLAT';
+    }
+}
+
+function pauseSessionClick() {
+    isSpraying = false;
+    localStorage.setItem('vms_is_spraying', 'false');
+    updateControlButtons();
+    
+    if (lastPos) {
+        sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 0 });
+        drawSessionPath();
+        const speedKmh = document.getElementById('mSpeed').textContent;
+        fetch(`/api/sessions/${sessionId}/track`,{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+            body:JSON.stringify({latitude:lastPos.lat,longitude:lastPos.lng,speed_kmh:parseFloat(speedKmh)||0,is_spraying:0})
+        }).catch(()=>{});
+        
+        if(socket){
+            socket.emit('vehicle-location',{
+                vehicle_id:vehicleId,
+                plate:vehiclePlate,
+                latitude:lastPos.lat,
+                longitude:lastPos.lng,
+                speed:speedKmh,
+                is_spraying:0
+            });
+        }
+    }
+    
+    if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama duraklatıldı (dolum/geçiş)',status:'active'});
+}
+
+function resumeSessionClick() {
+    isSpraying = true;
+    localStorage.setItem('vms_is_spraying', 'true');
+    updateControlButtons();
+    
+    if (lastPos) {
+        sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 1 });
+        drawSessionPath();
+        const speedKmh = document.getElementById('mSpeed').textContent;
+        fetch(`/api/sessions/${sessionId}/track`,{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+            body:JSON.stringify({latitude:lastPos.lat,longitude:lastPos.lng,speed_kmh:parseFloat(speedKmh)||0,is_spraying:1})
+        }).catch(()=>{});
+        
+        if(socket){
+            socket.emit('vehicle-location',{
+                vehicle_id:vehicleId,
+                plate:vehiclePlate,
+                latitude:lastPos.lat,
+                longitude:lastPos.lng,
+                speed:speedKmh,
+                is_spraying:1
+            });
+        }
+    }
+    
+    if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlamaya devam ediliyor',status:'active'});
+}
+
+async function finishSessionClick() {
+    const btnFinish = document.getElementById('btnFinish');
+    btnFinish.disabled = true; btnFinish.textContent = '⏳ Hesaplanıyor...';
+    try {
+        const res=await fetch(`/api/sessions/${sessionId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({total_km:totalDistance/1000})});
+        const data=await res.json();
+        
+        isSpraying=false;
+        sessionId=null;
+        localStorage.removeItem('vms_is_spraying');
+        
+        updateControlButtons();
+        
+        if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama tamamlandı',status:'completed'});
+        
+        if(assignedSession){
+            document.getElementById('taskInfoCard').style.display = 'none';
+            assignedSession = null;
+        }
+        
+        // AUTOMATICALLY RESOLVE ACTIVE SELECTED CITIZEN REPORT
+        if (selectedReport) {
+            const reportId = selectedReport.id;
+            if (selectedReport.status === 'sorunlu') {
+                clearSelectedReport();
+            } else {
+                await updateMobileReportStatus(reportId, 'çözüldü', true); // Silent update
+                clearSelectedReport();
+            }
+        }
+        
+        if(data.summary){
+            document.getElementById('sumTime').textContent=data.summary.duration_min+' dakika';
+            document.getElementById('sumDist').textContent=(data.summary.total_km||0).toFixed(2)+' km';
+            document.getElementById('sumChem').textContent=data.summary.chemical_used_lt+' litre';
+            document.getElementById('sumArea').textContent=Math.round(data.summary.area_covered_m2)+' m²';
+            document.getElementById('appScreen').style.display='none';
+            document.getElementById('summaryScreen').style.display='block';
+        }
+    } catch(e) {
+        alert('Hata: '+e.message);
+    } finally {
+        btnFinish.disabled = false;
+        btnFinish.textContent = '⏹️ BİTİR';
+    }
+}
+
+function closeSummary(){
+    document.getElementById('summaryScreen').style.display='none';
+    document.getElementById('appScreen').style.display='flex';
+}
+
+function updateTimer(){
+    if(!sessionId || !isSpraying) return;
+    const elapsed=Math.floor((Date.now()-startTime)/1000);
+    const min=Math.floor(elapsed/60).toString().padStart(2,'0');
+    const sec=(elapsed%60).toString().padStart(2,'0');
+    document.getElementById('mTime').textContent=`${min}:${sec}`;
+    setTimeout(updateTimer,1000);
+}
+
+function openGoogleNavigation() {
+    if (!assignedRoute || !assignedRoute.route_coords) {
+        alert("Atanmış rota bulunamadı.");
+        return;
+    }
+    try {
+        const coords = JSON.parse(assignedRoute.route_coords);
+        if (coords.length < 2) {
+            alert("Rota koordinatları geçersiz.");
+            return;
+        }
+        
+        let origin = "";
+        if (lastPos && lastPos.lat && lastPos.lng) {
+            origin = `${lastPos.lat},${lastPos.lng}`;
+        } else {
+            origin = `${coords[0][0]},${coords[0][1]}`;
+        }
+        
+        const destination = `${coords[coords.length - 1][0]},${coords[coords.length - 1][1]}`;
+        
+        // Premium smart waypoint selector (Turn-Based Corner Extraction)
+        // Ensures that the Google Maps route follows every key corner/turn and doesn't take shortcuts!
+        let waypointsStr = "";
+        if (coords.length > 2) {
+            const numWaypoints = Math.min(8, coords.length - 2);
+            const sampled = [];
+            
+            if (coords.length - 2 <= numWaypoints) {
+                // If we have 8 or fewer intermediate points, take all of them
+                for (let i = 1; i < coords.length - 1; i++) {
+                    sampled.push(`${coords[i][0]},${coords[i][1]}`);
+                }
+            } else {
+                // Divide the intermediate points into 8 equal chunks
+                const chunkSize = (coords.length - 2) / numWaypoints;
+                
+                for (let step = 0; step < numWaypoints; step++) {
+                    const startIdx = Math.floor(1 + step * chunkSize);
+                    const endIdx = Math.floor(1 + (step + 1) * chunkSize);
+                    
+                    let bestIdx = startIdx;
+                    let maxTurnAngle = -1;
+                    
+                    // In each chunk, find the coordinate with the sharpest turn angle (bearing change)
+                    for (let i = startIdx; i < endIdx && i < coords.length - 1; i++) {
+                        let prevB = getBearing(coords[i-1][0], coords[i-1][1], coords[i][0], coords[i][1]);
+                        let nextB = getBearing(coords[i][0], coords[i][1], coords[i+1][0], coords[i+1][1]);
+                        let turnAngle = Math.abs(prevB - nextB);
+                        if (turnAngle > 180) turnAngle = 360 - turnAngle;
+                        
+                        if (turnAngle > maxTurnAngle) {
+                            maxTurnAngle = turnAngle;
+                            bestIdx = i;
+                        }
+                    }
+                    sampled.push(`${coords[bestIdx][0]},${coords[bestIdx][1]}`);
+                }
+            }
+            waypointsStr = "&waypoints=" + sampled.join("|");
+        }
+        
+        const travelMode = assignedRoute.transport_type === 'pedestrian' ? 'walking' : 'driving';
+        const navUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}${waypointsStr}&travelmode=${travelMode}`;
+        window.open(navUrl, '_blank');
+    } catch(e) {
+        alert("Navigasyon başlatılırken hata oluştu: " + e.message);
+    }
+}
+
+let previewAnimationActive = false;
+let previewMarker = null;
+
+function animateRoutePreview() {
+    if (!assignedRoute || !assignedRoute.route_coords) {
+        alert("Animasyon yapılacak rota bulunamadı.");
+        return;
+    }
+    const btn = document.getElementById('btnAnimate');
+    if (previewAnimationActive) {
+        previewAnimationActive = false;
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+            previewMarker = null;
+        }
+        btn.innerHTML = "▶️ Önizle";
+        btn.style.background = "#10b981";
+        return;
+    }
+    
+    try {
+        const coords = typeof assignedRoute.route_coords === 'string' 
+            ? JSON.parse(assignedRoute.route_coords) 
+            : assignedRoute.route_coords;
+            
+        if (!coords || coords.length < 2) return;
+        
+        previewAnimationActive = true;
+        btn.innerHTML = "⏹️ Durdur";
+        btn.style.background = "#ef4444";
+        
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+        }
+        
+        // Premium smart rotating vehicle arrow icon
+        const arrowSvg = `<svg viewBox="0 0 24 24" width="28" height="28" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"><path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`;
+        const arrowIcon = L.divIcon({
+            className: 'preview-arrow-icon',
+            html: `<div id="previewArrowInner" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: transform 0.15s linear;">${arrowSvg}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 14]
+        });
+        
+        previewMarker = L.marker(coords[0], { icon: arrowIcon }).addTo(map);
+        map.setView(coords[0], 16);
+        
+        let pointIdx = 0;
+        let subStep = 0;
+        const totalSubSteps = 10;
+        
+        function tick() {
+            if (!previewAnimationActive) return;
+            
+            if (pointIdx >= coords.length - 1) {
+                previewAnimationActive = false;
+                if (previewMarker) {
+                    map.removeLayer(previewMarker);
+                    previewMarker = null;
+                }
+                btn.innerHTML = "▶️ Önizle";
+                btn.style.background = "#10b981";
+                alert("Rota önizleme animasyonu tamamlandı! 🏁");
+                return;
+            }
+            
+            const startPt = coords[pointIdx];
+            const endPt = coords[pointIdx + 1];
+            
+            const lat = startPt[0] + (endPt[0] - startPt[0]) * (subStep / totalSubSteps);
+            const lng = startPt[1] + (endPt[1] - startPt[1]) * (subStep / totalSubSteps);
+            
+            previewMarker.setLatLng([lat, lng]);
+            map.panTo([lat, lng]);
+            
+            // Rotate the arrow inside the marker based on heading bearing
+            const bearing = getBearing(startPt[0], startPt[1], endPt[0], endPt[1]);
+            const inner = document.getElementById('previewArrowInner');
+            if (inner) {
+                inner.style.transform = `rotate(${bearing}deg)`;
+            }
+            
+            subStep++;
+            if (subStep > totalSubSteps) {
+                subStep = 0;
+                pointIdx++;
+            }
+            
+            setTimeout(tick, 30);
+        }
+        
+        tick();
+    } catch(e) {
+        console.error("Önizleme hatası:", e);
+        previewAnimationActive = false;
+        btn.innerHTML = "▶️ Önizle";
+        btn.style.background = "#10b981";
+    }
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+    const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
+    const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+    return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function mobileLogout(){
+    if(watchId) navigator.geolocation.clearWatch(watchId);
+    if(previewAnimationActive) {
+        previewAnimationActive = false;
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+            previewMarker = null;
+        }
+    }
+    localStorage.clear();
+    window.location.href='/';
+}
+
+// ─── Chemical Intake Form Modal & Speed Alerts Helpers ───
+let chemicalIntakeData = null;
+let lastSpeedWarningBeep = 0;
+let lastSpeedViolationSent = 0;
+
+function openIntakeModal() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('intakeChemDate').value = now.toISOString().slice(0, 16);
+    
+    // Set first chemical transaction name if available
+    document.getElementById('intakeChemName').value = "Deltamethrin ULV";
+    document.getElementById('intakeChemFrom').value = "Merkez Ambarı";
+    document.getElementById('intakeChemAmount').value = "10";
+    
+    document.getElementById('chemicalIntakeModal').style.display = 'flex';
+}
+
+function closeIntakeModal() {
+    document.getElementById('chemicalIntakeModal').style.display = 'none';
+}
+
+function submitIntakeAndStart() {
+    const name = document.getElementById('intakeChemName').value.trim();
+    const type = document.getElementById('intakeChemType').value;
+    const amount = document.getElementById('intakeChemAmount').value;
+    const from = document.getElementById('intakeChemFrom').value.trim();
+    const date = document.getElementById('intakeChemDate').value;
+    
+    if (!name || !amount || !from || !date) {
+        alert("Lütfen tüm alanları eksiksiz doldurun!");
+        return;
+    }
+    
+    chemicalIntakeData = {
+        intake_chemical_name: name,
+        intake_chemical_type: type,
+        intake_amount_lt: parseFloat(amount),
+        intake_received_from: from,
+        intake_date: date
+    };
+    
+    closeIntakeModal();
+    startSessionClick();
+}
+
+function showMobileSpeedWarning(speed) {
+    const el = document.getElementById('mobileSpeedWarning');
+    if (el) {
+        el.style.display = 'block';
+        document.getElementById('warnSpeedVal').textContent = speed;
+    }
+    
+    const now = Date.now();
+    if (now - lastSpeedWarningBeep > 1500) {
+        lastSpeedWarningBeep = now;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.setValueAtTime(440, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.2, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+            
+            if (navigator.vibrate) {
+                navigator.vibrate([200, 100, 200]);
+            }
+        } catch(e) {}
+    }
+}
+
+function hideMobileSpeedWarning() {
+    const el = document.getElementById('mobileSpeedWarning');
+    if (el) {
+        el.style.display = 'none';
+    }
+}
+
+function sendSpeedViolationToManager(speed) {
+    const now = Date.now();
+    if (now - lastSpeedViolationSent > 10000) {
+        lastSpeedViolationSent = now;
+        if (socket) {
+            socket.emit('vehicle-speed-violation', {
+                plate: vehiclePlate,
+                speed: speed,
+                neighborhood: assignedRoute ? assignedRoute.neighborhood : (selectedReport ? selectedReport.neighborhood : 'Saha'),
+                timestamp: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            });
+        }
+    }
+}
+
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+</script>
+
+<!-- HTML elements for Floating Speed Alerts -->
+<div id="mobileSpeedWarning" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(239,68,68,0.95); backdrop-filter:blur(8px); border:2px solid #fff; border-radius:12px; padding:16px 20px; box-shadow:0 10px 30px rgba(239,68,68,0.5); width:90%; max-width:400px; text-align:center; color:#fff; animation: alert-blink-mobile 1s infinite alternate;">
+    <div style="font-size:18px; margin-bottom:6px; font-weight:800;">🚨 YÜKSEK HIZ UYARISI!</div>
+    <div style="font-size:14px; font-weight:700; margin-bottom:4px;">Hızınız: <span id="warnSpeedVal">0</span> km/s</div>
+    <div style="font-size:11px; opacity:0.9;">İlaçlama esnasında hızınız <b>25 km/s</b>'i aşmamalıdır! Lütfen hemen yavaşlayın!</div>
+</div>
+
+<!-- Chemical Intake Form Modal -->
+<div id="chemicalIntakeModal" style="display:none; position:fixed; inset:0; z-index:100000; background:rgba(10,14,26,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:100%; max-width:440px; box-shadow:0 20px 50px rgba(0,0,0,0.6); padding:24px; animation: slide-up-premium 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        <div style="font-size:16px; font-weight:800; color:#10b981; display:flex; align-items:center; gap:8px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <span>🧪 İLAÇ DOLUM / ALIM FORMU</span>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); margin-bottom:16px; line-height:1.4;">İlaçlamaya başlamadan önce aldığınız ilacın bilgilerini eksiksiz girmeniz zorunludur. Bu bilgiler yönetici paneline raporlanacaktır.</p>
+        
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🧪 Alınan İlaç Adı</label>
+                <input type="text" id="intakeChemName" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px;" placeholder="Örn: Deltamethrin, Icon 10 CS" required>
+            </div>
+            
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div>
+                    <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">📦 İlaç Türü</label>
+                    <select id="intakeChemType" class="form-select" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 8px;">
+                        <option value="ULV / Ergin">ULV / Ergin</option>
+                        <option value="Larvasit">Larvasit</option>
+                        <option value="Rezidüel / Uçkun">Rezidüel / Uçkun</option>
+                        <option value="Mistblower">Mistblower</option>
+                        <option value="Diğer">Diğer</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">⚖️ Miktar (Litre)</label>
+                    <input type="number" id="intakeChemAmount" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px;" placeholder="Litre cinsinden" min="0.1" step="0.1" required>
+                </div>
+            </div>
+            
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">👤 Kimden Alındı</label>
+                <input type="text" id="intakeChemFrom" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px;" placeholder="Örn: Merkez Depo, Ahmet Bey" required>
+            </div>
+            
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">📅 Alım Tarihi</label>
+                <input type="datetime-local" id="intakeChemDate" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px;" required>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; height:40px; border-radius:8px;" onclick="closeIntakeModal()">İptal</button>
+            <button class="btn" style="flex:1.5; background:#10b981; color:#fff; font-weight:700; cursor:pointer; height:40px; border-radius:8px; border:none;" onclick="submitIntakeAndStart()">💾 Kaydet ve Başlat</button>
+        </div>
+    </div>
+</div>
+
+<style>
+@keyframes alert-blink-mobile {
+    0% { border-color: #fff; box-shadow: 0 10px 30px rgba(239,68,68,0.5); }
+    100% { border-color: #ef4444; box-shadow: 0 10px 40px rgba(239,68,68,0.9); }
+}
+@keyframes slide-up-premium {
+    0% { transform: translateY(30px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+</style>
+</body>
+</html>

@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Vatandaş İhbar</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
+    <style>
+        .search-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center;flex-wrap:wrap;}
+        .search-input{flex:1;min-width:200px;padding:10px 16px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-family:inherit;font-size:13px;transition:var(--transition);}
+        .search-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow);}
+        .search-input::placeholder{color:var(--text-muted);}
+        .filter-group{display:flex;gap:8px;align-items:center;}
+        .detail-panel{position:fixed;top:0;right:-420px;width:420px;height:100vh;background:var(--bg-card);border-left:1px solid var(--border);z-index:2000;transition:right 0.35s cubic-bezier(0.4,0,0.2,1);overflow-y:auto;box-shadow:-8px 0 30px rgba(0,0,0,0.3);}
+        .detail-panel.open{right:0;}
+        .detail-header{padding:20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--bg-card);z-index:10;}
+        .detail-body{padding:20px;}
+        .detail-section{margin-bottom:20px;}
+        .detail-section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);font-weight:600;margin-bottom:8px;}
+        .detail-field{margin-bottom:12px;}
+        .detail-label{font-size:11px;color:var(--text-secondary);margin-bottom:4px;}
+        .detail-value{font-size:13px;color:var(--text-primary);font-weight:500;}
+        .timeline{position:relative;padding-left:24px;}
+        .timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:var(--border);}
+        .timeline-item{position:relative;margin-bottom:16px;padding-left:8px;}
+        .timeline-item::before{content:'';position:absolute;left:-20px;top:4px;width:10px;height:10px;border-radius:50%;border:2px solid var(--accent);background:var(--bg-card);}
+        .timeline-item.done::before{background:var(--success);border-color:var(--success);}
+        .timeline-item.active::before{background:var(--warning);border-color:var(--warning);animation:pulse 2s infinite;}
+        .timeline-time{font-size:10px;color:var(--text-muted);}
+        .timeline-text{font-size:12px;color:var(--text-primary);font-weight:500;}
+        .draw-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-secondary);transition:var(--transition);}
+        .draw-btn:hover{border-color:var(--accent);color:var(--accent);}
+        .draw-btn.active-draw{border-color:var(--danger);color:var(--danger);background:rgba(239,68,68,0.1);}
+        .overlay-dim{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:1999;display:none;}
+        .overlay-dim.active{display:block;}
+        .report-row{cursor:pointer;transition:var(--transition);}
+        .report-row:hover td{background:rgba(59,130,246,0.08)!important;}
+        .report-row.selected td{background:rgba(59,130,246,0.12)!important;border-left:3px solid var(--accent);}
+        .map-fullwidth{height:calc(100vh - 420px);min-height:400px;}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
+        .blink{animation:blink 1.5s ease-in-out infinite;}
+        
+        /* Çizim Talimatı Bannerı */
+        .drawing-banner{display:none;position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:3000;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);border:1px solid var(--accent);padding:14px 24px;border-radius:30px;box-shadow:0 10px 25px rgba(0,0,0,0.5);align-items:center;gap:16px;color:#fff;font-size:13px;font-weight:500;animation:pulse-border 2s infinite;}
+        @keyframes pulse-border{0%,100%{border-color:var(--accent)}50%{border-color:var(--accent-glow)}}
+    </style>
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item active"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar"><div class="topbar-title">📋 Vatandaş İhbarları</div>
+        <div class="topbar-actions"><span class="badge badge-success" id="socketStatus">● Bağlı</span></div>
+    </header>
+    <div class="page-content">
+        <div class="stats-grid" id="reportStats"></div>
+
+        <!-- Search & Filters -->
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="🔍 Personel, görev, mahalle veya bölge ara..." oninput="filterTable()">
+            <div class="filter-group">
+                <select class="form-select" style="width:130px;" id="filterReportStatus" onchange="loadReports()">
+                    <option value="">Tüm Durumlar</option><option value="beklemede">Beklemede</option><option value="işlemde">İşlemde</option><option value="sorunlu">Sorunlu ⚠️</option><option value="çözüldü">Çözüldü</option>
+                </select>
+                <select class="form-select" style="width:130px;" id="filterNeighborhood" onchange="filterTable()">
+                    <option value="">Tüm Mahalleler</option>
+                </select>
+                <select class="form-select" style="width:120px;" id="filterPriority" onchange="filterTable()">
+                    <option value="">Tüm Öncelik</option><option value="acil">Acil</option><option value="yüksek">Yüksek</option><option value="normal">Normal</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- İhbar Tablosu -->
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-header"><span class="card-title">📋 İhbar Listesi</span><span id="reportCount" style="font-size:11px;color:var(--text-muted);"></span></div>
+            <div class="table-container"><table><thead><tr>
+                <th>Tarih</th><th>İhbar Eden</th><th>Tür</th><th>Detay/Adres</th><th>Mahalle</th><th>Atanan Personel</th><th>Çözülme Süresi</th><th>Öncelik</th><th>Durum</th><th>İşlem</th>
+            </tr></thead>
+            <tbody id="reportTable"></tbody></table></div>
+        </div>
+
+        <!-- İhbar Haritası -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">🗺️ İhbar Haritası & 30 Günlük İlaç Etki Haritası</span>
+                <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
+            </div>
+            <div id="reportMap" class="map-container map-fullwidth"></div>
+            <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);align-items:center">
+                <span>🔴 Beklemede</span><span>🟡 İşlemde</span><span>🟢 Çözüldü</span>
+                <span style="margin-left:12px;">|</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#10b981;display:inline-block;border-radius:2px;"></span>Yeni</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#84cc16;display:inline-block;border-radius:2px;"></span>Güçlü</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#f59e0b;display:inline-block;border-radius:2px;"></span>Orta</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#f97316;display:inline-block;border-radius:2px;"></span>Azalan</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#ef4444;display:inline-block;border-radius:2px;"></span>Kritik</span>
+                <span style="display:flex;align-items:center;gap:4px;"><span style="width:16px;height:4px;background:#6b7280;display:inline-block;border-radius:2px;border:1px dashed #999;"></span>Dolmuş</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Drawing Instruction Banner -->
+<div class="drawing-banner" id="drawingBanner">
+    <span id="drawingInstructionText">Harita üzerinde tıklayarak çizim yapın.</span>
+    <button class="btn btn-sm btn-danger" style="padding:4px 12px; font-size:11px; border-radius:15px; margin-left:10px; color:#fff;" onclick="cancelDrawing()">Vazgeç</button>
+</div>
+
+<!-- Detail Side Panel -->
+<div class="overlay-dim" id="overlayDim" onclick="closeDetailPanel()"></div>
+<div class="detail-panel" id="detailPanel">
+    <div class="detail-header">
+        <span style="font-size:15px;font-weight:600;">📋 İhbar Detayı</span>
+        <button class="modal-close" onclick="closeDetailPanel()">✕</button>
+    </div>
+    <div class="detail-body" id="detailBody"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') { localStorage.clear(); window.location.href = '/'; }
+function logout() { localStorage.clear(); window.location.href = '/'; }
+async function api(url, opts={}) {
+    const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
+    if (res.status === 401 || res.status === 403) { logout(); return; }
+    return res.json();
+}
+function toast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+// ─── Socket.io ───
+const socket = io();
+socket.emit('join-admin');
+socket.on('citizen-report-new', (data) => {
+    toast(`📢 Yeni İhbar: ${data.report_type} - ${data.neighborhood || 'Bilinmeyen Bölge'}`, 'info');
+    loadReports();
+});
+socket.on('citizen-report-updated', (data) => {
+    if (data.saha_sorunu) {
+        const lines = data.saha_sorunu.split('\n');
+        const lastIssue = lines[lines.length - 1];
+        toast(`⚠️ SAHADA SORUN BİLDİRİLDİ (İhbar #${data.report_id}):\n${lastIssue}`, 'warning');
+        
+        // Premium Web Audio warning beep
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(520, ctx.currentTime);
+            osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.12, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.45);
+        } catch(e) {}
+        
+        // Highlight the problematic row in red on the screen
+        setTimeout(() => {
+            const row = document.querySelector(`.report-row[data-id="${data.report_id}"]`);
+            if (row) {
+                row.style.borderLeft = '4px solid var(--danger)';
+                row.style.background = 'rgba(239, 68, 68, 0.18)';
+                row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    row.style.borderLeft = '';
+                    row.style.background = '';
+                }, 12000);
+            }
+        }, 400);
+    }
+    loadReports();
+});
+
+socket.on('session-issue-updated', data => {
+    if (data.status === 'sorunlu') {
+        const notes = data.notes || '';
+        const lines = notes.split('\n');
+        const activeIssues = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
+        const lastIssue = activeIssues.length > 0 ? activeIssues[activeIssues.length - 1] : notes;
+        
+        toast(`⚠️ İLAÇLAMADA SORUN BİLDİRİLDİ (Oturum #${data.session_id}):\n${lastIssue}`, 'warning');
+        
+        // Premium Web Audio warning beep
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(520, ctx.currentTime);
+            osc.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.12, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.45);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.45);
+        } catch(e) {}
+    }
+    loadReports();
+});
+
+socket.on('admin-speed-violation', data => {
+    toast(`⚠️ HIZ İHLALİ: ${data.plate} aracı ilaçlama esnasında 40 km/s hız sınırını aştı (${data.speed} km/s)!`, 'danger');
+    
+    // Play premium alarm audio warning
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.type = 'sawtooth';
+        osc2.type = 'sine';
+        osc1.frequency.setValueAtTime(880, ctx.currentTime);
+        osc1.frequency.setValueAtTime(660, ctx.currentTime + 0.15);
+        osc2.frequency.setValueAtTime(440, ctx.currentTime);
+        osc2.frequency.setValueAtTime(330, ctx.currentTime + 0.15);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.55);
+        osc1.start(); osc2.start();
+        osc1.stop(ctx.currentTime + 0.55); osc2.stop(ctx.currentTime + 0.55);
+    } catch(e) {}
+});
+
+// ─── Map Setup ───
+const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
+
+const rMap = L.map('reportMap', { center: [39.7477, 37.0179], zoom: 13, layers: [googleHybrid] });
+const baseMaps = { "Google Uydu + Hibrit": googleHybrid, "Google Harita": googleRoadmap, "Google Uydu": googleSatellite, "OpenStreetMap": osm };
+
+const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}/{y}', { maxZoom: 19, opacity: 0.6 });
+const overlayMaps = { "Sivas Mahalle Sınırları": sivasBorders };
+L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(rMap);
+
+const reportMarkers = L.layerGroup().addTo(rMap);
+const sprayedLayers = L.layerGroup().addTo(rMap);
+const workAreaLayers = L.layerGroup().addTo(rMap);
+
+// Leaflet.draw for admin work area definition
+const drawnItems = new L.FeatureGroup().addTo(rMap);
+let drawControl = null;
+let activeDrawReportId = null;
+
+function centerMap() { rMap.setView([39.7477, 37.0179], 13); }
+
+// ─── 30 Günlük İlaç Etki Renklendirme ───
+function getSprayStyle(daysRemaining) {
+    if (daysRemaining <= 0) return { color: '#6b7280', opacity: 0.5, weight: 3, dashArray: '4 4' };
+    if (daysRemaining <= 2) return { color: '#991b1b', opacity: 0.9, weight: 6, className: 'blink' };
+    if (daysRemaining <= 5) return { color: '#dc2626', opacity: 0.85, weight: 5 };
+    if (daysRemaining <= 10) return { color: '#ef4444', opacity: 0.8, weight: 5 };
+    if (daysRemaining <= 15) return { color: '#f97316', opacity: 0.75, weight: 4 };
+    if (daysRemaining <= 20) return { color: '#f59e0b', opacity: 0.7, weight: 4 };
+    if (daysRemaining <= 25) return { color: '#84cc16', opacity: 0.65, weight: 4 };
+    return { color: '#10b981', opacity: 0.8, weight: 5 };
+}
+
+async function loadSprayedStreets() {
+    const expiryData = await api('/api/reports/expiry-map').catch(() => null);
+    sprayedLayers.clearLayers();
+    if (!expiryData || !expiryData.streets) return;
+    expiryData.streets.forEach(s => {
+        if (s.geometry_geojson) {
+            try {
+                const geom = JSON.parse(s.geometry_geojson);
+                const remaining = s.days_remaining || 0;
+                const style = getSprayStyle(remaining);
+                const layer = L.geoJSON(geom, { style: () => style });
+                const daysText = remaining <= 0 ? '<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> kaldı`;
+                const sprayedStr = new Date(s.sprayed_at).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
+                layer.bindPopup(`<b>${s.street_name || 'İlaçlama Hattı'}</b><br>
+                    📍 Mahalle: ${s.neighborhood || '-'}<br>
+                    🕐 Ne Zaman: <b>${sprayedStr}</b><br>
+                    📅 Bitiş: ${expiresStr}<br>
+                    ⏳ ${daysText}<br>
+                    🚐 Araç: ${s.plate || '-'}`);
+                sprayedLayers.addLayer(layer);
+            } catch (e) {}
+        }
+    });
+}
+
+// ─── Data ───
+let allReports = [];
+let allPersonnel = [];
+let selectedReportId = null;
+
+async function loadPersonnel() {
+    allPersonnel = await api('/api/personnel').catch(() => []);
+}
+
+function getDurationText(assignmentTime, resolvedTime) {
+    if (!assignmentTime || !resolvedTime) return '<span style="color:var(--text-muted)">-</span>';
+    const sDate = new Date(assignmentTime);
+    const eDate = new Date(resolvedTime);
+    const diffMs = eDate - sDate;
+    if (diffMs <= 0) return '0 dk';
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins} dk`;
+    const diffHrs = Math.floor(diffMins / 60);
+    const remMins = diffMins % 60;
+    if (diffHrs < 24) return `${diffHrs} sa ${remMins} dk`;
+    const diffDays = Math.floor(diffHrs / 24);
+    const remHrs = diffHrs % 24;
+    return `${diffDays} gün ${remHrs} sa`;
+}
+
+async function loadReports() {
+    const status = document.getElementById('filterReportStatus').value;
+    allReports = await api(`/api/citizen-reports?${status ? 'status=' + status : ''}`).catch(() => []) || [];
+    const stats = await api('/api/citizen-reports/stats/summary').catch(() => ({}));
+
+    if (allPersonnel.length === 0) await loadPersonnel();
+
+    // Populate neighborhood filter
+    const neighborhoods = [...new Set(allReports.map(r => r.neighborhood).filter(Boolean))].sort();
+    const nhSelect = document.getElementById('filterNeighborhood');
+    const currentNh = nhSelect.value;
+    nhSelect.innerHTML = '<option value="">Tüm Mahalleler</option>' + neighborhoods.map(n => `<option value="${n}" ${n===currentNh?'selected':''}>${n}</option>`).join('');
+
+    // Stats
+    document.getElementById('reportStats').innerHTML = `
+        <div class="stat-card blue"><div class="stat-icon blue">📋</div><div><div class="stat-value">${stats.total||0}</div><div class="stat-label">Toplam İhbar</div></div></div>
+        <div class="stat-card orange"><div class="stat-icon orange">⏳</div><div><div class="stat-value">${stats.pending||0}</div><div class="stat-label">Beklemede</div></div></div>
+        <div class="stat-card purple"><div class="stat-icon purple">🔄</div><div><div class="stat-value">${stats.in_progress||0}</div><div class="stat-label">İşlemde</div></div></div>
+        <div class="stat-card red" style="border-left:4px solid var(--danger);"><div class="stat-icon red" style="background:rgba(239,68,68,0.1); color:#ef4444;">🚨</div><div><div class="stat-value" style="color:#f87171;">${stats.sorunlu||0}</div><div class="stat-label">Sorunlu İhbar</div></div></div>
+        <div class="stat-card green"><div class="stat-icon green">✅</div><div><div class="stat-value">${stats.resolved||0}</div><div class="stat-label">Çözüldü</div></div></div>
+    `;
+
+    filterTable();
+    updateMapMarkers(allReports);
+    checkSahaSorunlari();
+}
+
+function filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const nhFilter = document.getElementById('filterNeighborhood').value;
+    const prFilter = document.getElementById('filterPriority').value;
+
+    const filtered = allReports.filter(r => {
+        if (nhFilter && r.neighborhood !== nhFilter) return false;
+        if (prFilter && r.priority !== prFilter) return false;
+        if (searchTerm) {
+            const haystack = [
+                r.description, r.neighborhood, r.address, r.reporter_name, r.reporter_phone,
+                r.assigned_user_name, r.report_type, r.admin_notes
+            ].filter(Boolean).join(' ').toLowerCase();
+            if (!haystack.includes(searchTerm)) return false;
+        }
+        return true;
+    });
+
+    document.getElementById('reportCount').textContent = `${filtered.length} / ${allReports.length} ihbar`;
+    renderTable(filtered);
+}
+
+function renderTable(reports) {
+    const tbody = document.getElementById('reportTable');
+    tbody.innerHTML = reports.map(r => {
+        const prBadge = r.priority === 'acil' ? 'badge-danger' : r.priority === 'yüksek' ? 'badge-warning' : 'badge-info';
+        const stBadge = r.status === 'çözüldü' ? 'badge-success' : r.status === 'sorunlu' ? 'badge-danger' : r.status === 'işlemde' ? 'badge-purple' : 'badge-warning';
+
+        const personnelOptions = ['<option value="">Atanmamış</option>', ...allPersonnel.map(p =>
+            `<option value="${p.user_id}" ${p.user_id === r.assigned_user_id ? 'selected' : ''}>${p.name}</option>`
+        )].join('');
+
+        const durationText = r.status === 'çözüldü'
+            ? getDurationText(r.assignment_time, r.resolved_at)
+            : r.status === 'sorunlu'
+                ? '<span style="color:var(--danger);font-weight:600;">⚠️ Sorunlu</span>'
+                : r.status === 'işlemde'
+                    ? '<span style="color:#d97706;font-weight:600;">🔄 Devam Ediyor...</span>'
+                    : '<span style="color:var(--text-muted)">⏳ Beklemede</span>';
+
+        const hasWorkArea = r.work_area_geojson ? '✏️' : '';
+        const isSelected = r.id === selectedReportId ? ' selected' : '';
+
+        let issueBadge = "";
+        if (r.admin_notes && r.admin_notes.includes("⚠️ SAHA SORUNU")) {
+            // Find the last reported issue line
+            const lines = r.admin_notes.split('\n');
+            const matchingLines = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
+            const lastLine = matchingLines.length > 0 ? matchingLines[matchingLines.length - 1] : lines[lines.length - 1];
+            issueBadge = `<div style="margin-top:6px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.25); color:#fca5a5; padding:6px 10px; border-radius:4px; font-size:10px; font-weight:600; display:block; max-width:280px; word-break:break-word; line-height:1.4;">
+                ${lastLine}
+            </div>`;
+        }
+
+        return `<tr class="report-row${isSelected}" onclick="openDetailPanel(${r.id})" data-id="${r.id}">
+            <td style="font-size:11px;">${new Date(r.created_at).toLocaleString('tr-TR')}</td>
+            <td>${r.reporter_name || 'Anonim'}<br><span style="font-size:10px;color:var(--text-muted)">${r.reporter_phone || ''}</span></td>
+            <td><b>${r.report_type || 'haşere'}</b></td>
+            <td>
+                <div style="max-width:200px;font-size:11px;word-break:break-all;font-weight:500;">${r.description}</div>
+                <div style="font-size:10px;color:var(--text-muted);">${r.address || ''}</div>
+                ${issueBadge}
+            </td>
+            <td>${r.neighborhood || '-'}</td>
+            <td onclick="event.stopPropagation()">
+                <select class="form-select" style="width:130px;padding:4px 6px;font-size:11px;" onchange="assignReport(${r.id}, this.value)">
+                    ${personnelOptions}
+                </select>
+            </td>
+            <td style="font-size:11px;font-weight:600;">${durationText}</td>
+            <td><span class="badge ${prBadge}">${r.priority}</span></td>
+            <td><span class="badge ${stBadge}">${r.status === 'sorunlu' ? '⚠️ Sorunlu' : r.status === 'çözüldü' ? 'Çözüldü' : r.status === 'işlemde' ? 'İşlemde' : 'Beklemede'}</span> ${hasWorkArea}</td>
+            <td onclick="event.stopPropagation()">
+                <select class="form-select" style="width:100px;padding:4px 6px;font-size:11px;" onchange="updateReport(${r.id}, this.value)">
+                    <option value="beklemede" ${r.status==='beklemede'?'selected':''}>Beklemede</option>
+                    <option value="işlemde" ${r.status==='işlemde'?'selected':''}>İşlemde</option>
+                    <option value="sorunlu" ${r.status==='sorunlu'?'selected':''}>Sorunlu</option>
+                    <option value="çözüldü" ${r.status==='çözüldü'?'selected':''}>Çözüldü</option>
+                </select>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="10" style="text-align:center;color:var(--text-muted)">İhbar yok</td></tr>';
+}
+
+function updateMapMarkers(reports) {
+    reportMarkers.clearLayers();
+    workAreaLayers.clearLayers();
+    (reports || []).forEach(r => {
+        if (r.latitude && r.longitude) {
+            const color = r.status === 'çözüldü' ? '#10b981' : r.status === 'sorunlu' ? '#ef4444' : r.status === 'işlemde' ? '#f59e0b' : '#3b82f6';
+            const emoji = r.status === 'çözüldü' ? '🟢' : r.status === 'sorunlu' ? '🚨' : r.status === 'işlemde' ? '🟡' : '🔴';
+            const icon = L.divIcon({
+                className: '',
+                html: `<div style="position:relative;">
+                    <span style="font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5));" class="${r.status === 'sorunlu' ? 'blink' : ''}">${emoji}</span>
+                    ${r.priority === 'acil' ? '<span style="position:absolute;top:-4px;right:-4px;font-size:10px;">🚨</span>' : ''}
+                </div>`,
+                iconSize: [24, 24], iconAnchor: [12, 12]
+            });
+            const marker = L.marker([r.latitude, r.longitude], { icon }).addTo(reportMarkers);
+            const statusText = r.status === 'sorunlu' ? 'Sorunlu' : r.status === 'çözüldü' ? 'Çözüldü' : r.status === 'işlemde' ? 'İşlemde' : 'Beklemede';
+            marker.bindPopup(`
+                <div style="min-width:200px;">
+                    <b style="font-size:14px;">${r.report_type || 'haşere'}</b>
+                    <span class="badge" style="font-size:9px;padding:2px 6px;border-radius:10px;background:${color};color:#fff;margin-left:6px;">${statusText}</span><br>
+                    <span style="font-size:12px;">${r.description}</span><br>
+                    📍 ${r.neighborhood || '-'}<br>
+                    👤 ${r.assigned_user_name || 'Atanmadı'}<br>
+                    📅 ${new Date(r.created_at).toLocaleString('tr-TR')}<br>
+                    ${r.admin_notes ? '<br>📝 Not: ' + r.admin_notes : ''}
+                </div>
+            `);
+            marker.on('click', () => { openDetailPanel(r.id); });
+        }
+        // Draw work areas
+        if (r.work_area_geojson) {
+            try {
+                const geojson = JSON.parse(r.work_area_geojson);
+                const areaLayer = L.geoJSON(geojson, {
+                    style: () => ({
+                        color: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
+                        weight: 3,
+                        opacity: 0.8,
+                        fillOpacity: 0.15,
+                        fillColor: r.status === 'çözüldü' ? '#10b981' : '#3b82f6',
+                        dashArray: r.status === 'çözüldü' ? null : '6 4'
+                    }),
+                    pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 8 })
+                });
+                areaLayer.bindPopup(`<b>Çalışma Alanı</b><br>İhbar #${r.id} - ${r.report_type}<br>👤 ${r.assigned_user_name || 'Atanmadı'}`);
+                workAreaLayers.addLayer(areaLayer);
+            } catch (e) {}
+        }
+    });
+}
+
+// ─── Detail Panel ───
+function openDetailPanel(reportId) {
+    selectedReportId = reportId;
+    const r = allReports.find(x => x.id === reportId);
+    if (!r) return;
+
+    // Highlight selected row
+    document.querySelectorAll('.report-row').forEach(row => row.classList.remove('selected'));
+    const selectedRow = document.querySelector(`.report-row[data-id="${reportId}"]`);
+    if (selectedRow) selectedRow.classList.add('selected');
+
+    // Zoom map to report location
+    if (r.latitude && r.longitude) {
+        rMap.setView([r.latitude, r.longitude], 16, { animate: true });
+    }
+
+    const prColor = r.priority === 'acil' ? 'var(--danger)' : r.priority === 'yüksek' ? 'var(--warning)' : 'var(--accent)';
+    const stColor = r.status === 'çözüldü' ? 'var(--success)' : r.status === 'işlemde' ? 'var(--purple)' : 'var(--warning)';
+
+    const personnelOptions = ['<option value="">Atanmamış</option>', ...allPersonnel.map(p =>
+        `<option value="${p.user_id}" ${p.user_id === r.assigned_user_id ? 'selected' : ''}>${p.name}</option>`
+    )].join('');
+
+    let detailIssueBlock = "";
+    if (r.admin_notes && r.admin_notes.includes("⚠️ SAHA SORUNU")) {
+        const lines = r.admin_notes.split('\n');
+        const activeIssues = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
+        detailIssueBlock = `
+            <div class="detail-section" style="background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); padding:12px; border-radius:6px; margin-bottom:16px;">
+                <div class="detail-section-title" style="color:#ef4444; font-weight:700; display:flex; align-items:center; gap:6px;">🚨 SAHADAN SORUN BİLDİRİMİ</div>
+                ${activeIssues.map(issue => `<div style="font-size:11px; color:#fca5a5; margin-bottom:8px; line-height:1.4; border-bottom:1px dashed rgba(255,255,255,0.05); padding-bottom:6px;">${issue}</div>`).join('')}
+            </div>
+        `;
+    }
+
+    if (r.assigned_session_id) {
+        api(`/api/sessions/${r.assigned_session_id}`).then(session => {
+            if (session && session.intake_chemical_name) {
+                const intakeEl = document.getElementById('detailIntakeSection');
+                if (intakeEl) {
+                    const formattedIntakeDate = session.intake_date ? new Date(session.intake_date).toLocaleString('tr-TR') : '-';
+                    intakeEl.innerHTML = `
+                        <div class="detail-section" style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); padding:12px; border-radius:6px; margin-bottom:16px;">
+                            <div class="detail-section-title" style="color:#10b981; font-weight:700; display:flex; align-items:center; gap:6px;">🧪 SEANS İLAÇ DOLUM BİLGİSİ</div>
+                            <div style="font-size:11px; color:var(--text-primary); line-height:1.5;">
+                                <b>İlaç Adı:</b> ${session.intake_chemical_name}<br>
+                                <b>Türü:</b> ${session.intake_chemical_type || '-'}<br>
+                                <b>Miktar:</b> ${session.intake_amount_lt} Litre<br>
+                                <b>Kimden:</b> ${session.intake_received_from || '-'}<br>
+                                <b>Tarih:</b> ${formattedIntakeDate}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }).catch(() => {});
+    }
+
+    document.getElementById('detailBody').innerHTML = `
+        ${detailIssueBlock}
+        <div id="detailIntakeSection"></div>
+        <div class="detail-section">
+            <div class="detail-section-title">İhbar Bilgileri</div>
+            <div class="detail-field"><div class="detail-label">Tür</div><div class="detail-value">${r.report_type || 'haşere'}</div></div>
+            <div class="detail-field"><div class="detail-label">Açıklama</div><div class="detail-value" style="font-size:12px;line-height:1.5;">${r.description}</div></div>
+            <div class="detail-field"><div class="detail-label">Mahalle</div><div class="detail-value">${r.neighborhood || '-'}</div></div>
+            <div class="detail-field"><div class="detail-label">Adres</div><div class="detail-value" style="font-size:12px;">${r.address || '-'}</div></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                <div class="detail-field"><div class="detail-label">Öncelik</div><div class="detail-value"><span style="color:${prColor};font-weight:700;">${r.priority}</span></div></div>
+                <div class="detail-field"><div class="detail-label">Durum</div><div class="detail-value"><span style="color:${stColor};font-weight:700;">${r.status}</span></div></div>
+            </div>
+            <div class="detail-field"><div class="detail-label">İhbar Eden</div><div class="detail-value">${r.reporter_name || 'Anonim'} ${r.reporter_phone ? '(' + r.reporter_phone + ')' : ''}</div></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+        <div class="detail-section">
+            <div class="detail-section-title">Görev Yönetimi</div>
+            <div class="detail-field">
+                <div class="detail-label">Atanan Personel</div>
+                <select class="form-select" style="width:100%;" onchange="assignReport(${r.id}, this.value)">${personnelOptions}</select>
+            </div>
+            <div class="detail-field">
+                <div class="detail-label">Yönetici Notu</div>
+                <textarea class="form-textarea" id="adminNoteInput" style="font-size:12px;min-height:60px;" placeholder="Personele iletilecek notunuzu yazın...">${r.admin_notes || ''}</textarea>
+                <button class="btn btn-sm btn-primary" style="margin-top:6px;" onclick="saveAdminNote(${r.id})">💾 Notu Kaydet</button>
+            </div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+        <div class="detail-section">
+            <div class="detail-section-title">Çalışma Alanı Çizimi</div>
+            <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Bu ihbar için saha personelinin göreceği çalışma alanı/rotası çizin.</p>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="draw-btn" onclick="startDrawing(${r.id}, 'polygon')">🔷 Alan Çiz</button>
+                <button class="draw-btn" onclick="startDrawing(${r.id}, 'circle')">⭕ Daire Çiz</button>
+                <button class="draw-btn" onclick="startDrawing(${r.id}, 'polyline')">📏 Rota Çiz</button>
+                ${r.work_area_geojson ? '<button class="draw-btn" style="color:var(--danger);border-color:var(--danger);" onclick="clearWorkArea(' + r.id + ')">🗑️ Alanı Sil</button>' : ''}
+            </div>
+            ${r.work_area_geojson ? '<div style="margin-top:8px;font-size:11px;color:var(--success);font-weight:600;">✅ Çalışma alanı tanımlanmış</div>' : '<div style="margin-top:8px;font-size:11px;color:var(--text-muted);">Henüz alan çizilmedi</div>'}
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+        <div class="detail-section">
+            <div class="detail-section-title">Görev Zaman Çizelgesi</div>
+            <div class="timeline">
+                <div class="timeline-item done">
+                    <div class="timeline-time">${new Date(r.created_at).toLocaleString('tr-TR')}</div>
+                    <div class="timeline-text">📩 İhbar Oluşturuldu</div>
+                </div>
+                ${r.assignment_time ? `<div class="timeline-item done">
+                    <div class="timeline-time">${new Date(r.assignment_time).toLocaleString('tr-TR')}</div>
+                    <div class="timeline-text">👤 ${r.assigned_user_name || 'Personel'} atandı</div>
+                </div>` : ''}
+                ${r.status === 'işlemde' ? `<div class="timeline-item active">
+                    <div class="timeline-time">Şimdi</div>
+                    <div class="timeline-text">🔄 Görev devam ediyor...</div>
+                </div>` : ''}
+                ${r.resolved_at ? `<div class="timeline-item done">
+                    <div class="timeline-time">${new Date(r.resolved_at).toLocaleString('tr-TR')}</div>
+                    <div class="timeline-text">✅ Görev tamamlandı (${getDurationText(r.assignment_time, r.resolved_at)})</div>
+                </div>` : ''}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('detailPanel').classList.add('open');
+    document.getElementById('overlayDim').classList.add('active');
+}
+
+function closeDetailPanel() {
+    document.getElementById('detailPanel').classList.remove('open');
+    document.getElementById('overlayDim').classList.remove('active');
+    selectedReportId = null;
+    document.querySelectorAll('.report-row').forEach(row => row.classList.remove('selected'));
+    stopDrawing();
+}
+
+// ─── Work Area Drawing ───
+let drawer = null;
+
+function startDrawing(reportId, type) {
+    activeDrawReportId = reportId;
+    stopDrawing(); // Clear any previous draw handlers
+    drawnItems.clearLayers();
+
+    // Close the detail panel temporarily so user has full view of the map and no z-index overlay covers it
+    document.getElementById('detailPanel').classList.remove('open');
+    document.getElementById('overlayDim').classList.remove('active');
+
+    // Show floating banner with instruction
+    const banner = document.getElementById('drawingBanner');
+    const bannerText = document.getElementById('drawingInstructionText');
+    banner.style.display = 'flex';
+
+    let handler;
+    if (type === 'polygon') {
+        bannerText.innerHTML = `🔷 <b>Alan Çizimi Aktif:</b> Haritada köşeleri tıklayarak belirleyin. Bitirmek için ilk noktaya veya son noktaya çift tıklayın.`;
+        handler = new L.Draw.Polygon(rMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
+    } else if (type === 'circle') {
+        bannerText.innerHTML = `⭕ <b>Daire Çizimi Aktif:</b> Haritada merkez noktaya tıklayıp basılı tutarak dışarı doğru sürükleyin.`;
+        handler = new L.Draw.Circle(rMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
+    } else if (type === 'polyline') {
+        bannerText.innerHTML = `📏 <b>Rota Çizimi Aktif:</b> Haritada rota noktalarına sırayla tıklayın. Bitirmek için son noktaya çift tıklayın.`;
+        handler = new L.Draw.Polyline(rMap, { shapeOptions: { color: '#f97316', weight: 4 } });
+    }
+
+    if (handler) {
+        drawer = handler;
+        drawer.enable();
+    }
+}
+
+rMap.on(L.Draw.Event.CREATED, async (e) => {
+    const layer = e.layer;
+    drawnItems.addLayer(layer);
+
+    let geojson;
+    if (layer instanceof L.Circle) {
+        // Convert circle to GeoJSON polygon (approximation)
+        const center = layer.getLatLng();
+        const radius = layer.getRadius();
+        const points = 64;
+        const coords = [];
+        for (let i = 0; i <= points; i++) {
+            const angle = (i / points) * 2 * Math.PI;
+            const dx = radius * Math.cos(angle);
+            const dy = radius * Math.sin(angle);
+            const lat = center.lat + (dy / 111320);
+            const lng = center.lng + (dx / (111320 * Math.cos(center.lat * Math.PI / 180)));
+            coords.push([lng, lat]);
+        }
+        geojson = { type: 'Polygon', coordinates: [coords] };
+    } else {
+        geojson = layer.toGeoJSON().geometry;
+    }
+
+    if (activeDrawReportId) {
+        const reportId = activeDrawReportId;
+        await api(`/api/citizen-reports/${reportId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ work_area_geojson: JSON.stringify(geojson) })
+        });
+        toast('✅ Çalışma alanı başarıyla kaydedildi!', 'success');
+        stopDrawing();
+        loadReports().then(() => { openDetailPanel(reportId); });
+    }
+});
+
+function stopDrawing() {
+    if (drawer) {
+        drawer.disable();
+        drawer = null;
+    }
+    drawnItems.clearLayers();
+    document.getElementById('drawingBanner').style.display = 'none';
+}
+
+function cancelDrawing() {
+    const reportId = activeDrawReportId;
+    stopDrawing();
+    if (reportId) {
+        openDetailPanel(reportId);
+    }
+}
+
+async function clearWorkArea(reportId) {
+    await api(`/api/citizen-reports/${reportId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ work_area_geojson: null })
+    });
+    toast('🗑️ Çalışma alanı silindi', 'info');
+    loadReports().then(() => openDetailPanel(reportId));
+}
+
+// ─── Actions ───
+async function updateReport(id, status) {
+    await api(`/api/citizen-reports/${id}`, { method: 'PUT', body: JSON.stringify({ status }) });
+    toast('İhbar durumu güncellendi', 'success');
+    loadReports();
+}
+
+async function assignReport(id, userId) {
+    const assigned_user_id = userId ? parseInt(userId) : null;
+    await api(`/api/citizen-reports/${id}`, { method: 'PUT', body: JSON.stringify({ assigned_user_id }) });
+    toast('İhbar görevlendirmesi güncellendi', 'success');
+    loadReports();
+}
+
+async function saveAdminNote(reportId) {
+    const note = document.getElementById('adminNoteInput').value;
+    await api(`/api/citizen-reports/${reportId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ admin_notes: note || null })
+    });
+    toast('📝 Yönetici notu kaydedildi', 'success');
+    loadReports().then(() => openDetailPanel(reportId));
+}
+
+// ─── Init ───
+loadReports();
+loadSprayedStreets();
+setInterval(loadReports, 30000);
+setInterval(loadSprayedStreets, 120000);
+
+// ─── Bottom-Right Saha Sorunu Warning System ───
+async function checkSahaSorunlari() {
+    try {
+        const [reports, sessions] = await Promise.all([
+            api('/api/citizen-reports'),
+            api('/api/sessions?status=sorunlu')
+        ]);
+        
+        const sorunluReports = (reports || []).filter(r => r.status === 'sorunlu');
+        const sorunluSessions = sessions || [];
+        const totalCount = sorunluReports.length + sorunluSessions.length;
+        
+        const btn = document.getElementById('sahaSorunWarningBtn');
+        const countSpan = document.getElementById('sahaSorunCount');
+        const listDiv = document.getElementById('sahaSorunList');
+        
+        if (!btn) return;
+        
+        if (totalCount === 0) {
+            btn.style.display = 'none';
+            document.getElementById('sahaSorunPanel').style.display = 'none';
+            return;
+        }
+        
+        btn.style.display = 'flex';
+        countSpan.textContent = totalCount;
+        
+        let html = '';
+        
+        // Concat citizen report issues
+        sorunluReports.forEach(r => {
+            const lines = (r.admin_notes || '').split('\n');
+            const activeIssues = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
+            const lastIssue = activeIssues.length > 0 ? activeIssues[activeIssues.length - 1] : "Saha sorunu bildirildi.";
+            
+            html += `
+                <div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:10px; font-size:11px; color:var(--text-primary); margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:4px; color:#fca5a5;">
+                        <span>📢 Vatandaş İhbarı #${r.id}</span>
+                        <span>📍 ${r.neighborhood || '-'}</span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:10px; margin-bottom:6px; line-height:1.4;">${lastIssue}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:10px; color:#ef4444; font-weight:600;">👤 ${r.assigned_user_name || 'Atanmadı'}</span>
+                        <button class="btn btn-sm" style="padding:2px 8px; font-size:9px; background:#ef4444; color:#fff; border:none; cursor:pointer; border-radius:4px;" onclick="goToReport(${r.id})">🔍 İncele</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Concat session issues
+        sorunluSessions.forEach(s => {
+            const lines = (s.notes || '').split('\n');
+            const activeIssues = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
+            const lastIssue = activeIssues.length > 0 ? activeIssues[activeIssues.length - 1] : (s.notes || "Oturum esnasında sorun bildirildi.");
+            
+            html += `
+                <div style="background:rgba(245,158,11,0.06); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:10px; font-size:11px; color:var(--text-primary); margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom:4px; color:#fcd34d;">
+                        <span>🚐 İlaçlama Oturumu #${s.id}</span>
+                        <span>📍 ${s.neighborhood || '-'}</span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:10px; margin-bottom:6px; line-height:1.4;">${lastIssue}</div>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:10px; color:#f59e0b; font-weight:600;">🚐 Plaka: ${s.plate || s.vehicle_id}</span>
+                        <button class="btn btn-sm" style="padding:2px 8px; font-size:9px; background:#f59e0b; color:#fff; border:none; cursor:pointer; border-radius:4px;" onclick="goToSession(${s.id})">🔍 Oturuma Git</button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        listDiv.innerHTML = html;
+    } catch (e) {
+        console.error("checkSahaSorunlari error:", e);
+    }
+}
+
+function toggleSahaSorunDropdown() {
+    const panel = document.getElementById('sahaSorunPanel');
+    if (panel) {
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function goToReport(reportId) {
+    if (window.location.pathname.includes('citizen-reports')) {
+        openDetailPanel(reportId);
+        toggleSahaSorunDropdown();
+    } else {
+        window.location.href = `/admin/citizen-reports?search=${reportId}`;
+    }
+}
+
+function goToSession(sessionId) {
+    window.location.href = `/admin/sessions?search=${sessionId}`;
+}
+</script>
+
+<!-- HTML elements for Floating Bottom-Right Warning Bell -->
+<div id="sahaSorunWarningBtn" style="display:none; position:fixed; bottom:20px; right:20px; z-index:9999; background:linear-gradient(135deg, #ef4444, #f97316); color:#fff; border-radius:50px; padding:12px 20px; box-shadow:0 8px 30px rgba(239,68,68,0.4); align-items:center; gap:8px; font-weight:700; font-size:13px; cursor:pointer; border:1px solid rgba(255,255,255,0.2); transition:transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s; animation: pulse-gaze 2s infinite;" onclick="toggleSahaSorunDropdown()">
+    <span style="font-size:16px; animation: ring-alarm 1s infinite alternate; display:inline-block;">🚨</span>
+    <span>Sahada <span id="sahaSorunCount">0</span> Sorun Var!</span>
+</div>
+
+<div id="sahaSorunPanel" style="display:none; position:fixed; bottom:75px; right:20px; z-index:9998; width:340px; max-height:400px; background:var(--bg-card); border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 40px rgba(0,0,0,0.5); overflow-y:auto; transition:all 0.3s ease; padding:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:8px;">
+        <span style="font-weight:700; color:#ef4444; font-size:13px; display:flex; align-items:center; gap:6px;">🚨 AKTİF SAHA SORUNLARI</span>
+        <button style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px; margin-left:auto;" onclick="toggleSahaSorunDropdown()">✕</button>
+    </div>
+    <div id="sahaSorunList" style="display:flex; flex-direction:column; gap:8px;">
+        <!-- Dynamic list of issues -->
+    </div>
+</div>
+
+<style>
+@keyframes pulse-gaze {
+    0% { transform: scale(1); box-shadow: 0 8px 30px rgba(239,68,68,0.4); }
+    50% { transform: scale(1.05); box-shadow: 0 8px 40px rgba(239,68,68,0.7); }
+    100% { transform: scale(1); box-shadow: 0 8px 30px rgba(239,68,68,0.4); }
+}
+@keyframes ring-alarm {
+    0% { transform: rotate(-12deg); }
+    100% { transform: rotate(12deg); }
+}
+</style>
+</body>
+</html>
