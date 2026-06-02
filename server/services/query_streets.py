@@ -1,9 +1,8 @@
 import sys
 import os
-import sqlite3
-import struct
 import json
 import math
+import shapefile
 from pyproj import Transformer
 
 # Initialize transformers
@@ -12,7 +11,6 @@ transformer_to_5256 = Transformer.from_crs("EPSG:4326", "EPSG:5256", always_xy=T
 transformer_to_4326 = Transformer.from_crs("EPSG:5256", "EPSG:4326", always_xy=True)
 
 def haversine(lat1, lon1, lat2, lon2):
-    import math
     R = 6371000  # meters
     dLat = math.radians(lat2 - lat1)
     dLon = math.radians(lon2 - lon1)
@@ -20,87 +18,6 @@ def haversine(lat1, lon1, lat2, lon2):
         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * \
         math.sin(dLon/2)**2
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
-def parse_gpkg_geom_blob(blob):
-    if not blob or len(blob) < 8:
-        return None
-    if blob[:2] != b'GP':
-        return None
-    flags = blob[3]
-    env_indicator = (flags >> 1) & 0x07
-    env_sizes = {0: 0, 1: 32, 2: 48, 3: 48, 4: 64}
-    env_size = env_sizes.get(env_indicator, 0)
-    header_size = 8 + env_size
-    return blob[header_size:]
-
-def parse_wkb_to_geojson(wkb):
-    if not wkb or len(wkb) < 5:
-        return None
-    byte_order = wkb[0]
-    is_little = byte_order == 1
-    fmt_prefix = "<" if is_little else ">"
-    
-    geom_type = struct.unpack(f"{fmt_prefix}I", wkb[1:5])[0]
-    offset = 5
-    
-    # 2 = LineString
-    if geom_type == 2:
-        num_points = struct.unpack(f"{fmt_prefix}I", wkb[offset:offset+4])[0]
-        offset += 4
-        coords = []
-        for _ in range(num_points):
-            x, y = struct.unpack(f"{fmt_prefix}dd", wkb[offset:offset+16])
-            offset += 16
-            if math.isnan(x) or math.isnan(y) or math.isinf(x) or math.isinf(y):
-                continue
-            lon, lat = transformer_to_4326.transform(x, y)
-            if math.isnan(lon) or math.isnan(lat) or math.isinf(lon) or math.isinf(lat):
-                continue
-            coords.append([lon, lat])
-        if len(coords) < 2:
-            return None
-        return {
-            "type": "LineString",
-            "coordinates": coords
-        }
-    
-    # 5 = MultiLineString
-    elif geom_type == 5:
-        num_lines = struct.unpack(f"{fmt_prefix}I", wkb[offset:offset+4])[0]
-        offset += 4
-        lines = []
-        for _ in range(num_lines):
-            sub_order = wkb[offset]
-            sub_is_little = sub_order == 1
-            sub_fmt = "<" if sub_is_little else ">"
-            offset += 1
-            
-            sub_type = struct.unpack(f"{sub_fmt}I", wkb[offset:offset+4])[0]
-            offset += 4
-            if sub_type != 2:
-                continue
-            
-            num_points = struct.unpack(f"{sub_fmt}I", wkb[offset:offset+4])[0]
-            offset += 4
-            coords = []
-            for _ in range(num_points):
-                x, y = struct.unpack(f"{sub_fmt}dd", wkb[offset:offset+16])
-                offset += 16
-                if math.isnan(x) or math.isnan(y) or math.isinf(x) or math.isinf(y):
-                    continue
-                lon, lat = transformer_to_4326.transform(x, y)
-                if math.isnan(lon) or math.isnan(lat) or math.isinf(lon) or math.isinf(lat):
-                    continue
-                coords.append([lon, lat])
-            if len(coords) >= 2:
-                lines.append(coords)
-        if not lines:
-            return None
-        return {
-            "type": "MultiLineString",
-            "coordinates": lines
-        }
-    return None
 
 def normalize_turkish(s):
     if not s:
@@ -134,6 +51,39 @@ def format_street_name(adi, tip):
     else:
         return f"{adi} {tip}"
 
+def clean_str(val):
+    if val is None:
+        return ""
+    if isinstance(val, str):
+        return val.strip()
+    return str(val).strip()
+
+def get_shape_lines(shape, transformer):
+    if not shape.points:
+        return []
+    
+    parts = list(shape.parts) if hasattr(shape, 'parts') and shape.parts is not None else [0]
+    parts.append(len(shape.points))
+    
+    lines = []
+    for idx in range(len(parts) - 1):
+        start = parts[idx]
+        end = parts[idx + 1]
+        part_pts = shape.points[start:end]
+        
+        coords = []
+        for x, y in part_pts:
+            if math.isnan(x) or math.isnan(y) or math.isinf(x) or math.isinf(y):
+                continue
+            lon, lat = transformer.transform(x, y)
+            if math.isnan(lon) or math.isnan(lat) or math.isinf(lon) or math.isinf(lat):
+                continue
+            coords.append([lon, lat])
+            
+        if len(coords) >= 2:
+            lines.append(coords)
+    return lines
+
 def main():
     try:
         # Reconfigure standard I/O to use UTF-8 encoding
@@ -159,161 +109,143 @@ def main():
         east = float(params['east'])
         neighborhood = params.get('neighborhood', '')
         
-        # Transform bbox to EPSG:5256
-        minx, miny = transformer_to_5256.transform(west, south)
-        maxx, maxy = transformer_to_5256.transform(east, north)
+        # Transform bbox to EPSG:5256 coordinates
+        x1, y1 = transformer_to_5256.transform(west, south)
+        x2, y2 = transformer_to_5256.transform(east, north)
         
-        # Connect to SOKAK.gpkg
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        workspace_dir = os.path.dirname(os.path.dirname(script_dir))
-        gpkg_path = os.path.join(workspace_dir, "SOKAK.gpkg")
+        minx = min(x1, x2)
+        maxx = max(x1, x2)
+        miny = min(y1, y2)
+        maxy = max(y1, y2)
         
-        if not os.path.exists(gpkg_path):
-            print(json.dumps({"error": f"SOKAK.gpkg dosyası bulunamadı: {gpkg_path}"}))
+        # Use Desktop shapefile layer
+        shp_path = os.path.normpath("C:/Users/burakkazan/Desktop/sokaklar.shp")
+        
+        if not os.path.exists(shp_path):
+            print(json.dumps({"error": f"Masaüstündeki sokaklar.shp dosyası bulunamadı: {shp_path}"}))
             return
             
-        conn = sqlite3.connect(gpkg_path)
-        cur = conn.cursor()
+        # Load shapefile using pyshp (actual encoding is ISO-8859-9 for Sivas GIS)
+        sf = shapefile.Reader(shp_path, encoding='iso-8859-9')
         
-        # 1. Query RTree index to get overlapping features
-        query_rtree = """
-            SELECT id FROM rtree_sokaklar_geom
-            WHERE minx <= ? AND maxx >= ? AND miny <= ? AND maxy >= ?
-        """
-        cur.execute(query_rtree, (maxx, minx, maxy, miny))
-        street_ids = [row[0] for row in cur.fetchall()]
+        # Get field names starting from index 1 (ignoring DeletionFlag)
+        fields = [f[0].lower() for f in sf.fields[1:]]
         
-        if not street_ids:
+        # 1. Perform high-performance linear scan on shape bounding boxes
+        matching_indices = []
+        for i, shape in enumerate(sf.iterShapes()):
+            if hasattr(shape, 'bbox') and shape.bbox:
+                # shape.bbox is [xmin, ymin, xmax, ymax]
+                # Check for overlap between shape bbox and projected query bbox
+                if not (shape.bbox[0] > maxx or shape.bbox[2] < minx or 
+                        shape.bbox[1] > maxy or shape.bbox[3] < miny):
+                    matching_indices.append((i, shape))
+        
+        if not matching_indices:
             print(json.dumps({"type": "FeatureCollection", "features": []}))
-            conn.close()
             return
             
-        # 2. Query attributes and geometries from sokaklar table
-        # We process in chunks to avoid SQLite parameter limit (999) if street_ids is huge
-        features = []
-        chunk_size = 500
-        
         normalized_target_neigh = normalize_turkish(neighborhood) if neighborhood else ""
         
-        for i in range(0, len(street_ids), chunk_size):
-            chunk = street_ids[i:i + chunk_size]
-            placeholders = ",".join("?" for _ in chunk)
-            query_streets = f"""
-                SELECT fid, geom, adi, tip, mahalle_adi, osm_id FROM sokaklar
-                WHERE fid IN ({placeholders})
-            """
-            cur.execute(query_streets, chunk)
-            rows = cur.fetchall()
-            
-            for fid, geom_blob, adi, tip, mahalle_adi, osm_id in rows:
-                # If neighborhood is specified, check if it matches
-                if normalized_target_neigh:
-                    normalized_row_neigh = normalize_turkish(mahalle_adi)
-                    if normalized_row_neigh != normalized_target_neigh:
-                        continue
-                        
-                # Parse geometry
-                wkb = parse_gpkg_geom_blob(geom_blob)
-                if not wkb:
-                    continue
-                    
-                geojson_geom = parse_wkb_to_geojson(wkb)
-                if not geojson_geom:
-                    continue
-                    
-                # Map highway type
-                h_type = 'residential'
-                tip_upper = (tip or '').upper()
-                if 'BULVAR' in tip_upper:
-                    h_type = 'primary'
-                elif 'CADDE' in tip_upper:
-                    h_type = 'secondary'
-                elif 'SOK' in tip_upper:
-                    h_type = 'residential'
-                elif 'KARA YOL' in tip_upper:
-                    h_type = 'trunk'
-                elif 'KÖY' in tip_upper:
-                    h_type = 'unclassified'
-                elif any(x in tip_upper for x in ['YAYA', 'PARK', 'PASAJ', 'GEÇİT', 'GECIT']):
-                    h_type = 'pedestrian'
-                elif any(x in tip_upper for x in ['MERDİVEN', 'MERDIVEN']):
-                    h_type = 'steps'
-                elif any(x in tip_upper for x in ['PATİKA', 'PATIKA']):
-                    h_type = 'path'
-                
-                # Format name
-                formatted_name = format_street_name(adi, tip)
-                
-                # Determine width and sprayable
-                width = 8
-                if h_type == 'primary':
-                    width = 16
-                elif h_type == 'secondary':
-                    width = 14
-                elif h_type == 'residential':
-                    width = 8
-                elif h_type == 'unclassified':
-                    width = 7
-                elif h_type == 'trunk':
-                    width = 20
-                elif h_type in ['pedestrian', 'steps', 'path']:
-                    width = 4
-                
-                # Build features, converting MultiLineStrings to individual LineString features
-                # so that they are successfully processed by the client clipping logic
-                # and the Chinese Postman route solver.
-                geom_coords = geojson_geom['coordinates']
-                if geojson_geom['type'] == 'LineString':
-                    length_m = sum(haversine(geom_coords[idx-1][1], geom_coords[idx-1][0], geom_coords[idx][1], geom_coords[idx][0]) for idx in range(1, len(geom_coords)))
-                    if math.isnan(length_m) or math.isinf(length_m):
-                        length_m = 0
-                    
-                    features.append({
-                        "type": "Feature",
-                        "id": osm_id or f"local_{fid}",
-                        "properties": {
-                            "osm_id": osm_id or fid,
-                            "name": formatted_name,
-                            "highway": h_type,
-                            "width": width,
-                            "length_m": round(length_m),
-                            "surface": "asphalt",
-                            "oneway": False,
-                            "lanes": 2 if width > 12 else 1,
-                            "maxspeed": "50",
-                            "sprayable": True
-                        },
-                        "geometry": geojson_geom
-                    })
-                elif geojson_geom['type'] == 'MultiLineString':
-                    for sub_idx, line in enumerate(geom_coords):
-                        length_m = sum(haversine(line[idx-1][1], line[idx-1][0], line[idx][1], line[idx][0]) for idx in range(1, len(line)))
-                        if math.isnan(length_m) or math.isinf(length_m):
-                            length_m = 0
-                        
-                        features.append({
-                            "type": "Feature",
-                            "id": f"{osm_id or fid}_s{sub_idx}",
-                            "properties": {
-                                "osm_id": osm_id or fid,
-                                "name": formatted_name,
-                                "highway": h_type,
-                                "width": width,
-                                "length_m": round(length_m),
-                                "surface": "asphalt",
-                                "oneway": False,
-                                "lanes": 2 if width > 12 else 1,
-                                "maxspeed": "50",
-                                "sprayable": True
-                            },
-                            "geometry": {
-                                "type": "LineString",
-                                "coordinates": line
-                            }
-                        })
-                
-        conn.close()
+        features = []
         
+        # 2. Retrieve records and build GeoJSON features for overlapping shapes only
+        for idx, shape in matching_indices:
+            rec = sf.record(idx)
+            rec_dict = dict(zip(fields, rec))
+            
+            # Map neighborhood name fields (supporting multiple potential column names)
+            mahalle_adi = clean_str(rec_dict.get('mahalle_ad') or rec_dict.get('mahalle__1') or rec_dict.get('abs_mahall') or '')
+            
+            # If neighborhood is specified, check if it matches
+            if normalized_target_neigh:
+                normalized_row_neigh = normalize_turkish(mahalle_adi)
+                if normalized_row_neigh != normalized_target_neigh:
+                    continue
+            
+            # Map highway type
+            h_type = 'residential'
+            tip_val = clean_str(rec_dict.get('tip', ''))
+            tip_upper = tip_val.upper()
+            if 'BULVAR' in tip_upper:
+                h_type = 'primary'
+            elif 'CADDE' in tip_upper:
+                h_type = 'secondary'
+            elif 'SOK' in tip_upper:
+                h_type = 'residential'
+            elif 'KARA YOL' in tip_upper:
+                h_type = 'trunk'
+            elif 'KÖY' in tip_upper:
+                h_type = 'unclassified'
+            elif any(x in tip_upper for x in ['YAYA', 'PARK', 'PASAJ', 'GEÇİT', 'GECIT']):
+                h_type = 'pedestrian'
+            elif any(x in tip_upper for x in ['MERDİVEN', 'MERDIVEN']):
+                h_type = 'steps'
+            elif any(x in tip_upper for x in ['PATİKA', 'PATIKA']):
+                h_type = 'path'
+            
+            # Format name
+            adi_val = clean_str(rec_dict.get('adi') or rec_dict.get('sokak_adi') or '')
+            formatted_name = format_street_name(adi_val, tip_val)
+            
+            # Determine width
+            width = 8
+            if h_type == 'primary':
+                width = 16
+            elif h_type == 'secondary':
+                width = 14
+            elif h_type == 'residential':
+                width = 8
+            elif h_type == 'unclassified':
+                width = 7
+            elif h_type == 'trunk':
+                width = 20
+            elif h_type in ['pedestrian', 'steps', 'path']:
+                width = 4
+                
+            # Parse shape geometry to WGS84 lines
+            lines = get_shape_lines(shape, transformer_to_4326)
+            if not lines:
+                continue
+                
+            osm_id = clean_str(rec_dict.get('osm_id', ''))
+            fid = rec_dict.get('id') or rec_dict.get('yol_id') or idx
+            
+            # Add line segments as features
+            for sub_idx, line in enumerate(lines):
+                # Calculate segment length in meters
+                length_m = sum(
+                    haversine(line[pt_idx-1][1], line[pt_idx-1][0], line[pt_idx][1], line[pt_idx][0])
+                    for pt_idx in range(1, len(line))
+                )
+                if math.isnan(length_m) or math.isinf(length_m):
+                    length_m = 0
+                
+                feat_id = osm_id if (osm_id and len(lines) == 1) else f"{osm_id or fid}_s{sub_idx}"
+                
+                features.append({
+                    "type": "Feature",
+                    "id": feat_id,
+                    "properties": {
+                        "osm_id": osm_id or fid,
+                        "fid": fid,
+                        "name": formatted_name,
+                        "highway": h_type,
+                        "width": width,
+                        "length_m": round(length_m),
+                        "surface": "asphalt",
+                        "oneway": False,
+                        "lanes": 2 if width > 12 else 1,
+                        "maxspeed": "50",
+                        "sprayable": True,
+                        "mahalle": mahalle_adi
+                    },
+                    "geometry": {
+                        "type": "LineString",
+                        "coordinates": line
+                    }
+                })
+                
         # Output as JSON to stdout
         sys.stdout.write(json.dumps({
             "type": "FeatureCollection",

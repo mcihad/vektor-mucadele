@@ -180,21 +180,21 @@ router.post('/fetch-streets', authMiddleware, async (req, res) => {
         console.error('[Routes] Canlı OSM Overpass Hatası:', err.message);
     }
 
-    // 2. Yerel GPKG Veri Tabanından (Sivas Belediyesi SOKAK.gpkg CBS veri tabanı) verileri çek
+    // 2. Yerel Masaüstü Shapefile Katmanından (c:\Users\burakkazan\Desktop\sokaklar.shp) verileri çek
     try {
-        console.log(`[Routes] Yerel GPKG veri tabanından sokaklar çekiliyor. BBox: ${south},${west},${north},${east} | Mahalle: ${neighborhood || 'Tümü'}`);
+        console.log(`[Routes] Masaüstü Shapefile katmanından sokaklar çekiliyor. BBox: ${south},${west},${north},${east} | Mahalle: ${neighborhood || 'Tümü'}`);
         localGeoJSON = await fetchLocalStreets(
             parseFloat(south), parseFloat(west),
             parseFloat(north), parseFloat(east),
             neighborhood
         );
     } catch (localErr) {
-        console.error('[Routes] Yerel GPKG sorgu hatası:', localErr.message);
+        console.error('[Routes] Masaüstü Shapefile sorgu hatası:', localErr.message);
     }
 
     // 3. AKILLI BİRLEŞTİRME VE DEDÜPLİKASYON (Gaps Filler):
-    // Eğer hem OSM hem de yerel GPKG verisi varsa, OSM verilerini birincil (esas) alıyoruz.
-    // Ancak, yerel GPKG'de olup OSM haritasında OLMAYAN (uydu görüntüsünde var ama OSM'ye çizilmemiş olan)
+    // Eğer hem OSM hem de yerel Shapefile verisi varsa, OSM verilerini birincil (esas) alıyoruz.
+    // Ancak, yerel Shapefile'da olup OSM haritasında OLMAYAN (uydu görüntüsünde var ama OSM'ye çizilmemiş olan)
     // tüm sokakları otomatik olarak saptıyor ve bunları araya enjekte ediyoruz!
     if (osmGeoJSON && osmGeoJSON.features && localGeoJSON && localGeoJSON.features) {
         const mergedFeatures = [...osmGeoJSON.features];
@@ -245,7 +245,7 @@ router.post('/fetch-streets', authMiddleware, async (req, res) => {
             }
         });
 
-        console.log(`[Routes] Akıllı Birleştirme Tamamlandı. Canlı OSM: ${osmGeoJSON.features.length} yol. GPKG'den eksik olup otomatik doldurulan yol sayısı: ${injectedCount}. Toplam: ${mergedFeatures.length} yol.`);
+        console.log(`[Routes] Akıllı Birleştirme Tamamlandı. Canlı OSM: ${osmGeoJSON.features.length} yol. Masaüstü Shapefile'dan eksik olup otomatik doldurulan yol sayısı: ${injectedCount}. Toplam: ${mergedFeatures.length} yol.`);
         return res.json({
             type: 'FeatureCollection',
             features: mergedFeatures
