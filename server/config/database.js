@@ -2,6 +2,13 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const { Pool } = require('pg');
+const pg = require('pg');
+
+// Force pg to parse naive TIMESTAMP columns as UTC
+pg.types.setTypeParser(pg.types.builtins.TIMESTAMP, (val) => {
+    if (!val) return null;
+    return new Date(val.endsWith('Z') || val.includes('+') ? val : val + 'Z');
+});
 
 // .env dosyasından ayarları yükle
 try {

@@ -24,6 +24,40 @@ function haversine(lat1, lon1, lat2, lon2) {
     return R * c;
 }
 
+async function sendStartNotification(db, req, sessionId) {
+    try {
+        const sendPushToUser = req.app.get('sendPushToUser');
+        if (sendPushToUser) {
+            const detailsResult = await db.exec(`
+                SELECT s.id, v.plate, p1.name as driver_name, p2.name as operator_name, s.neighborhood
+                FROM spray_sessions s
+                LEFT JOIN vehicles v ON s.vehicle_id = v.id
+                LEFT JOIN personnel p1 ON s.driver_id = p1.id
+                LEFT JOIN personnel p2 ON s.operator_id = p2.id
+                WHERE s.id = ?
+            `, [parseInt(sessionId)]);
+            const details = rowsToObjects(detailsResult);
+            if (details.length > 0) {
+                const d = details[0];
+                const vehiclePlate = d.plate || 'Araç';
+                const crew = `${d.driver_name || ''} - ${d.operator_name || ''}`;
+                const neighborhood = d.neighborhood || '';
+                
+                const title = '🚀 İlaçlama Başladı';
+                const body = `${vehiclePlate} plakalı araç ile ${neighborhood} mahallesinde ilaçlama başlatıldı. Ekip: ${crew}`;
+                
+                const adminsResult = await db.exec("SELECT id FROM users WHERE role = 'admin'");
+                const admins = rowsToObjects(adminsResult);
+                for (const admin of admins) {
+                    await sendPushToUser(admin.id, title, body, '/admin/dashboard');
+                }
+            }
+        }
+    } catch (pushErr) {
+        console.error('[Push] Yöneticiye bildirim gönderilemedi:', pushErr.message);
+    }
+}
+
 module.exports = function(io) {
     const router = express.Router();
 
@@ -175,37 +209,7 @@ module.exports = function(io) {
                 }
 
                 // Send push notification to all admin users
-                try {
-                    const sendPushToUser = req.app.get('sendPushToUser');
-                    if (sendPushToUser) {
-                        const detailsResult = await db.exec(`
-                            SELECT s.id, v.plate, p1.name as driver_name, p2.name as operator_name, s.neighborhood
-                            FROM spray_sessions s
-                            LEFT JOIN vehicles v ON s.vehicle_id = v.id
-                            LEFT JOIN personnel p1 ON s.driver_id = p1.id
-                            LEFT JOIN personnel p2 ON s.operator_id = p2.id
-                            WHERE s.id = ?
-                        `, [parseInt(req.params.id)]);
-                        const details = rowsToObjects(detailsResult);
-                        if (details.length > 0) {
-                            const d = details[0];
-                            const vehiclePlate = d.plate || 'Araç';
-                            const crew = `${d.driver_name || ''} - ${d.operator_name || ''}`;
-                            const neighborhood = d.neighborhood || '';
-                            
-                            const title = '🚀 İlaçlama Başladı';
-                            const body = `${vehiclePlate} plakalı araç ile ${neighborhood} mahallesinde ilaçlama başlatıldı. Ekip: ${crew}`;
-                            
-                            const adminsResult = await db.exec("SELECT id FROM users WHERE role = 'admin'");
-                            const admins = rowsToObjects(adminsResult);
-                            for (const admin of admins) {
-                                sendPushToUser(admin.id, title, body, '/admin/dashboard');
-                            }
-                        }
-                    }
-                } catch (pushErr) {
-                    console.error('[Push] Yöneticiye bildirim gönderilemedi:', pushErr.message);
-                }
+                await sendStartNotification(db, req, req.params.id);
             }
             
             saveDatabase();
@@ -440,6 +444,8 @@ module.exports = function(io) {
                         if (driver_id) await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [driver_id]);
                         if (operator_id) await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [operator_id]);
                         if (vehicle_id) await db.run("UPDATE vehicles SET last_location_time = datetime('now') WHERE id = ?", [vehicle_id]);
+                        // Send push notification when resuming
+                        await sendStartNotification(db, req, req.params.id);
                     } else if (status === 'beklemede' || status === 'sorunlu') {
                         if (driver_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [driver_id]);
                         if (operator_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [operator_id]);
