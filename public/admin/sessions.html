@@ -219,6 +219,20 @@ async function loadSessions() {
                </div>`
             : '';
 
+        let notesHtml = '';
+        if (s.notes) {
+            if (s.notes.includes("⚠️ SAHA SORUNU")) {
+                const issueContent = s.notes.replace('[', '').replace(']', '');
+                notesHtml = `<div style="margin-top:6px; font-size:9px; color:#ef4444; line-height:1.3; background:rgba(239,68,68,0.06); padding:4px 8px; border-radius:6px; border:1px solid rgba(239,68,68,0.15); display:block; max-width:180px; word-break:break-word;">
+                    ${issueContent}
+                </div>`;
+            } else {
+                notesHtml = `<div style="margin-top:4px; font-size:9px; color:var(--text-muted); line-height:1.2; max-width:180px; word-break:break-word; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.08);">
+                    📝 ${s.notes}
+                </div>`;
+            }
+        }
+
         return `<tr>
             <td>#${s.id}</td>
             <td><strong>${s.plate || '-'}</strong><br><span style="font-size:10px;color:var(--text-muted)">${s.machine_name || ''}</span></td>
@@ -232,7 +246,10 @@ async function loadSessions() {
                 ${Number(s.chemical_used_lt || 0).toFixed(1)} lt
                 ${intakeInfo}
             </td>
-            <td><span class="badge ${statusBadge}">${statusText}</span></td>
+            <td>
+                <span class="badge ${statusBadge}">${statusText}</span>
+                ${notesHtml}
+            </td>
             <td>
                 <div style="display:flex;gap:4px;align-items:center;">
                     ${s.status === 'planned' ? `<button class="btn btn-sm btn-success" onclick="startSession(${s.id})">▶ Başlat</button>` : ''}
