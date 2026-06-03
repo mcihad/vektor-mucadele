@@ -288,7 +288,7 @@ const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y
 const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
 const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
 
-const rMap = L.map('reportMap', { center: [39.7477, 37.0179], zoom: 13, layers: [osm] });
+const rMap = L.map('reportMap', { center: [39.7477, 37.0179], zoom: 13, layers: [googleRoadmap] });
 const baseMaps = { "Google Uydu + Hibrit": googleHybrid, "Google Harita": googleRoadmap, "Google Uydu": googleSatellite, "OpenStreetMap": osm };
 
 const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}/{y}', { maxZoom: 19, opacity: 0.6 });

@@ -602,10 +602,10 @@
             // Default center Sivas Municipality coordinates
             map = L.map('publicMap', { zoomControl: false }).setView([39.7477, 37.0179], 13);
 
-            // OpenStreetMap as default basemap
-            osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap | Sivas Belediyesi Vektör Kontrol',
-                maxZoom: 19
+            // Google Maps as default basemap
+            osmLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps | Sivas Belediyesi Vektör Kontrol',
+                maxZoom: 22
             }).addTo(map);
 
             satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {

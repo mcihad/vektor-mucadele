@@ -764,7 +764,7 @@ function initMap(){
     const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         attribution: '© Google Maps',
         maxZoom: 22
-    });
+    }).addTo(map); // Google Maps as default
     const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
         attribution: '© Google Maps',
         maxZoom: 22
@@ -776,7 +776,7 @@ function initMap(){
     const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19
-    }).addTo(map); // OpenStreetMap by default
+    });
 
     const baseMaps = {
         "Google Uydu + Hibrit": googleHybrid,

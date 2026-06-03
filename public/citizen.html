@@ -119,10 +119,10 @@ let map = null, marker = null;
 function initMap() {
     map = L.map('citizenMap').setView([39.7477, 37.0179], 13);
     
-    // OpenStreetMap Tile Layer as default
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
-        maxZoom: 19
+    // Google Maps Tile Layer as default
+    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
     }).addTo(map);
 
     // Draggable marker
