@@ -219,8 +219,58 @@ socket.on('vehicle-update',data=>{
     updateVehiclePath(data);
 });
 socket.on('spray-update',data=>{toast(`${data.plate} - ${data.message}`,'success');loadDashboard();});
-socket.on('citizen-report-new',data=>{toast(`📢 Yeni Vatandaş İhbarı: ${data.report_type} - ${data.neighborhood||''}`,  'info');loadCitizenReportMarkers();loadDashboard();});
+socket.on('citizen-report-new',data=>{
+    toast(`📢 Yeni Vatandaş İhbarı: ${data.report_type} - ${data.neighborhood||''}`, 'info');
+    showBrowserNotification('📢 Yeni Vatandaş İhbarı', `${data.report_type} - ${data.neighborhood||''}: ${(data.description||'').substring(0,80)}`);
+    // Dynamically add to warning panel
+    addDynamicWarningItem('report', data);
+    loadCitizenReportMarkers();loadDashboard();
+});
 socket.on('citizen-report-deleted',data=>{toast(`🗑️ Bir ihbar silindi (#${data.report_id})`,'info');loadCitizenReportMarkers();loadDashboard();});
+
+// ─── Session Lifecycle Events ───
+socket.on('session-created', data => {
+    toast(`📋 Yeni ilaçlama oturumu oluşturuldu (#${data.id})`, 'info');
+});
+socket.on('session-started', data => {
+    toast(`▶️ İlaçlama başladı (Oturum #${data.session_id})`, 'success');
+    loadDashboard();
+});
+socket.on('session-completed', data => {
+    const s = data.summary || {};
+    toast(`✅ İlaçlama tamamlandı (Oturum #${data.session_id}) - ${s.total_km||0} km, ${s.chemical_used_lt||0} lt`, 'success');
+    showBrowserNotification('✅ İlaçlama Tamamlandı', `Oturum #${data.session_id}: ${s.total_km||0} km, ${s.chemical_used_lt||0} lt ilaç`);
+    loadDashboard();
+});
+socket.on('session-paused', data => {
+    const sess = data.session || {};
+    toast(`⏸️ İlaçlama duraklatıldı - Beklemede (Oturum #${data.session_id})`, 'warning');
+    showBrowserNotification('⏸️ İlaçlama Beklemede', `Oturum #${data.session_id} duraklatıldı`);
+    // Play warning beep
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator(); const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(440, ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc.start(); osc.stop(ctx.currentTime + 0.3);
+    } catch(e) {}
+    // Add to warning panel
+    addDynamicWarningItem('beklemede', data);
+    loadDashboard();
+});
+socket.on('vehicle-location-update', data => {
+    // Real-time spray line tracking on admin map
+    if (data.session_id && data.latitude && data.longitude) {
+        updateVehiclePath({
+            vehicle_id: data.session_id,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            is_spraying: data.is_spraying !== undefined ? data.is_spraying : 1
+        });
+    }
+});
 
 socket.on('citizen-report-updated',data=>{
     if (data.saha_sorunu) {
@@ -538,6 +588,53 @@ async function loadDashboard(){
     }
 }
 
+// ─── Browser Notification API ───
+if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+}
+function showBrowserNotification(title, body) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification(title, { body, icon: '🦟', tag: 'vms-' + Date.now() }); } catch(e) {}
+    }
+}
+
+// ─── Dynamic Warning Panel Items ───
+function addDynamicWarningItem(type, data) {
+    const btn = document.getElementById('sahaSorunWarningBtn');
+    const countSpan = document.getElementById('sahaSorunCount');
+    const listDiv = document.getElementById('sahaSorunList');
+    if (!btn || !listDiv) return;
+    
+    const currentCount = parseInt(countSpan.textContent || '0');
+    countSpan.textContent = currentCount + 1;
+    btn.style.display = 'flex';
+    
+    let html = '';
+    if (type === 'report') {
+        html = `<div style="background:rgba(59,130,246,0.06);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:10px;font-size:11px;color:var(--text-primary);margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:4px;color:#93c5fd;">
+                <span>📢 Yeni İhbar</span><span>📍 ${data.neighborhood||'-'}</span>
+            </div>
+            <div style="color:var(--text-muted);font-size:10px;margin-bottom:6px;">${data.description||data.report_type||'Yeni ihbar'}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:10px;color:#3b82f6;font-weight:600;">👤 ${data.reporter_name||'Vatandaş'}</span>
+                <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;background:#3b82f6;color:#fff;border:none;cursor:pointer;border-radius:4px;" onclick="window.location.href='/admin/citizen-reports'">🔍 İncele</button>
+            </div>
+        </div>`;
+    } else if (type === 'beklemede') {
+        html = `<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:10px;font-size:11px;color:var(--text-primary);margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:4px;color:#fcd34d;">
+                <span>⏸️ Beklemede - Oturum #${data.session_id}</span>
+            </div>
+            <div style="color:var(--text-muted);font-size:10px;margin-bottom:6px;">İlaçlama duraklatıldı, saha personeli beklemede.</div>
+            <div style="display:flex;justify-content:flex-end;">
+                <button class="btn btn-sm" style="padding:2px 8px;font-size:9px;background:#f59e0b;color:#fff;border:none;cursor:pointer;border-radius:4px;" onclick="goToSession(${data.session_id})">🔍 Oturuma Git</button>
+            </div>
+        </div>`;
+    }
+    listDiv.insertAdjacentHTML('afterbegin', html);
+}
+
 loadDashboard();
 loadCitizenReportMarkers();
 setInterval(loadDashboard,30000);
@@ -599,8 +696,20 @@ document.querySelectorAll('.nav-item').forEach(item=>{
 
 // ─── Bottom-Right Saha Sorunu Warning System ───
 function checkSahaSorunlari(reports, sessions) {
-    const sorunluReports = (reports || []).filter(r => r.status === 'sorunlu');
+    const sorunluReports = (reports || []).filter(r => r.status === 'sorunlu' || r.status === 'beklemede');
     const sorunluSessions = sessions || [];
+    // Also fetch beklemede sessions
+    const beklemedeSessions = [];
+    try {
+        api('/api/sessions?status=beklemede').then(bs => {
+            if (bs && bs.length > 0) {
+                bs.forEach(s => beklemedeSessions.push(s));
+                const totalWithBeklemede = sorunluReports.length + sorunluSessions.length + beklemedeSessions.length;
+                const countSpan = document.getElementById('sahaSorunCount');
+                if (countSpan) countSpan.textContent = totalWithBeklemede;
+            }
+        }).catch(() => {});
+    } catch(e) {}
     const totalCount = sorunluReports.length + sorunluSessions.length;
     
     const btn = document.getElementById('sahaSorunWarningBtn');

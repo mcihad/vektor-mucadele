@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VMS - Personel</title>
+    <title>VMS - Personel Yönetimi</title>
     <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
@@ -31,16 +31,21 @@
             <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
             👥 Personel Yönetimi
         </div>
+        <button class="btn btn-primary" onclick="openNewPersonnel()">+ Yeni Personel</button>
     </header>
     <div class="page-content">
         <div class="card">
-            <div class="card-header"><span class="card-title">Tüm Personel (9 Kişi)</span></div>
+            <div class="card-header"><span class="card-title" id="personnelCardTitle">Tüm Personel</span></div>
             <div class="table-container">
                 <table>
-                    <thead><tr><th>ID</th><th>Ad Soyad</th><th>Görev</th><th>Durum</th></tr></thead>
+                    <thead><tr><th>ID</th><th>Ad Soyad</th><th>Görev</th><th>Telefon</th><th>Durum</th><th>Bağlı Kullanıcı</th><th>İşlem</th></tr></thead>
                     <tbody id="personnelTable"></tbody>
                 </table>
             </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title" style="margin-bottom:16px;">🚐 Araç Durumları</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;" id="vehicleStatusGrid"></div>
         </div>
         <div class="card" style="margin-top:20px;">
             <div class="card-title" style="margin-bottom:16px;">👥 Ekip Oluşturma</div>
@@ -49,6 +54,59 @@
         </div>
     </div>
 </div>
+
+<!-- Personnel Modal -->
+<div class="modal-overlay" id="personnelModal">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title" id="personnelModalTitle">👥 Yeni Personel</div>
+            <button class="modal-close" onclick="document.getElementById('personnelModal').classList.remove('active')">&times;</button>
+        </div>
+        <form id="personnelForm">
+            <input type="hidden" id="pEditId">
+            <div class="form-group">
+                <label class="form-label">Ad Soyad *</label>
+                <input type="text" class="form-input" id="pName" required placeholder="Örn: Ahmet Yılmaz">
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Görev *</label>
+                    <select class="form-select" id="pRole" required>
+                        <option value="sofor">Şoför</option>
+                        <option value="operator">Operatör</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefon</label>
+                    <input type="text" class="form-input" id="pPhone" placeholder="05XX XXX XX XX">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Durum</label>
+                    <select class="form-select" id="pStatus">
+                        <option value="aktif">Aktif</option>
+                        <option value="pasif">Pasif</option>
+                        <option value="beklemede">Beklemede</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Kullanıcı Hesabı</label>
+                    <select class="form-select" id="pUserId">
+                        <option value="">Bağlantısız</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+                <button type="button" class="btn btn-outline" onclick="document.getElementById('personnelModal').classList.remove('active')">İptal</button>
+                <button type="submit" class="btn btn-primary" id="personnelSubmitBtn">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
 <script>
 const TOKEN = localStorage.getItem('vms_token');
 const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
@@ -57,21 +115,81 @@ if (!TOKEN || USER.role !== 'admin') {
     window.location.href = '/';
 }
 function logout() { localStorage.clear(); window.location.href = '/'; }
-async function api(url) { const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } }); return res.json(); }
+
+async function api(url, opts = {}) {
+    opts.headers = { ...opts.headers, 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
+    const res = await fetch(url, opts);
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Sunucu hatası: ' + res.status);
+    }
+    return res.json();
+}
+
+function toast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+let allUsers = [];
+
 async function load() {
-    const personnel = await api('/api/personnel');
-    document.getElementById('personnelTable').innerHTML = personnel.map(p => `
-        <tr>
+    const [personnel, vehicles, users] = await Promise.all([
+        api('/api/personnel'),
+        api('/api/vehicles'),
+        api('/api/auth/users').catch(() => [])
+    ]);
+    allUsers = users || [];
+
+    // Dynamic counter
+    document.getElementById('personnelCardTitle').textContent = `Tüm Personel (${personnel.length} Kişi)`;
+
+    // Personnel table
+    document.getElementById('personnelTable').innerHTML = personnel.map(p => {
+        const statusVal = p.status || (p.is_active ? 'aktif' : 'pasif');
+        const statusBadge = statusVal === 'aktif' ? 'badge-success' :
+                           statusVal === 'pasif' ? 'badge-danger' : 'badge-warning';
+        const statusIcon = statusVal === 'aktif' ? '🟢' :
+                          statusVal === 'pasif' ? '🔴' : '🟡';
+        const statusText = statusVal === 'aktif' ? 'Aktif' :
+                          statusVal === 'pasif' ? 'Pasif' : 'Beklemede';
+        const linkedUser = p.user_id ? (allUsers.find(u => u.id === p.user_id)?.username || `User #${p.user_id}`) : '-';
+        const pJson = JSON.stringify(p).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<tr>
             <td>#${p.id}</td>
             <td><strong>${p.name}</strong></td>
             <td><span class="badge badge-info">${p.role === 'sofor' ? 'Şoför' : 'Operatör'}</span></td>
-            <td><span class="badge ${p.is_active ? 'badge-success' : 'badge-danger'}">${p.is_active ? 'Aktif' : 'Pasif'}</span></td>
-        </tr>
-    `).join('');
+            <td style="font-size:12px;">${p.phone || '-'}</td>
+            <td><span class="badge ${statusBadge}">${statusIcon} ${statusText}</span></td>
+            <td style="font-size:12px;">${linkedUser}</td>
+            <td>
+                <div style="display:flex;gap:4px;align-items:center;">
+                    <button class="btn btn-sm btn-outline" style="color:var(--accent);border-color:rgba(59,130,246,0.3)" onclick='openEditPersonnel(${pJson})'>✏️ Düzenle</button>
+                    <button class="btn btn-sm btn-outline btn-danger" style="padding:2px 6px;color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deletePersonnel(${p.id},'${(p.name||'').replace(/'/g, "\\'")}')">🗑️</button>
+                </div>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Personel bulunamadı</td></tr>';
 
-    const vehicles = await api('/api/vehicles');
-    const streetVehicles = vehicles.filter(v => v.usage_type === 'sokak_ilacalama');
-    const larvaVehicles = vehicles.filter(v => v.usage_type !== 'sokak_ilacalama');
+    // Vehicle status section
+    const vehicleGrid = document.getElementById('vehicleStatusGrid');
+    vehicleGrid.innerHTML = vehicles.map(v => {
+        const online = v.last_location_time && (Date.now() - new Date(v.last_location_time).getTime()) < 600000;
+        const statusText = online ? '🟢 Çevrimiçi' : '🔴 Çevrimdışı';
+        return `<div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-weight:700;font-size:14px;">${v.plate}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${v.machine_name} • ${v.usage_type === 'sokak_ilacalama' ? 'Sokak' : 'Larva/Gübre'}</div>
+            </div>
+            <span class="badge ${online ? 'badge-success' : 'badge-danger'}" style="font-size:11px;">${statusText}</span>
+        </div>`;
+    }).join('') || '<div style="color:var(--text-muted);font-size:12px;">Araç bulunamadı</div>';
+
+    // Team suggestions
     const colors = ['blue','green','orange','purple'];
     document.getElementById('teamSuggestions').innerHTML = vehicles.map((v,i) => `
         <div class="stat-card ${colors[i%4]}" style="flex-direction:column;align-items:flex-start;gap:8px;">
@@ -82,6 +200,94 @@ async function load() {
         </div>
     `).join('');
 }
+
+// ─── New Personnel ───
+async function openNewPersonnel() {
+    document.getElementById('personnelModalTitle').textContent = '👥 Yeni Personel';
+    document.getElementById('personnelSubmitBtn').textContent = 'Kaydet';
+    document.getElementById('pEditId').value = '';
+    document.getElementById('pName').value = '';
+    document.getElementById('pRole').value = 'sofor';
+    document.getElementById('pPhone').value = '';
+    document.getElementById('pStatus').value = 'aktif';
+    // Load users for linking
+    try {
+        const users = await api('/api/auth/users');
+        document.getElementById('pUserId').innerHTML = '<option value="">Bağlantısız</option>' +
+            (users || []).map(u => `<option value="${u.id}">${u.username} (${u.full_name || u.role})</option>`).join('');
+    } catch(e) {
+        document.getElementById('pUserId').innerHTML = '<option value="">Bağlantısız</option>';
+    }
+    document.getElementById('pUserId').value = '';
+    document.getElementById('personnelModal').classList.add('active');
+}
+
+// ─── Edit Personnel ───
+async function openEditPersonnel(p) {
+    document.getElementById('personnelModalTitle').textContent = '✏️ Personel Düzenle';
+    document.getElementById('personnelSubmitBtn').textContent = 'Güncelle';
+    document.getElementById('pEditId').value = p.id;
+    document.getElementById('pName').value = p.name;
+    document.getElementById('pRole').value = p.role || 'sofor';
+    document.getElementById('pPhone').value = p.phone || '';
+    // Map is_active to status dropdown
+    if (p.status) {
+        document.getElementById('pStatus').value = p.status;
+    } else {
+        document.getElementById('pStatus').value = p.is_active ? 'aktif' : 'pasif';
+    }
+    // Load users
+    try {
+        const users = await api('/api/auth/users');
+        document.getElementById('pUserId').innerHTML = '<option value="">Bağlantısız</option>' +
+            (users || []).map(u => `<option value="${u.id}">${u.username} (${u.full_name || u.role})</option>`).join('');
+    } catch(e) {
+        document.getElementById('pUserId').innerHTML = '<option value="">Bağlantısız</option>';
+    }
+    document.getElementById('pUserId').value = p.user_id || '';
+    document.getElementById('personnelModal').classList.add('active');
+}
+
+// ─── Submit Personnel Form ───
+document.getElementById('personnelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const editId = document.getElementById('pEditId').value;
+    const status = document.getElementById('pStatus').value;
+    const body = {
+        name: document.getElementById('pName').value,
+        role: document.getElementById('pRole').value,
+        phone: document.getElementById('pPhone').value,
+        is_active: status === 'aktif' ? 1 : 0,
+        status: status,
+        user_id: document.getElementById('pUserId').value || null
+    };
+    try {
+        if (editId) {
+            await api(`/api/personnel/${editId}`, { method: 'PUT', body: JSON.stringify(body) });
+            toast('Personel güncellendi', 'success');
+        } else {
+            await api('/api/personnel', { method: 'POST', body: JSON.stringify(body) });
+            toast('Yeni personel eklendi', 'success');
+        }
+        document.getElementById('personnelModal').classList.remove('active');
+        load();
+    } catch(err) {
+        toast('Hata: ' + err.message, 'error');
+    }
+});
+
+// ─── Delete Personnel ───
+async function deletePersonnel(id, name) {
+    if (!confirm(`"${name}" personelini silmek istediğinize emin misiniz?`)) return;
+    try {
+        await api(`/api/personnel/${id}`, { method: 'DELETE' });
+        toast('Personel silindi', 'success');
+        load();
+    } catch(err) {
+        toast('Hata: ' + err.message, 'error');
+    }
+}
+
 load();
 </script>
 </body>

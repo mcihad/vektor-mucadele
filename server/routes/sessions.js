@@ -114,7 +114,7 @@ module.exports = function(io) {
         const db = getDb();
         try {
             await db.run(`INSERT INTO spray_sessions (vehicle_id, driver_id, operator_id, chemical_id, route_id, neighborhood, district, application_type, status, notes, intake_chemical_name, intake_received_from, intake_amount_lt, intake_date, intake_chemical_type)
-                    VALUES (?,?,?,?,?,?,?,?,?)`,
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 [
                     vehicle_id, driver_id, operator_id, chemical_id, route_id || null, neighborhood, district || 'Merkez', application_type || 'sokak_ilacalama', 'planned', notes,
                     intake_chemical_name || null, intake_received_from || null, intake_amount_lt ? parseFloat(intake_amount_lt) : null, intake_date || null, intake_chemical_type || null
@@ -122,6 +122,9 @@ module.exports = function(io) {
             saveDatabase();
             const result = await db.exec("SELECT last_insert_rowid()");
             const lastId = result[0].values[0][0];
+            if (io) {
+                io.to('admin').emit('session-created', { id: lastId, vehicle_id, driver_id, operator_id, neighborhood });
+            }
             res.json({ id: lastId, message: 'İlaçlama oturumu oluşturuldu' });
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -158,6 +161,9 @@ module.exports = function(io) {
             }
             
             saveDatabase();
+            if (io) {
+                io.to('admin').emit('session-started', { session_id: parseInt(req.params.id) });
+            }
             res.json({ message: 'İlaçlama başlatıldı' });
         } catch (err) {
             res.status(500).json({ error: err.message });
@@ -206,7 +212,9 @@ module.exports = function(io) {
                 [Math.round(chemical_used_lt * 10) / 10, finalKm, area_covered_m2, notes, req.params.id]);
 
             // Update chemical stock
-            if (chemical_used_lt > 0 && sess.chemical_id) {
+            // Check if session was marked as problematic - don't deduct stock
+            const currentStatus = sess.status;
+            if (chemical_used_lt > 0 && sess.chemical_id && currentStatus !== 'sorunlu') {
                 await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
                     [chemical_used_lt, chemical_used_lt, sess.chemical_id]);
                 await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
@@ -300,6 +308,9 @@ module.exports = function(io) {
             }
 
             saveDatabase();
+            if (io) {
+                io.to('admin').emit('session-completed', { session_id: parseInt(req.params.id), summary: { duration_min: Math.round(durationMinutes), total_km: finalKm, chemical_used_lt: Math.round(chemical_used_lt * 10) / 10 } });
+            }
             res.json({ 
                 message: 'İlaçlama tamamlandı',
                 summary: {
@@ -381,6 +392,13 @@ module.exports = function(io) {
                     notes: notes || (updatedSession ? updatedSession.notes : undefined),
                     session: updatedSession
                 });
+                if (status === 'beklemede') {
+                    io.to('admin').emit('session-paused', {
+                        session_id: parseInt(req.params.id),
+                        status: 'beklemede',
+                        session: updatedSession
+                    });
+                }
             }
             
             res.json({ message: 'Oturum güncellendi' });
@@ -402,6 +420,10 @@ module.exports = function(io) {
             if (session.length > 0) {
                 await db.run("UPDATE vehicles SET last_lat = ?, last_lng = ?, last_location_time = datetime('now') WHERE id = ?",
                     [latitude, longitude, session[0].vehicle_id]);
+            }
+
+            if (io) {
+                io.to('admin').emit('vehicle-location-update', { session_id: parseInt(req.params.id), latitude, longitude, speed_kmh: speed_kmh || 0, is_spraying: is_spraying !== undefined ? is_spraying : 1 });
             }
 
             saveDatabase();

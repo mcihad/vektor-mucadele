@@ -73,6 +73,48 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 });
 
+// Edit chemical
+router.put('/:id', authMiddleware, async (req, res) => {
+    const { name, type, min_stock_alert, stock_amount } = req.body;
+    const db = getDb();
+    let sql = "UPDATE chemicals SET";
+    const sets = [];
+    const params = [];
+    if (name !== undefined) { sets.push(" name = ?"); params.push(name); }
+    if (type !== undefined) { sets.push(" type = ?"); params.push(type); }
+    if (min_stock_alert !== undefined) { sets.push(" min_stock_alert = ?"); params.push(min_stock_alert); }
+    if (stock_amount !== undefined) { sets.push(" stock_amount = ?"); params.push(stock_amount); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Güncellenecek alan yok' });
+    sql += sets.join(',') + " WHERE id = ?";
+    params.push(req.params.id);
+    try {
+        await db.run(sql, params);
+        saveDatabase();
+        res.json({ message: 'İlaç güncellendi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete chemical
+router.delete('/:id', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        // Check if chemical is used in any active session
+        const activeSessions = rowsToObjects(await db.exec(
+            "SELECT id FROM spray_sessions WHERE chemical_id = ? AND status IN ('planned', 'active')", [req.params.id]
+        ));
+        if (activeSessions.length > 0) {
+            return res.status(400).json({ error: 'Bu ilaç aktif oturumlarda kullanılıyor, silinemez' });
+        }
+        await db.run("DELETE FROM chemicals WHERE id = ?", [req.params.id]);
+        saveDatabase();
+        res.json({ message: 'İlaç silindi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Low stock alerts
 router.get('/alerts/low-stock', authMiddleware, async (req, res) => {
     const db = getDb();

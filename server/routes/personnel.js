@@ -36,11 +36,22 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 router.put('/:id', authMiddleware, async (req, res) => {
-    const { name, role, phone, is_active } = req.body;
+    const { name, role, phone, is_active, user_id, status } = req.body;
     const db = getDb();
+    let sql = "UPDATE personnel SET";
+    const sets = [];
+    const params = [];
+    if (name !== undefined) { sets.push(" name = ?"); params.push(name); }
+    if (role !== undefined) { sets.push(" role = ?"); params.push(role); }
+    if (phone !== undefined) { sets.push(" phone = ?"); params.push(phone); }
+    if (is_active !== undefined) { sets.push(" is_active = ?"); params.push(is_active); }
+    if (user_id !== undefined) { sets.push(" user_id = ?"); params.push(user_id || null); }
+    if (status !== undefined) { sets.push(" status = ?"); params.push(status); }
+    if (sets.length === 0) return res.status(400).json({ error: 'Güncellenecek alan yok' });
+    sql += sets.join(',') + " WHERE id = ?";
+    params.push(req.params.id);
     try {
-        await db.run("UPDATE personnel SET name=?, role=?, phone=?, is_active=? WHERE id=?",
-            [name, role, phone, is_active ? 1 : 0, req.params.id]);
+        await db.run(sql, params);
         saveDatabase();
         res.json({ message: 'Personel güncellendi' });
     } catch (err) {
@@ -49,12 +60,33 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 router.post('/', authMiddleware, async (req, res) => {
-    const { name, role, phone } = req.body;
+    const { name, role, phone, user_id, status } = req.body;
     const db = getDb();
     try {
-        await db.run("INSERT INTO personnel (name, role, phone) VALUES (?,?,?)", [name, role || 'operator', phone]);
+        await db.run("INSERT INTO personnel (name, role, phone, user_id, status) VALUES (?,?,?,?,?)",
+            [name, role || 'operator', phone, user_id || null, status || 'aktif']);
         saveDatabase();
-        res.json({ message: 'Personel eklendi' });
+        const result = await db.exec("SELECT last_insert_rowid()");
+        const lastId = result[0].values[0][0];
+        res.json({ id: lastId, message: 'Personel eklendi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete personnel
+router.delete('/:id', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const activeSessions = rowsToObjects(await db.exec(
+            "SELECT id FROM spray_sessions WHERE (driver_id = ? OR operator_id = ?) AND status IN ('planned', 'active')", [req.params.id, req.params.id]
+        ));
+        if (activeSessions.length > 0) {
+            return res.status(400).json({ error: 'Bu personel aktif oturumlarda görevli, silinemez' });
+        }
+        await db.run("DELETE FROM personnel WHERE id = ?", [req.params.id]);
+        saveDatabase();
+        res.json({ message: 'Personel silindi' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

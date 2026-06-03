@@ -145,6 +145,10 @@ function logout() { localStorage.clear(); window.location.href = '/'; }
 
 async function api(url, opts = {}) {
     const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Sunucu hatası: ' + res.status);
+    }
     return res.json();
 }
 function toast(msg, type='info') {
@@ -245,21 +249,25 @@ function closeModal() { document.getElementById('sessionModal').classList.remove
 
 document.getElementById('sessionForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await api('/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({
-            vehicle_id: document.getElementById('sVehicle').value,
-            driver_id: document.getElementById('sDriver').value,
-            operator_id: document.getElementById('sOperator').value,
-            chemical_id: document.getElementById('sChemical').value || null,
-            neighborhood: document.getElementById('sNeighborhood').value,
-            application_type: document.getElementById('sAppType').value,
-            notes: document.getElementById('sNotes').value
-        })
-    });
-    closeModal();
-    toast('İlaçlama oturumu oluşturuldu', 'success');
-    loadSessions();
+    try {
+        await api('/api/sessions', {
+            method: 'POST',
+            body: JSON.stringify({
+                vehicle_id: document.getElementById('sVehicle').value,
+                driver_id: document.getElementById('sDriver').value,
+                operator_id: document.getElementById('sOperator').value,
+                chemical_id: document.getElementById('sChemical').value || null,
+                neighborhood: document.getElementById('sNeighborhood').value,
+                application_type: document.getElementById('sAppType').value,
+                notes: document.getElementById('sNotes').value
+            })
+        });
+        closeModal();
+        toast('İlaçlama oturumu oluşturuldu', 'success');
+        loadSessions();
+    } catch (err) {
+        toast('Hata: ' + err.message, 'error');
+    }
 });
 
 async function startSession(id) {

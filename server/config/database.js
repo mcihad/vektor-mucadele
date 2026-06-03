@@ -368,6 +368,10 @@ async function createPgTables() {
     `).catch(err => console.log('intake_chemical_type already exists or error:', err.message));
 
     await dbConnection.query(`
+        ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'aktif'
+    `).catch(err => console.log('personnel status column already exists or error:', err.message));
+
+    await dbConnection.query(`
         CREATE TABLE IF NOT EXISTS application_types (
             id SERIAL PRIMARY KEY,
             name VARCHAR(150) NOT NULL,
@@ -398,6 +402,33 @@ async function createPgTables() {
 
     await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_local_streets_bbox ON local_streets(bbox_minx, bbox_maxx, bbox_miny, bbox_maxy)`);
     await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_local_streets_mahalle ON local_streets(mahalle)`);
+
+    // Push notification subscriptions table
+    try {
+        const idColCheck = await dbConnection.query(`
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'push_subscriptions' AND column_name = 'id'
+        `);
+        if (idColCheck.rows.length === 0) {
+            await dbConnection.query(`DROP TABLE IF EXISTS push_subscriptions`);
+        }
+    } catch(e) {
+        console.log('Error checking columns of push_subscriptions:', e.message);
+    }
+
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER UNIQUE NOT NULL,
+            subscription_json TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Ensure personnel has status column
+    try {
+        await dbConnection.query(`ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'aktif'`);
+    } catch(e) { /* column may already exist */ }
 }
 
 async function seedPgData() {

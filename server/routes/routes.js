@@ -413,6 +413,23 @@ router.post('/planned-routes/:id/assign', authMiddleware, async (req, res) => {
         await db.run("UPDATE planned_routes SET assigned_user_id = ?, assigned_personnel_ids = ?, status = 'assigned' WHERE id = ?",
             [user_id ? parseInt(user_id) : null, JSON.stringify(personnel_ids || []), parseInt(req.params.id)]);
         saveDatabase();
+
+        // Send push notification to assigned user
+        if (user_id) {
+            try {
+                const routeResult = await db.exec("SELECT name, neighborhood FROM planned_routes WHERE id = ?", [parseInt(req.params.id)]);
+                const routeRows = rowsToObjects(routeResult);
+                const routeName = routeRows.length > 0 ? routeRows[0].name || routeRows[0].neighborhood || 'Yeni Rota' : 'Yeni Rota';
+                
+                const sendPushToUser = req.app.get('sendPushToUser');
+                if (sendPushToUser) {
+                    sendPushToUser(parseInt(user_id), '📋 Yeni Görev Atandı', `Size yeni bir ilaçlama görevi atandı: ${routeName}`, '/mobile/');
+                }
+            } catch(pushErr) {
+                console.error('[Push] Görev atama bildirimi gönderilemedi:', pushErr.message);
+            }
+        }
+
         res.json({ message: 'Rota personele atandı' });
     } catch (err) {
         res.status(500).json({ error: err.message });

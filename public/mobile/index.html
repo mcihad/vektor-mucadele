@@ -16,7 +16,8 @@
         .mobile-header h1{font-size:13px;font-weight:700;background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0}
         .mobile-map{position:absolute;top:45px;bottom:0;left:0;right:0;z-index:1}
         #mobileMap{width:100%;height:100%}
-        .mobile-panel{background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px;position:absolute;bottom:0;left:0;right:0;z-index:5;max-height:75dvh;overflow-y:auto;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -8px 24px rgba(0,0,0,0.5);transition:max-height 0.3s ease;box-sizing:border-box}
+        .mobile-panel{background:rgba(15, 23, 42, 0.96);backdrop-filter:blur(12px);border-top:1px solid rgba(255,255,255,0.1);padding:10px;position:absolute;bottom:0;left:0;right:0;z-index:5;max-height:75dvh;overflow-y:auto;border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -8px 24px rgba(0,0,0,0.5);box-sizing:border-box}
+        .session-controls-sticky{position:sticky;bottom:0;background:rgba(15,23,42,0.98);padding-top:6px;z-index:2}
         .mobile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:4px}
         .mobile-stat{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.04);border-radius:6px;padding:4px;text-align:center}
         .mobile-stat .val{font-size:13px;font-weight:700;color:#fff}
@@ -25,7 +26,7 @@
         .spray-btn.start{background:linear-gradient(135deg,#10b981,#06b6d4);color:#fff}
         .spray-btn.pause{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
         .spray-btn.resume{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
-        .spray-btn.finish{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;animation:pulse 2s infinite}
+        .spray-btn.finish{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
         .spray-btn:disabled{opacity:0.5;cursor:not-allowed}
         .gps-status{font-size:9px;text-align:center;margin-top:4px;color:var(--text-muted)}
 
@@ -246,7 +247,7 @@
             <button class="btn btn-sm btn-outline" onclick="mobileLogout()" style="padding:4px 6px;border:none;background:transparent">🚪</button>
         </div>
     </div>
-    <div class="mobile-map"><div id="mobileMap"></div></div>
+    <div class="mobile-map"><div id="mobileMap"></div><button id="btnLocateMe" onclick="locateMe()" style="position:absolute;top:55px;right:10px;z-index:1000;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.9);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;">📍</button></div>
     <div class="mobile-panel">
         <!-- Route Info -->
         <div id="routeInfoCard" class="route-info-card" style="display:none">
@@ -317,6 +318,7 @@
             <div class="mobile-stat"><div class="val" id="mDistance">0.0</div><div class="lbl">km Mesafe</div></div>
             <div class="mobile-stat"><div class="val" id="mTime">00:00</div><div class="lbl">Süre</div></div>
         </div>
+        <div class="session-controls-sticky">
         <div id="sessionControls" style="display:flex;gap:8px;width:100%">
             <button class="spray-btn start" id="btnStart" onclick="startSessionClick()" style="width:100%">▶️ İLAÇLAMA BAŞLAT</button>
             <button class="spray-btn pause" id="btnPause" onclick="pauseSessionClick()" style="display:none;flex:1">⏸️ DURAKLAT</button>
@@ -327,6 +329,7 @@
             <button class="spray-btn" id="btnSessionIssue" onclick="reportSessionIssueClick()" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:12px;font-weight:700;">⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR</button>
         </div>
         <div class="gps-status" id="gpsStatus">📡 GPS bekleniyor...</div>
+        </div>
     </div>
 </div>
 
@@ -1329,12 +1332,23 @@ function updateControlButtons() {
 
 async function reportSessionIssueClick() {
     if (!sessionId) return;
-    const sorun = prompt("İlaçlama oturumu esnasında karşılaştığınız sorunu açıklayın (Yöneticiye anlık olarak iletilecektir):");
-    if (sorun === null) return; // Cancelled
+    const modal = document.getElementById('issueModal');
+    modal.style.display = 'flex';
+    document.getElementById('issueText').value = '';
+    document.getElementById('issueText').focus();
+}
+
+function closeIssueModal() {
+    document.getElementById('issueModal').style.display = 'none';
+}
+
+async function submitIssue() {
+    const sorun = document.getElementById('issueText').value;
     if (!sorun.trim()) {
-        alert("Lütfen geçerli bir sorun açıklaması yazın.");
+        alert('Lütfen geçerli bir sorun açıklaması yazın.');
         return;
     }
+    closeIssueModal();
     
     const btnIssue = document.getElementById('btnSessionIssue');
     if (btnIssue) {
@@ -1344,67 +1358,49 @@ async function reportSessionIssueClick() {
     
     try {
         const formattedDate = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-        
-        // Calculate distance
         const distMeters = Math.round(totalDistance);
-        let sprayInfo = "";
-        if (distMeters === 0) {
-            sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI";
-        } else {
-            sprayInfo = `⚠️ KISMEN İLAÇLAMA YAPILDI (İlaçlanan Mesafe: ${distMeters} metre)`;
-        }
-        
+        let sprayInfo = distMeters === 0 ? '❌ HİÇ İLAÇLAMA YAPILMADI' : `⚠️ KISMEN İLAÇLAMA YAPILDI (İlaçlanan Mesafe: ${distMeters} metre)`;
         const issueNotes = `[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`;
         
         const res = await fetch(`/api/sessions/${sessionId}`, {
             method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + TOKEN,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                status: 'sorunlu',
-                notes: issueNotes,
-                total_km: totalDistance / 1000,
-                chemical_used_lt: 0
-            })
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'sorunlu', notes: issueNotes, total_km: totalDistance / 1000, chemical_used_lt: 0 })
         });
         
         if (res.ok) {
-            alert("⚠️ Sorun başarıyla yöneticiye bildirildi. Oturum sonlandırıldı.");
-            
-            // Local state cleanup
+            alert('⚠️ Sorun başarıyla yöneticiye bildirildi. Oturum sonlandırıldı.');
             isSpraying = false;
             sessionId = null;
             localStorage.removeItem('vms_is_spraying');
             updateControlButtons();
-            
             if (socket) {
-                socket.emit('spray-status', {
-                    plate: vehiclePlate,
-                    message: `İlaçlama yarıda kaldı - Sorun bildirildi: ${sorun.trim()}`,
-                    status: 'sorunlu'
-                });
+                socket.emit('spray-status', { plate: vehiclePlate, message: `İlaçlama yarıda kaldı - Sorun bildirildi: ${sorun.trim()}`, status: 'sorunlu' });
             }
-            
             if (assignedSession) {
                 document.getElementById('taskInfoCard').style.display = 'none';
                 assignedSession = null;
             }
-            
-            // Refresh local maps / assignments
             await loadAssignedRoute();
         } else {
-            alert("Sorun bildirilirken hata oluştu.");
+            alert('Sorun bildirilirken hata oluştu.');
         }
     } catch (e) {
-        console.error("Sorun bildirme hatası:", e);
-        alert("Bağlantı hatası oluştu.");
+        console.error('Sorun bildirme hatası:', e);
+        alert('Bağlantı hatası oluştu.');
     } finally {
         if (btnIssue) {
             btnIssue.disabled = false;
             btnIssue.textContent = '⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR';
         }
+    }
+}
+
+function locateMe() {
+    if (lastPos) {
+        map.setView([lastPos.lat, lastPos.lng], 17);
+    } else {
+        alert('GPS konumu henüz alınamadı. Lütfen bekleyin.');
     }
 }
 
@@ -1558,6 +1554,13 @@ function pauseSessionClick() {
     }
     
     if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama duraklatıldı (dolum/geçiş)',status:'active'});
+
+    // Notify server that session is paused (beklemede)
+    fetch(`/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'beklemede' })
+    }).catch(() => {});
 }
 
 function resumeSessionClick() {
@@ -1588,6 +1591,13 @@ function resumeSessionClick() {
     }
     
     if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlamaya devam ediliyor',status:'active'});
+
+    // Notify server that session is resumed
+    fetch(`/api/sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' })
+    }).catch(() => {});
 }
 
 async function finishSessionClick() {
@@ -1939,8 +1949,65 @@ function sendSpeedViolationToManager(speed) {
     }
 }
 
-if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{});}
+// ─── Push Notification Setup ───
+async function setupPushNotifications() {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('[Push] Service Worker registered');
+        
+        // Request notification permission
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+            console.log('[Push] Notification permission denied');
+            return;
+        }
+        
+        // Get VAPID public key from server
+        const vapidRes = await fetch('/api/push/vapid-key');
+        const vapidData = await vapidRes.json();
+        
+        // Convert VAPID key
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+            return outputArray;
+        }
+        
+        // Subscribe to push
+        const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidData.publicKey)
+        });
+        
+        // Send subscription to server
+        await fetch('/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subscription })
+        });
+        console.log('[Push] Push subscription registered successfully');
+    } catch(err) {
+        console.error('[Push] Setup failed:', err);
+    }
+}
+setupPushNotifications();
 </script>
+
+<!-- Issue Report Modal -->
+<div id="issueModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:20000;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:rgba(15,23,42,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <h3 style="color:#fff;margin:0 0 16px 0;font-size:16px;">⚠️ Sorun Bildir</h3>
+        <textarea id="issueText" rows="4" placeholder="Karşılaştığınız sorunu açıklayın..." style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:12px;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box;"></textarea>
+        <div style="display:flex;gap:8px;margin-top:16px;">
+            <button onclick="closeIssueModal()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">İptal</button>
+            <button onclick="submitIssue()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Gönder</button>
+        </div>
+    </div>
+</div>
 
 <!-- HTML elements for Floating Speed Alerts -->
 <div id="mobileSpeedWarning" style="display:none; position:fixed; top:20px; left:50%; transform:translateX(-50%); z-index:99999; background:rgba(239,68,68,0.95); backdrop-filter:blur(8px); border:2px solid #fff; border-radius:12px; padding:16px 20px; box-shadow:0 10px 30px rgba(239,68,68,0.5); width:90%; max-width:400px; text-align:center; color:#fff; animation: alert-blink-mobile 1s infinite alternate;">

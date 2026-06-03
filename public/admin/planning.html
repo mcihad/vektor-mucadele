@@ -598,7 +598,26 @@ function clearAll(){
 }
 
 async function saveRoute(){
-    if(!calculatedResult){toast('Önce rota oluşturun','error');return;}
+    // ─── Validation ───
+    if (!document.getElementById('planVehicle').value) {
+        toast('Araç seçmelisiniz', 'error');
+        return;
+    }
+    if (currentMode === 'auto') {
+        if (!fetchedGeoJSON || !fetchedGeoJSON.features || fetchedGeoJSON.features.length === 0) {
+            toast('Önce sokak verilerini çekmelisiniz', 'error');
+            return;
+        }
+        if (!calculatedResult) {
+            toast('Önce rotayı hesaplamalısınız', 'error');
+            return;
+        }
+    } else {
+        if (!calculatedResult) {
+            toast('Önce rota oluşturun', 'error');
+            return;
+        }
+    }
     const s=calculatedResult.stats;
     const userId=document.getElementById('planUser').value;
     const body={

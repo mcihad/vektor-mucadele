@@ -4,6 +4,7 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const os = require('os');
+const webpush = require('web-push');
 
 // .env dosyasından ortam değişkenlerini yükle
 try {
@@ -12,7 +13,16 @@ try {
     // dotenv yoksa sistem ortam değişkenlerini kullan
 }
 
-const { initDatabase } = require('./config/database');
+const { initDatabase, getDb, saveDatabase } = require('./config/database');
+const { authMiddleware } = require('./middleware/auth');
+
+// ─── Web Push VAPID Configuration ───
+const VAPID_PUBLIC_KEY = 'BCNZxnaZ6X2a7wUpIjMzJCneTmdR3kp-NRQGALaynB1Q8HoASJOpb959lcbPLmz1c9RNHTaaj333De2HttcoxYM';
+const VAPID_PRIVATE_KEY = '7E_XQxWTjy81In-mMysuCrJC4PZkWW-D51iXJsvGwzQ';
+webpush.setVapidDetails('mailto:vms@sivas.bel.tr', VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+
+// In-memory push subscriptions store (persisted to DB)
+const pushSubscriptions = new Map(); // user_id -> subscription
 
 const app = express();
 const server = http.createServer(app);
@@ -44,6 +54,79 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/chemicals', chemicalRoutes);
 app.use('/api/citizen-reports', createCitizenReportRoutes(io));
 app.use('/api/routes', routeRoutes);
+
+// ─── Push Notification Endpoints ───
+app.get('/api/push/vapid-key', (req, res) => {
+    res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/push/subscribe', authMiddleware, async (req, res) => {
+    const { subscription } = req.body;
+    const userId = req.user.id;
+    if (!subscription) return res.status(400).json({ error: 'Subscription gerekli' });
+    try {
+        pushSubscriptions.set(userId, subscription);
+        // Also save to DB for persistence
+        const db = getDb();
+        await db.run(
+            `INSERT INTO push_subscriptions (user_id, subscription_json, created_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT (user_id) DO UPDATE SET subscription_json = EXCLUDED.subscription_json, created_at = CURRENT_TIMESTAMP`,
+            [userId, JSON.stringify(subscription)]
+        );
+        saveDatabase();
+        console.log(`[Push] Kullanıcı #${userId} push subscription kaydedildi`);
+        res.json({ message: 'Push subscription kaydedildi' });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/push/unsubscribe', authMiddleware, async (req, res) => {
+    const userId = req.user.id;
+    try {
+        pushSubscriptions.delete(userId);
+        const db = getDb();
+        await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', [userId]);
+        saveDatabase();
+        res.json({ message: 'Push subscription silindi' });
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Helper: Send push notification to a specific user
+async function sendPushToUser(userId, title, body, url) {
+    let subscription = pushSubscriptions.get(userId);
+    if (!subscription) {
+        // Try loading from DB
+        try {
+            const db = getDb();
+            const rows = await db.exec('SELECT subscription_json FROM push_subscriptions WHERE user_id = ?', [userId]);
+            if (rows.length > 0 && rows[0].values.length > 0) {
+                subscription = JSON.parse(rows[0].values[0][0]);
+                pushSubscriptions.set(userId, subscription);
+            }
+        } catch(e) {}
+    }
+    if (!subscription) return false;
+    try {
+        await webpush.sendNotification(subscription, JSON.stringify({ title, body, url: url || '/mobile/' }));
+        console.log(`[Push] Kullanıcı #${userId}'ye bildirim gönderildi: ${title}`);
+        return true;
+    } catch(err) {
+        console.error(`[Push] Kullanıcı #${userId} push hatası:`, err.message);
+        if (err.statusCode === 410 || err.statusCode === 404) {
+            pushSubscriptions.delete(userId);
+            try {
+                const db = getDb();
+                await db.run('DELETE FROM push_subscriptions WHERE user_id = ?', [userId]);
+                saveDatabase();
+            } catch(e) {}
+        }
+        return false;
+    }
+}
+// Export sendPushToUser for use in routes
+app.set('sendPushToUser', sendPushToUser);
 
 // Sağlık kontrolü endpoint'i
 app.get('/api/health', (req, res) => {
