@@ -427,8 +427,9 @@ async function createPgTables() {
 
     // Ensure personnel has status column
     try {
-        await dbConnection.query(`ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'aktif'`);
-    } catch(e) { /* column may already exist */ }
+        await dbConnection.query(`ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pasif'`);
+        await dbConnection.query(`UPDATE personnel SET status = 'pasif'`);
+    } catch(e) { /* column may already exist or error */ }
 }
 
 async function seedPgData() {

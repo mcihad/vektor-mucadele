@@ -155,9 +155,57 @@ module.exports = function(io) {
                 ]);
             
             // Eğer rotaya bağlıysa, rotanın durumunu da güncelle
-            const session = rowsToObjects(await db.exec("SELECT route_id FROM spray_sessions WHERE id = ?", [req.params.id]));
-            if (session.length > 0 && session[0].route_id) {
-                await db.run("UPDATE planned_routes SET status = 'active' WHERE id = ?", [session[0].route_id]);
+            const sessionResult = await db.exec("SELECT route_id, vehicle_id, driver_id, operator_id FROM spray_sessions WHERE id = ?", [req.params.id]);
+            const session = rowsToObjects(sessionResult);
+            if (session.length > 0) {
+                const sess = session[0];
+                if (sess.route_id) {
+                    await db.run("UPDATE planned_routes SET status = 'active' WHERE id = ?", [sess.route_id]);
+                }
+                // Make vehicle online immediately
+                if (sess.vehicle_id) {
+                    await db.run("UPDATE vehicles SET last_location_time = datetime('now') WHERE id = ?", [sess.vehicle_id]);
+                }
+                // Set personnel to active
+                if (sess.driver_id) {
+                    await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [sess.driver_id]);
+                }
+                if (sess.operator_id) {
+                    await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [sess.operator_id]);
+                }
+
+                // Send push notification to all admin users
+                try {
+                    const sendPushToUser = req.app.get('sendPushToUser');
+                    if (sendPushToUser) {
+                        const detailsResult = await db.exec(`
+                            SELECT s.id, v.plate, p1.name as driver_name, p2.name as operator_name, s.neighborhood
+                            FROM spray_sessions s
+                            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+                            LEFT JOIN personnel p1 ON s.driver_id = p1.id
+                            LEFT JOIN personnel p2 ON s.operator_id = p2.id
+                            WHERE s.id = ?
+                        `, [parseInt(req.params.id)]);
+                        const details = rowsToObjects(detailsResult);
+                        if (details.length > 0) {
+                            const d = details[0];
+                            const vehiclePlate = d.plate || 'Araç';
+                            const crew = `${d.driver_name || ''} - ${d.operator_name || ''}`;
+                            const neighborhood = d.neighborhood || '';
+                            
+                            const title = '🚀 İlaçlama Başladı';
+                            const body = `${vehiclePlate} plakalı araç ile ${neighborhood} mahallesinde ilaçlama başlatıldı. Ekip: ${crew}`;
+                            
+                            const adminsResult = await db.exec("SELECT id FROM users WHERE role = 'admin'");
+                            const admins = rowsToObjects(adminsResult);
+                            for (const admin of admins) {
+                                sendPushToUser(admin.id, title, body, '/admin/dashboard');
+                            }
+                        }
+                    }
+                } catch (pushErr) {
+                    console.error('[Push] Yöneticiye bildirim gönderilemedi:', pushErr.message);
+                }
             }
             
             saveDatabase();
@@ -226,6 +274,14 @@ module.exports = function(io) {
             // Eğer rotaya bağlıysa, rotanın durumunu güncelle
             if (sess.route_id) {
                 await db.run("UPDATE planned_routes SET status = 'completed' WHERE id = ?", [sess.route_id]);
+            }
+
+            // Set personnel status to 'pasif'
+            if (sess.driver_id) {
+                await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [sess.driver_id]);
+            }
+            if (sess.operator_id) {
+                await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [sess.operator_id]);
             }
 
             // ─── Gerçek Güzergahı sprayed_streets Tablosuna Otomatik Kaydet ───
@@ -371,6 +427,23 @@ module.exports = function(io) {
                 const sessionRows = rowsToObjects(sessionResult);
                 if (sessionRows.length > 0 && sessionRows[0].route_id) {
                     await db.run("UPDATE planned_routes SET status = 'sorunlu' WHERE id = ?", [sessionRows[0].route_id]);
+                }
+            }
+
+            // Güncellenen duruma göre personel durumunu ve araç durumunu ayarla
+            if (status !== undefined) {
+                const sessRes = await db.exec("SELECT driver_id, operator_id, vehicle_id FROM spray_sessions WHERE id = ?", [req.params.id]);
+                const sessRows = rowsToObjects(sessRes);
+                if (sessRows.length > 0) {
+                    const { driver_id, operator_id, vehicle_id } = sessRows[0];
+                    if (status === 'active') {
+                        if (driver_id) await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [driver_id]);
+                        if (operator_id) await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [operator_id]);
+                        if (vehicle_id) await db.run("UPDATE vehicles SET last_location_time = datetime('now') WHERE id = ?", [vehicle_id]);
+                    } else if (status === 'beklemede' || status === 'sorunlu') {
+                        if (driver_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [driver_id]);
+                        if (operator_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [operator_id]);
+                    }
                 }
             }
             
