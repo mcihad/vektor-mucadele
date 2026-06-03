@@ -118,6 +118,34 @@
     </div>
 </div>
 
+<!-- Transaction History Modal -->
+<div class="modal-overlay" id="historyModal">
+    <div class="modal" style="max-width:600px; width:90%;">
+        <div class="modal-header">
+            <div class="modal-title" id="historyModalTitle">📜 Stok Hareketleri Geçmişi</div>
+            <button class="modal-close" onclick="document.getElementById('historyModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="table-container" style="max-height: 350px; overflow-y: auto; margin-top: 10px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Tür</th>
+                        <th>Miktar</th>
+                        <th>Açıklama</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable">
+                    <!-- Dynamic history rows -->
+                </tbody>
+            </table>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('historyModal').classList.remove('active')">Kapat</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -167,6 +195,7 @@ async function load() {
             <td>
                 <div style="display:flex;gap:4px;align-items:center;">
                     <button class="btn btn-sm btn-outline" onclick="addStockFor(${c.id},'${safeName}')">+ Ekle</button>
+                    <button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:rgba(245,158,11,0.3)" onclick="openHistoryModal(${c.id},'${safeName}')">📜 Geçmiş</button>
                     <button class="btn btn-sm btn-outline" style="color:var(--accent);border-color:rgba(59,130,246,0.3)" onclick="openEditChemical(${c.id},'${safeName}','${c.type}',${c.stock_amount},${c.min_stock_alert})">✏️ Düzenle</button>
                     <button class="btn btn-sm btn-outline btn-danger" style="padding:2px 6px;color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deleteChemical(${c.id},'${safeName}')">🗑️</button>
                 </div>
@@ -259,6 +288,33 @@ async function deleteChemical(id, name) {
         load();
     } catch(err) {
         toast('Hata: ' + err.message, 'error');
+    }
+}
+
+async function openHistoryModal(id, name) {
+    document.getElementById('historyModalTitle').textContent = `📜 ${name} - Stok Hareket Geçmişi`;
+    const tbody = document.getElementById('historyTable');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Yükleniyor...</td></tr>';
+    document.getElementById('historyModal').classList.add('active');
+    
+    try {
+        const txs = await api(`/api/chemicals/${id}/transactions`);
+        tbody.innerHTML = txs.map(tx => {
+            const isGiris = tx.transaction_type === 'giris';
+            const badgeClass = isGiris ? 'badge-success' : 'badge-danger';
+            const label = isGiris ? '📥 Giriş' : '📤 Kullanım';
+            const dateStr = new Date(tx.created_at).toLocaleString('tr-TR');
+            const amountPrefix = isGiris ? '+' : '-';
+            const amountColor = isGiris ? 'var(--success)' : 'var(--danger)';
+            return `<tr>
+                <td style="font-size:11px;">${dateStr}</td>
+                <td><span class="badge ${badgeClass}">${label}</span></td>
+                <td style="font-weight:700; color:${amountColor}">${amountPrefix}${tx.amount} lt</td>
+                <td style="font-size:11px; max-width: 200px; white-space: normal;">${tx.description || '-'}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Bu ilaca ait hareket kaydı bulunamadı.</td></tr>';
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Hata: ${err.message}</td></tr>`;
     }
 }
 
