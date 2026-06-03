@@ -315,6 +315,16 @@ socket.on('session-issue-updated', data => {
         const activeIssues = lines.filter(l => l.includes("⚠️ SAHA SORUNU"));
         const lastIssue = activeIssues.length > 0 ? activeIssues[activeIssues.length - 1] : notes;
         
+        let cleanedText = lastIssue;
+        const match = cleanedText.match(/⚠️ SAHA SORUNU \([^)]+\):\s*([^|\]]+)/);
+        if (match) {
+            cleanedText = match[1].trim();
+        }
+        const plate = (data.session && data.session.plate) ? data.session.plate : 'Araç';
+        const neighborhood = (data.session && data.session.neighborhood) ? data.session.neighborhood : 'Saha';
+
+        showBottomRightIssuePopup(plate, neighborhood, cleanedText, data.session_id);
+        
         toast(`⚠️ İLAÇLAMADA SORUN BİLDİRİLDİ (Oturum #${data.session_id}):\n${lastIssue}`, 'warning');
         
         // Premium Web Audio warning beep
@@ -834,6 +844,62 @@ async function setupPushNotifications() {
     } catch(err) {
         console.error('[Push] Setup failed:', err.message);
     }
+}
+
+function showBottomRightIssuePopup(vehiclePlate, neighborhood, issueText, sessionId) {
+    let container = document.getElementById('bottomRightNotificationContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'bottomRightNotificationContainer';
+        container.style.position = 'fixed';
+        container.style.bottom = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '10005';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
+        container.style.pointerEvents = 'none';
+        
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes slide-in-br {
+                from { transform: translateX(120%); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+        document.body.appendChild(container);
+    }
+    
+    const card = document.createElement('div');
+    card.className = 'bottom-right-issue-card';
+    card.style.pointerEvents = 'auto';
+    card.style.background = 'linear-gradient(135deg, #1e293b, #0f172a)';
+    card.style.border = '2px solid #ef4444';
+    card.style.borderRadius = '12px';
+    card.style.boxShadow = '0 10px 30px rgba(239, 68, 68, 0.3)';
+    card.style.padding = '16px';
+    card.style.width = '300px';
+    card.style.color = '#fff';
+    card.style.position = 'relative';
+    card.style.animation = 'slide-in-br 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    
+    card.innerHTML = `
+        <div style="font-weight: 800; color: #ef4444; margin-bottom: 8px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+            <span>🚨 SAHA SORUNU BİLDİRİLDİ</span>
+            <button onclick="this.parentElement.parentElement.remove()" style="margin-left: auto; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 16px; padding: 0 4px;">✕</button>
+        </div>
+        <div style="font-size: 11px; line-height: 1.5; color: #e2e8f0; display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px;">
+            <div><b>Araç:</b> <span style="background: rgba(239, 68, 68, 0.15); color: #fca5a5; padding: 2px 6px; border-radius: 4px; font-family: monospace;">${vehiclePlate}</span></div>
+            <div><b>Mahalle:</b> <span>${neighborhood}</span></div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 4px; margin-top: 4px;"><b>Sorun:</b> <em style="color: #fda4af;">${issueText}</em></div>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button onclick="this.parentElement.parentElement.remove(); window.location.href='/admin/sessions?search=${sessionId}'" style="background: #ef4444; color: #fff; border: none; border-radius: 6px; padding: 6px 12px; font-size: 10px; font-weight: 700; cursor: pointer; transition: background 0.2s;">Oturuma Git</button>
+        </div>
+    `;
+    
+    container.appendChild(card);
 }
 </script>
 

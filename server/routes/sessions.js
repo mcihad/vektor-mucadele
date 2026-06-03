@@ -58,6 +58,43 @@ async function sendStartNotification(db, req, sessionId) {
     }
 }
 
+async function sendIssueNotification(db, req, sessionId, issueNotes) {
+    try {
+        const sendPushToUser = req.app.get('sendPushToUser');
+        if (sendPushToUser) {
+            const detailsResult = await db.exec(`
+                SELECT s.id, v.plate, s.neighborhood
+                FROM spray_sessions s
+                LEFT JOIN vehicles v ON s.vehicle_id = v.id
+                WHERE s.id = ?
+            `, [parseInt(sessionId)]);
+            const details = rowsToObjects(detailsResult);
+            if (details.length > 0) {
+                const d = details[0];
+                const vehiclePlate = d.plate || 'Araç';
+                const neighborhood = d.neighborhood || '';
+                
+                let cleanedNotes = issueNotes || '';
+                const match = cleanedNotes.match(/⚠️ SAHA SORUNU \([^)]+\):\s*([^|\]]+)/);
+                if (match) {
+                    cleanedNotes = match[1].trim();
+                }
+                
+                const title = '⚠️ Sahada Sorun Bildirildi';
+                const body = `${vehiclePlate} plakalı araç (${neighborhood} Mah.) sorun bildirdi: ${cleanedNotes}`;
+                
+                const adminsResult = await db.exec("SELECT id FROM users WHERE role = 'admin'");
+                const admins = rowsToObjects(adminsResult);
+                for (const admin of admins) {
+                    await sendPushToUser(admin.id, title, body, '/admin/dashboard');
+                }
+            }
+        }
+    } catch (pushErr) {
+        console.error('[Push] Sorun bildirim gönderimi başarısız:', pushErr.message);
+    }
+}
+
 module.exports = function(io) {
     const router = express.Router();
 
@@ -449,6 +486,9 @@ module.exports = function(io) {
                     } else if (status === 'beklemede' || status === 'sorunlu') {
                         if (driver_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [driver_id]);
                         if (operator_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [operator_id]);
+                        if (status === 'sorunlu') {
+                            await sendIssueNotification(db, req, req.params.id, notes);
+                        }
                     }
                 }
             }
