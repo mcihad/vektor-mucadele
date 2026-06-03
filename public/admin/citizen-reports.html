@@ -117,7 +117,10 @@
         <div class="card">
             <div class="card-header">
                 <span class="card-title">🗺️ İhbar Haritası & 30 Günlük İlaç Etki Haritası</span>
-                <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
+                <div style="display:flex;gap:6px;">
+                    <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
+                    <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konumum</button>
+                </div>
             </div>
             <div id="reportMap" class="map-container map-fullwidth"></div>
             <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);align-items:center">
@@ -313,6 +316,7 @@ let drawControl = null;
 let activeDrawReportId = null;
 
 function centerMap() { rMap.setView([39.7477, 37.0179], 13); }
+function locateMe(){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{rMap.setView([pos.coords.latitude,pos.coords.longitude],17);L.circleMarker([pos.coords.latitude,pos.coords.longitude],{radius:8,fillColor:'#3b82f6',color:'#fff',weight:2,fillOpacity:0.9}).addTo(rMap).bindPopup('Konumunuz').openPopup();},()=>{toast('Konum alınamadı','error');},{enableHighAccuracy:true,timeout:8000});}else{toast('Tarayıcınız konumu desteklemiyor','error');}}
 
 // ─── 30 Günlük İlaç Etki Renklendirme ───
 function getSprayStyle(daysRemaining) {
@@ -522,31 +526,37 @@ function updateMapMarkers(reports) {
     (reports || []).forEach(r => {
         if (r.latitude && r.longitude) {
             const color = r.status === 'çözüldü' ? '#10b981' : r.status === 'sorunlu' ? '#ef4444' : r.status === 'işlemde' ? '#f59e0b' : '#3b82f6';
+            const typeEmoji = r.report_type === 'sivrisinek' ? '🦟' : r.report_type === 'karasinek' ? '🪰' : r.report_type === 'kemirgen' ? '🐀' : r.report_type === 'larva' ? '💧' : '🐛';
             const icon = L.divIcon({
                 className: '',
                 html: `<div style="
-                    width: 10px;
-                    height: 10px;
+                    width: 28px;
+                    height: 28px;
                     background: ${color};
-                    border: 1.5px solid #fff;
+                    border: 2px solid #fff;
                     border-radius: 50%;
-                    box-shadow: 0 0 6px ${color}, 0 1px 3px rgba(0,0,0,0.5);
+                    box-shadow: 0 0 12px ${color}, 0 2px 6px rgba(0,0,0,0.5);
                     position: relative;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
                 ">
+                    ${typeEmoji}
                     ${r.status !== 'çözüldü' ? `
                     <div style="
                         position: absolute;
-                        top: -4px;
-                        left: -4px;
-                        width: 15px;
-                        height: 15px;
-                        border: 1.5px solid ${color};
+                        top: -6px;
+                        left: -6px;
+                        width: 36px;
+                        height: 36px;
+                        border: 2px solid ${color};
                         border-radius: 50%;
                         animation: pulse-ring 1.5s infinite;
                         opacity: 0.85;
                     "></div>` : ''}
                 </div>`,
-                iconSize: [10, 10], iconAnchor: [5, 5]
+                iconSize: [28, 28], iconAnchor: [14, 14]
             });
             const marker = L.marker([r.latitude, r.longitude], { icon }).addTo(reportMarkers);
             const statusText = r.status === 'sorunlu' ? 'Sorunlu' : r.status === 'çözüldü' ? 'Çözüldü' : r.status === 'işlemde' ? 'İşlemde' : 'Beklemede';

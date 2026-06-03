@@ -1406,7 +1406,7 @@ async function submitIssue() {
         const res = await fetch(`/api/sessions/${sessionId}`, {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'sorunlu', notes: issueNotes, total_km: totalDistance / 1000, chemical_used_lt: 0 })
+            body: JSON.stringify({ status: 'sorunlu', notes: issueNotes, total_km: totalDistance / 1000, duration_seconds: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0 })
         });
         
         if (res.ok) {

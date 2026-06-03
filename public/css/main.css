@@ -527,7 +527,7 @@ tr:hover td { background: rgba(59,130,246,0.04); }
     border-color: rgba(239, 68, 68, 0.4);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .mobile-nav-toggle { display: inline-flex; }
     .sidebar-close-btn { display: flex; }
     .sidebar { transform: translateX(-100%); z-index: 2000; }

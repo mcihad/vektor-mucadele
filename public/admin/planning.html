@@ -21,7 +21,7 @@
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
         .blink{animation:blink 1.5s ease-in-out infinite}
         .preview-arrow-icon{background:none !important;border:none !important;box-shadow:none !important}
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
             .grid-sidebar {
                 display: flex !important;
                 flex-direction: column !important;
@@ -74,6 +74,7 @@
                         <button class="btn btn-sm btn-primary" onclick="fetchOSMStreets()" id="btnFetch">🌐 Sokakları Çek</button>
                         <button class="btn btn-sm btn-success" onclick="calculateRoute()" id="btnCalc">🧮 Rota Hesapla</button>
                         <button class="btn btn-sm btn-outline" onclick="clearAll()">🗑️ Temizle</button>
+                        <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konumum</button>
                     </div>
                 </div>
                 <div id="planMap" class="map-container fullheight"></div>
@@ -205,6 +206,8 @@ const streetLayer = L.layerGroup().addTo(map);
 const routeLayer = L.layerGroup().addTo(map);
 const sprayedLayer = L.layerGroup().addTo(map);
 const sprayedHeatmapLayer = L.layerGroup();
+
+function locateMe(){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],17);L.circleMarker([pos.coords.latitude,pos.coords.longitude],{radius:8,fillColor:'#3b82f6',color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup('Konumunuz').openPopup();},()=>{toast('Konum alınamadı','error');},{enableHighAccuracy:true,timeout:8000});}else{toast('Tarayıcınız konumu desteklemiyor','error');}}
 
 const overlayMaps = {
     "Sivas Mahalle Sınırları (Belediye)": sivasBorders,

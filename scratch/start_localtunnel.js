@@ -10,8 +10,8 @@ logStream.write(`Started localtunnel at ${new Date().toISOString()}\n`);
 
 function startLT() {
   logStream.write(`Spawning localtunnel process...\n`);
-  // npx localtunnel --port 3000
-  const lt = spawn('npx', ['localtunnel', '--port', '3000'], { shell: true });
+  // npx localtunnel --port 3000 --local-host 127.0.0.1
+  const lt = spawn('npx', ['localtunnel', '--port', '3000', '--local-host', '127.0.0.1'], { shell: true });
 
   lt.stdout.on('data', (data) => {
     const str = data.toString();

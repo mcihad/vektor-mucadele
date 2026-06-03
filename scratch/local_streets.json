@@ -1,0 +1,4367 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "8484",
+      "properties": {
+        "osm_id": "8484",
+        "fid": "8484",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 330,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.060442092367175,
+            39.76934483639208
+          ],
+          [
+            37.0599504447365,
+            39.76973964817504
+          ],
+          [
+            37.059285862721836,
+            39.77038213151251
+          ],
+          [
+            37.05801479915151,
+            39.771645082481385
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8652",
+      "properties": {
+        "osm_id": "8652",
+        "fid": "8652",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 95,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069601533838444,
+            39.77532270647936
+          ],
+          [
+            37.07043555174796,
+            39.7758924960559
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11089",
+      "properties": {
+        "osm_id": "11089",
+        "fid": "11089",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 165,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065462739742294,
+            39.77259282587922
+          ],
+          [
+            37.06693355151301,
+            39.773557925213765
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11493",
+      "properties": {
+        "osm_id": "11493",
+        "fid": "11493",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 174,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06693355151301,
+            39.773557925213765
+          ],
+          [
+            37.06847597621366,
+            39.77457971801933
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "3165",
+      "properties": {
+        "osm_id": "3165",
+        "fid": "3165",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 136,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07185440710539,
+            39.776838730472775
+          ],
+          [
+            37.07304166904141,
+            39.777654494662094
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11833",
+      "properties": {
+        "osm_id": "11833",
+        "fid": "11833",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 84,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07043555174796,
+            39.7758924960559
+          ],
+          [
+            37.07017053571149,
+            39.77662136514652
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11329",
+      "properties": {
+        "osm_id": "11329",
+        "fid": "11329",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 15,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06029988941985,
+            39.76926890319511
+          ],
+          [
+            37.060442092367175,
+            39.76934483639208
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8030",
+      "properties": {
+        "osm_id": "8030",
+        "fid": "8030",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 561,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.060442092367175,
+            39.76934483639208
+          ],
+          [
+            37.06069880909592,
+            39.76946094610672
+          ],
+          [
+            37.065462739742294,
+            39.77259282587922
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10987",
+      "properties": {
+        "osm_id": "10987",
+        "fid": "10987",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 161,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07043555174796,
+            39.7758924960559
+          ],
+          [
+            37.07185440710539,
+            39.776838730472775
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12280",
+      "properties": {
+        "osm_id": "12280",
+        "fid": "12280",
+        "name": "74-81. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 132,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.08011777290628,
+            39.7821903050249
+          ],
+          [
+            37.07968404389655,
+            39.78332839811731
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12945",
+      "properties": {
+        "osm_id": "12945",
+        "fid": "12945",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 14,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06055174847459,
+            39.7692490821786
+          ],
+          [
+            37.060442092367175,
+            39.76934483639208
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11673",
+      "properties": {
+        "osm_id": "11673",
+        "fid": "11673",
+        "name": "ASİLZADE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 83,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069601533838444,
+            39.77532270647936
+          ],
+          [
+            37.06899593407598,
+            39.77590443007594
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12278",
+      "properties": {
+        "osm_id": "12278",
+        "fid": "12278",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 236,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07526004863873,
+            39.779090873324954
+          ],
+          [
+            37.07734086843055,
+            39.780489578310764
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5144",
+      "properties": {
+        "osm_id": "5144",
+        "fid": "5144",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 65,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06767615632162,
+            39.777515855602616
+          ],
+          [
+            37.068142912688664,
+            39.77797910102518
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5145",
+      "properties": {
+        "osm_id": "5145",
+        "fid": "5145",
+        "name": "74-30. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 125,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0697268770775,
+            39.77769447840407
+          ],
+          [
+            37.06857044690885,
+            39.77838543866001
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5411",
+      "properties": {
+        "osm_id": "5411",
+        "fid": "5411",
+        "name": "ASİLZADE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 45,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06836309436654,
+            39.7764062585098
+          ],
+          [
+            37.067930501812235,
+            39.776637337187644
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5735",
+      "properties": {
+        "osm_id": "5735",
+        "fid": "5735",
+        "name": "74-37. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 118,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.072901904039306,
+            39.77876229757127
+          ],
+          [
+            37.072011503566415,
+            39.779573551159395
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5825",
+      "properties": {
+        "osm_id": "5825",
+        "fid": "5825",
+        "name": "74-27. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 121,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0687823271335,
+            39.776842401240984
+          ],
+          [
+            37.06767615632162,
+            39.777515855602616
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5830",
+      "properties": {
+        "osm_id": "5830",
+        "fid": "5830",
+        "name": "ASİLZADE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 78,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067930501812235,
+            39.776637337187644
+          ],
+          [
+            37.06720432410025,
+            39.77705597514074
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6072",
+      "properties": {
+        "osm_id": "6072",
+        "fid": "6072",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 12,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06764375729227,
+            39.77933757742695
+          ],
+          [
+            37.067728946520205,
+            39.779425910135544
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6075",
+      "properties": {
+        "osm_id": "6075",
+        "fid": "6075",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 28,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0716102017195,
+            39.77898434977937
+          ],
+          [
+            37.071395679465056,
+            39.77917980235321
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6076",
+      "properties": {
+        "osm_id": "6076",
+        "fid": "6076",
+        "name": "74-35. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 120,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.071997994725514,
+            39.77780877348747
+          ],
+          [
+            37.07107478887376,
+            39.77862274214169
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6221",
+      "properties": {
+        "osm_id": "6221",
+        "fid": "6221",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 128,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.066092213230185,
+            39.777743046448975
+          ],
+          [
+            37.066975892183294,
+            39.77866807865398
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6222",
+      "properties": {
+        "osm_id": "6222",
+        "fid": "6222",
+        "name": "74-29. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 64,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06782799059267,
+            39.778590801703594
+          ],
+          [
+            37.06723124337107,
+            39.77894017517429
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6223",
+      "properties": {
+        "osm_id": "6223",
+        "fid": "6223",
+        "name": "74-46. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 106,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06649273422632,
+            39.77896869763136
+          ],
+          [
+            37.06723935160217,
+            39.77972945316526
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6237",
+      "properties": {
+        "osm_id": "6237",
+        "fid": "6237",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 93,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07232394663911,
+            39.77835868288261
+          ],
+          [
+            37.0716102017195,
+            39.77898434977937
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6571",
+      "properties": {
+        "osm_id": "6571",
+        "fid": "6571",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 74,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0631828083102,
+            39.77955216568658
+          ],
+          [
+            37.06366276009686,
+            39.78010777526489
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6572",
+      "properties": {
+        "osm_id": "6572",
+        "fid": "6572",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 135,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06223090390579,
+            39.77858709341315
+          ],
+          [
+            37.0631828083102,
+            39.77955216568658
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6569",
+      "properties": {
+        "osm_id": "6569",
+        "fid": "6569",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 138,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06551873461438,
+            39.78199701165457
+          ],
+          [
+            37.06673799488571,
+            39.78281716121946
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6573",
+      "properties": {
+        "osm_id": "6573",
+        "fid": "6573",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 252,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05996345320801,
+            39.77713230602889
+          ],
+          [
+            37.06223090390579,
+            39.77858709341315
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6574",
+      "properties": {
+        "osm_id": "6574",
+        "fid": "6574",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 116,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05894549997235,
+            39.77644782408151
+          ],
+          [
+            37.05996345320801,
+            39.77713230602889
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6575",
+      "properties": {
+        "osm_id": "6575",
+        "fid": "6575",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 127,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05811891001433,
+            39.77552137934464
+          ],
+          [
+            37.05830153231838,
+            39.77589508258958
+          ],
+          [
+            37.05894549997235,
+            39.77644782408151
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6576",
+      "properties": {
+        "osm_id": "6576",
+        "fid": "6576",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 100,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0575542807695,
+            39.774064368670224
+          ],
+          [
+            37.05768525527862,
+            39.77424411579267
+          ],
+          [
+            37.057908609014646,
+            39.77491526166864
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6577",
+      "properties": {
+        "osm_id": "6577",
+        "fid": "6577",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 126,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05661732921229,
+            39.7731848322972
+          ],
+          [
+            37.0575542807695,
+            39.774064368670224
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6583",
+      "properties": {
+        "osm_id": "6583",
+        "fid": "6583",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 72,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06899593407598,
+            39.77590443007594
+          ],
+          [
+            37.0696546521802,
+            39.77630903289961
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6584",
+      "properties": {
+        "osm_id": "6584",
+        "fid": "6584",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 56,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0696546521802,
+            39.77630903289961
+          ],
+          [
+            37.07017053571149,
+            39.77662136514652
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6648",
+      "properties": {
+        "osm_id": "6648",
+        "fid": "6648",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 43,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07089236817699,
+            39.77709015029374
+          ],
+          [
+            37.071271334624505,
+            39.77733765745265
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6649",
+      "properties": {
+        "osm_id": "6649",
+        "fid": "6649",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 61,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07144780640387,
+            39.777452414604646
+          ],
+          [
+            37.071997994725514,
+            39.77780877348747
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "7425",
+      "properties": {
+        "osm_id": "7425",
+        "fid": "7425",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 71,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07304166904141,
+            39.777654494662094
+          ],
+          [
+            37.07253824260801,
+            39.778160108304505
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "7426",
+      "properties": {
+        "osm_id": "7426",
+        "fid": "7426",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 126,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06505474523755,
+            39.77985104332306
+          ],
+          [
+            37.06417083560587,
+            39.77894746030196
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "7427",
+      "properties": {
+        "osm_id": "7427",
+        "fid": "7427",
+        "name": "74-55. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 55,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06801398435202,
+            39.78046200092193
+          ],
+          [
+            37.067510348990616,
+            39.78076394683563
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "7460",
+      "properties": {
+        "osm_id": "7460",
+        "fid": "7460",
+        "name": "SULTANŞEHİR Bulvar1",
+        "highway": "primary",
+        "width": 16,
+        "length_m": 1923,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.09301729365403,
+            39.78825308210197
+          ],
+          [
+            37.09556552205482,
+            39.78988340344434
+          ],
+          [
+            37.097219853651694,
+            39.79079376775055
+          ],
+          [
+            37.104781048644746,
+            39.794472349911224
+          ],
+          [
+            37.106992219445495,
+            39.795760707237775
+          ],
+          [
+            37.10834249831714,
+            39.79670950692165
+          ],
+          [
+            37.109413897920625,
+            39.79761046677912
+          ],
+          [
+            37.110656572477325,
+            39.798833212438765
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "7851",
+      "properties": {
+        "osm_id": "7851",
+        "fid": "7851",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 104,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065774915922475,
+            39.780603883138276
+          ],
+          [
+            37.06505474523755,
+            39.77985104332306
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8277",
+      "properties": {
+        "osm_id": "8277",
+        "fid": "8277",
+        "name": "74-42. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 61,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.072011503566415,
+            39.779573551159395
+          ],
+          [
+            37.07254620693591,
+            39.779930635577145
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8278",
+      "properties": {
+        "osm_id": "8278",
+        "fid": "8278",
+        "name": "74-42. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 68,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.071395679465056,
+            39.77917980235321
+          ],
+          [
+            37.072011503566415,
+            39.779573551159395
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8297",
+      "properties": {
+        "osm_id": "8297",
+        "fid": "8297",
+        "name": "74-48. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 106,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06673726719099,
+            39.78001390892602
+          ],
+          [
+            37.067510348990616,
+            39.78076394683563
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8298",
+      "properties": {
+        "osm_id": "8298",
+        "fid": "8298",
+        "name": "74-54. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 105,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06673726719099,
+            39.78001390892602
+          ],
+          [
+            37.065774915922475,
+            39.780603883138276
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8301",
+      "properties": {
+        "osm_id": "8301",
+        "fid": "8301",
+        "name": "74-52. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 103,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065970727921275,
+            39.77924854821737
+          ],
+          [
+            37.06505474523755,
+            39.77985104332306
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "8371",
+      "properties": {
+        "osm_id": "8371",
+        "fid": "8371",
+        "name": "74-41. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 61,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07107478887376,
+            39.77862274214169
+          ],
+          [
+            37.0716102017195,
+            39.77898434977937
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9371",
+      "properties": {
+        "osm_id": "9371",
+        "fid": "9371",
+        "name": "74-44. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 55,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06782799059267,
+            39.778590801703594
+          ],
+          [
+            37.06822620783534,
+            39.77898502412011
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9372",
+      "properties": {
+        "osm_id": "9372",
+        "fid": "9372",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 112,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067549686733074,
+            39.78199795422839
+          ],
+          [
+            37.06654802617532,
+            39.78134710779338
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9433",
+      "properties": {
+        "osm_id": "9433",
+        "fid": "9433",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 99,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.09202362764839,
+            39.78780002300082
+          ],
+          [
+            37.09301729365403,
+            39.78825308210197
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9708",
+      "properties": {
+        "osm_id": "9708",
+        "fid": "9708",
+        "name": "74-35. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 121,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07107478887376,
+            39.77862274214169
+          ],
+          [
+            37.07022025400789,
+            39.779485521076104
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9713",
+      "properties": {
+        "osm_id": "9713",
+        "fid": "9713",
+        "name": "ASİLZADE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 108,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06417083560587,
+            39.77894746030196
+          ],
+          [
+            37.0631828083102,
+            39.77955216568658
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9792",
+      "properties": {
+        "osm_id": "9792",
+        "fid": "9792",
+        "name": "74-40. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 59,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.072901904039306,
+            39.77876229757127
+          ],
+          [
+            37.07341406166911,
+            39.779118815397645
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9791",
+      "properties": {
+        "osm_id": "9791",
+        "fid": "9791",
+        "name": "74-54. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 50,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065774915922475,
+            39.780603883138276
+          ],
+          [
+            37.06530930810534,
+            39.78086922012795
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "9793",
+      "properties": {
+        "osm_id": "9793",
+        "fid": "9793",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 134,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06417083560587,
+            39.77894746030196
+          ],
+          [
+            37.06322487509368,
+            39.77798869254279
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10067",
+      "properties": {
+        "osm_id": "10067",
+        "fid": "10067",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 65,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06720432410025,
+            39.77705597514074
+          ],
+          [
+            37.06767615632162,
+            39.777515855602616
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10069",
+      "properties": {
+        "osm_id": "10069",
+        "fid": "10069",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 38,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.068142912688664,
+            39.77797910102518
+          ],
+          [
+            37.06841306611154,
+            39.77824546028694
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10163",
+      "properties": {
+        "osm_id": "10163",
+        "fid": "10163",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 17,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.08783502859778,
+            39.78592844658684
+          ],
+          [
+            37.08801029367291,
+            39.78600526393238
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10616",
+      "properties": {
+        "osm_id": "10616",
+        "fid": "10616",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 37,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.066975892183294,
+            39.77866807865398
+          ],
+          [
+            37.06723124337107,
+            39.77894017517429
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10617",
+      "properties": {
+        "osm_id": "10617",
+        "fid": "10617",
+        "name": "74-52. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 52,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06505474523755,
+            39.77985104332306
+          ],
+          [
+            37.064570299113164,
+            39.78012940871865
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10700",
+      "properties": {
+        "osm_id": "10700",
+        "fid": "10700",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 21,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06841306611154,
+            39.77824546028694
+          ],
+          [
+            37.06857044690885,
+            39.77838543866001
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10737",
+      "properties": {
+        "osm_id": "10737",
+        "fid": "10737",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 17,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07017053571149,
+            39.77662136514652
+          ],
+          [
+            37.07010455718267,
+            39.776764317175605
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10738",
+      "properties": {
+        "osm_id": "10738",
+        "fid": "10738",
+        "name": "SÖĞÜTDALI Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 60,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06836309436654,
+            39.7764062585098
+          ],
+          [
+            37.0687823271335,
+            39.776842401240984
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10739",
+      "properties": {
+        "osm_id": "10739",
+        "fid": "10739",
+        "name": "SÖĞÜTDALI Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 64,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0687823271335,
+            39.776842401240984
+          ],
+          [
+            37.069231407092694,
+            39.77730213764851
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10740",
+      "properties": {
+        "osm_id": "10740",
+        "fid": "10740",
+        "name": "SÖĞÜTDALI Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 61,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069231407092694,
+            39.77730213764851
+          ],
+          [
+            37.0697268770775,
+            39.77769447840407
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10746",
+      "properties": {
+        "osm_id": "10746",
+        "fid": "10746",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 106,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06654802617532,
+            39.78134710779338
+          ],
+          [
+            37.065774915922475,
+            39.780603883138276
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10747",
+      "properties": {
+        "osm_id": "10747",
+        "fid": "10747",
+        "name": "74-54. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 54,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067728946520205,
+            39.779425910135544
+          ],
+          [
+            37.06723935160217,
+            39.77972945316526
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10750",
+      "properties": {
+        "osm_id": "10750",
+        "fid": "10750",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 29,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07253824260801,
+            39.778160108304505
+          ],
+          [
+            37.07232394663911,
+            39.77835868288261
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10778",
+      "properties": {
+        "osm_id": "10778",
+        "fid": "10778",
+        "name": "74-34. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 119,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07144780640387,
+            39.777452414604646
+          ],
+          [
+            37.07054931870883,
+            39.77827159943111
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10780",
+      "properties": {
+        "osm_id": "10780",
+        "fid": "10780",
+        "name": "74-38. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 104,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07417920815043,
+            39.77839657733947
+          ],
+          [
+            37.07341406166911,
+            39.779118815397645
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10782",
+      "properties": {
+        "osm_id": "10782",
+        "fid": "10782",
+        "name": "74-48. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 82,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067510348990616,
+            39.78076394683563
+          ],
+          [
+            37.068086444923935,
+            39.78112767725854
+          ],
+          [
+            37.06828728950398,
+            39.781185123126384
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10783",
+      "properties": {
+        "osm_id": "10783",
+        "fid": "10783",
+        "name": "74-52. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 53,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.066975892183294,
+            39.77866807865398
+          ],
+          [
+            37.06649273422632,
+            39.77896869763136
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10779",
+      "properties": {
+        "osm_id": "10779",
+        "fid": "10779",
+        "name": "74-40. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 67,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07232394663911,
+            39.77835868288261
+          ],
+          [
+            37.072901904039306,
+            39.77876229757127
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10882",
+      "properties": {
+        "osm_id": "10882",
+        "fid": "10882",
+        "name": "ASİLZADE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 78,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06899593407598,
+            39.77590443007594
+          ],
+          [
+            37.06836309436654,
+            39.7764062585098
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "10883",
+      "properties": {
+        "osm_id": "10883",
+        "fid": "10883",
+        "name": "74-27. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 95,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0696546521802,
+            39.77630903289961
+          ],
+          [
+            37.0687823271335,
+            39.776842401240984
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11193",
+      "properties": {
+        "osm_id": "11193",
+        "fid": "11193",
+        "name": "74-41. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 60,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07054931870883,
+            39.77827159943111
+          ],
+          [
+            37.07107478887376,
+            39.77862274214169
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11218",
+      "properties": {
+        "osm_id": "11218",
+        "fid": "11218",
+        "name": "AKYOKUŞ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 108,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06322487509368,
+            39.77798869254279
+          ],
+          [
+            37.06223090390579,
+            39.77858709341315
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11219",
+      "properties": {
+        "osm_id": "11219",
+        "fid": "11219",
+        "name": "74-56. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 114,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067549686733074,
+            39.78199795422839
+          ],
+          [
+            37.06673799488571,
+            39.78281716121946
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11278",
+      "properties": {
+        "osm_id": "11278",
+        "fid": "11278",
+        "name": "74-48. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 107,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065970727921275,
+            39.77924854821737
+          ],
+          [
+            37.06673726719099,
+            39.78001390892602
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11279",
+      "properties": {
+        "osm_id": "11279",
+        "fid": "11279",
+        "name": "74-55. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 105,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067510348990616,
+            39.78076394683563
+          ],
+          [
+            37.06654802617532,
+            39.78134710779338
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11280",
+      "properties": {
+        "osm_id": "11280",
+        "fid": "11280",
+        "name": "74-38. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 117,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07341406166911,
+            39.779118815397645
+          ],
+          [
+            37.07254620693591,
+            39.779930635577145
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11281",
+      "properties": {
+        "osm_id": "11281",
+        "fid": "11281",
+        "name": "74-54. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 53,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06723935160217,
+            39.77972945316526
+          ],
+          [
+            37.06673726719099,
+            39.78001390892602
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11492",
+      "properties": {
+        "osm_id": "11492",
+        "fid": "11492",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 127,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06847597621366,
+            39.77457971801933
+          ],
+          [
+            37.069601533838444,
+            39.77532270647936
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11621",
+      "properties": {
+        "osm_id": "11621",
+        "fid": "11621",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 397,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.08801029367291,
+            39.78600526393238
+          ],
+          [
+            37.09202362764839,
+            39.78780002300082
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11812",
+      "properties": {
+        "osm_id": "11812",
+        "fid": "11812",
+        "name": "74-31. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 63,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06764375729227,
+            39.77933757742695
+          ],
+          [
+            37.06822620783534,
+            39.77898502412011
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11814",
+      "properties": {
+        "osm_id": "11814",
+        "fid": "11814",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 60,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.071997994725514,
+            39.77780877348747
+          ],
+          [
+            37.07253824260801,
+            39.778160108304505
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11815",
+      "properties": {
+        "osm_id": "11815",
+        "fid": "11815",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 105,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067728946520205,
+            39.779425910135544
+          ],
+          [
+            37.068332597682286,
+            39.78002514124453
+          ],
+          [
+            37.06851523086546,
+            39.78014695404491
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11816",
+      "properties": {
+        "osm_id": "11816",
+        "fid": "11816",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 45,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06875725943726,
+            39.78024365675512
+          ],
+          [
+            37.069207406384116,
+            39.78044887430237
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11817",
+      "properties": {
+        "osm_id": "11817",
+        "fid": "11817",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 54,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069207406384116,
+            39.78044887430237
+          ],
+          [
+            37.06970541557887,
+            39.7807519389809
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11819",
+      "properties": {
+        "osm_id": "11819",
+        "fid": "11819",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 23,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06851523086546,
+            39.78014695404491
+          ],
+          [
+            37.06875725943726,
+            39.78024365675512
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11822",
+      "properties": {
+        "osm_id": "11822",
+        "fid": "11822",
+        "name": "74-29. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 63,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06841306611154,
+            39.77824546028694
+          ],
+          [
+            37.06782799059267,
+            39.778590801703594
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11823",
+      "properties": {
+        "osm_id": "11823",
+        "fid": "11823",
+        "name": "74-50. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 34,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.067909831815356,
+            39.78213676890749
+          ],
+          [
+            37.067549686733074,
+            39.78199795422839
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11824",
+      "properties": {
+        "osm_id": "11824",
+        "fid": "11824",
+        "name": "74-51. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 41,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06530930810534,
+            39.78086922012795
+          ],
+          [
+            37.065004771274026,
+            39.78058388971497
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11825",
+      "properties": {
+        "osm_id": "11825",
+        "fid": "11825",
+        "name": "74-55. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 55,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06851523086546,
+            39.78014695404491
+          ],
+          [
+            37.06801398435202,
+            39.78046200092193
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11830",
+      "properties": {
+        "osm_id": "11830",
+        "fid": "11830",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 59,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.068995093364094,
+            39.77974078643373
+          ],
+          [
+            37.06875725943726,
+            39.78024365675512
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11831",
+      "properties": {
+        "osm_id": "11831",
+        "fid": "11831",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 89,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069268628069864,
+            39.7789719795878
+          ],
+          [
+            37.068995093364094,
+            39.77974078643373
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11832",
+      "properties": {
+        "osm_id": "11832",
+        "fid": "11832",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 108,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07010455718267,
+            39.776764317175605
+          ],
+          [
+            37.0697268770775,
+            39.77769447840407
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11834",
+      "properties": {
+        "osm_id": "11834",
+        "fid": "11834",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 34,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.069268628069864,
+            39.7789719795878
+          ],
+          [
+            37.06962603894967,
+            39.77911389007552
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11918",
+      "properties": {
+        "osm_id": "11918",
+        "fid": "11918",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 106,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07323568121121,
+            39.77777410083534
+          ],
+          [
+            37.07417920815043,
+            39.77839657733947
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11902",
+      "properties": {
+        "osm_id": "11902",
+        "fid": "11902",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 66,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06962603894967,
+            39.77911389007552
+          ],
+          [
+            37.06973613444314,
+            39.77915360305304
+          ],
+          [
+            37.07022025400789,
+            39.779485521076104
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11905",
+      "properties": {
+        "osm_id": "11905",
+        "fid": "11905",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 120,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07417920815043,
+            39.77839657733947
+          ],
+          [
+            37.07526004863873,
+            39.779090873324954
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11914",
+      "properties": {
+        "osm_id": "11914",
+        "fid": "11914",
+        "name": "74-41. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 63,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06997870901292,
+            39.77790880293049
+          ],
+          [
+            37.07054931870883,
+            39.77827159943111
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11903",
+      "properties": {
+        "osm_id": "11903",
+        "fid": "11903",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 59,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07022025400789,
+            39.779485521076104
+          ],
+          [
+            37.070751548402754,
+            39.779827910098774
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11916",
+      "properties": {
+        "osm_id": "11916",
+        "fid": "11916",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 106,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.070519773735136,
+            39.78003820000038
+          ],
+          [
+            37.06970541557887,
+            39.7807519389809
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "11915",
+      "properties": {
+        "osm_id": "11915",
+        "fid": "11915",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 31,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.070751548402754,
+            39.779827910098774
+          ],
+          [
+            37.070519773735136,
+            39.78003820000038
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12128",
+      "properties": {
+        "osm_id": "12128",
+        "fid": "12128",
+        "name": "74-41. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 32,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0697268770775,
+            39.77769447840407
+          ],
+          [
+            37.06997870901292,
+            39.77790880293049
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12310",
+      "properties": {
+        "osm_id": "12310",
+        "fid": "12310",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 780,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.08011777290628,
+            39.7821903050249
+          ],
+          [
+            37.08717708096229,
+            39.78556857609955
+          ],
+          [
+            37.08783502859778,
+            39.78592844658684
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12279",
+      "properties": {
+        "osm_id": "12279",
+        "fid": "12279",
+        "name": "74-81. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 221,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07877783025483,
+            39.78481622472709
+          ],
+          [
+            37.077195101603216,
+            39.78638522898441
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12276",
+      "properties": {
+        "osm_id": "12276",
+        "fid": "12276",
+        "name": "74-81. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 65,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07914597948824,
+            39.784300588898354
+          ],
+          [
+            37.07877783025483,
+            39.78481622472709
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12277",
+      "properties": {
+        "osm_id": "12277",
+        "fid": "12277",
+        "name": "74-81. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 118,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07968404389655,
+            39.78332839811731
+          ],
+          [
+            37.07946026741693,
+            39.783786349378154
+          ],
+          [
+            37.07914597948824,
+            39.784300588898354
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12359",
+      "properties": {
+        "osm_id": "12359",
+        "fid": "12359",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 304,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07734086843055,
+            39.780489578310764
+          ],
+          [
+            37.07942412566773,
+            39.7818464312709
+          ],
+          [
+            37.08011777290628,
+            39.7821903050249
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12405",
+      "properties": {
+        "osm_id": "12405",
+        "fid": "12405",
+        "name": "MENZİL Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 91,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.071395679465056,
+            39.77917980235321
+          ],
+          [
+            37.070751548402754,
+            39.779827910098774
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12500",
+      "properties": {
+        "osm_id": "12500",
+        "fid": "12500",
+        "name": "ŞEHİT AHMET EYCE Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 57,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06723124337107,
+            39.77894017517429
+          ],
+          [
+            37.06764375729227,
+            39.77933757742695
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12550",
+      "properties": {
+        "osm_id": "12550",
+        "fid": "12550",
+        "name": "BİLGE KAĞAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 243,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.04958811383261,
+            39.77683803126536
+          ],
+          [
+            37.05135004780735,
+            39.776560199132646
+          ],
+          [
+            37.052350728180876,
+            39.776320504827524
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12592",
+      "properties": {
+        "osm_id": "12592",
+        "fid": "12592",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 151,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.064478679902216,
+            39.780897486790835
+          ],
+          [
+            37.06551873461438,
+            39.78199701165457
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12682",
+      "properties": {
+        "osm_id": "12682",
+        "fid": "12682",
+        "name": "74-55. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 114,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06654802617532,
+            39.78134710779338
+          ],
+          [
+            37.06551873461438,
+            39.78199701165457
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "12766",
+      "properties": {
+        "osm_id": "12766",
+        "fid": "12766",
+        "name": "74-51. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 63,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.065004771274026,
+            39.78058388971497
+          ],
+          [
+            37.064570299113164,
+            39.78012940871865
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13065",
+      "properties": {
+        "osm_id": "13065",
+        "fid": "13065",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 30,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.057908609014646,
+            39.77491526166864
+          ],
+          [
+            37.05802406372378,
+            39.775167607909616
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13426",
+      "properties": {
+        "osm_id": "13426",
+        "fid": "13426",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 21,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07304166904141,
+            39.777654494662094
+          ],
+          [
+            37.07323568121121,
+            39.77777410083534
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13427",
+      "properties": {
+        "osm_id": "13427",
+        "fid": "13427",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 9,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07304166904141,
+            39.777654494662094
+          ],
+          [
+            37.07310476120568,
+            39.77758498412636
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13428",
+      "properties": {
+        "osm_id": "13428",
+        "fid": "13428",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 9,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07330657893589,
+            39.77771771301179
+          ],
+          [
+            37.07323568121121,
+            39.77777410083534
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13481",
+      "properties": {
+        "osm_id": "13481",
+        "fid": "13481",
+        "name": "74-32. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 120,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07089236817699,
+            39.77709015029374
+          ],
+          [
+            37.06997870901292,
+            39.77790880293049
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "13563",
+      "properties": {
+        "osm_id": "13563",
+        "fid": "13563",
+        "name": "HÜDAYİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 89,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06857044690885,
+            39.77838543866001
+          ],
+          [
+            37.06917964345301,
+            39.77893184506697
+          ],
+          [
+            37.069268628069864,
+            39.7789719795878
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14031",
+      "properties": {
+        "osm_id": "14031",
+        "fid": "14031",
+        "name": "AHMET TURAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 147,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.0697268770775,
+            39.77769447840407
+          ],
+          [
+            37.069268628069864,
+            39.7789719795878
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14062",
+      "properties": {
+        "osm_id": "14062",
+        "fid": "14062",
+        "name": "74-52. Sokak",
+        "highway": "residential",
+        "width": 8,
+        "length_m": 54,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 1,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.06649273422632,
+            39.77896869763136
+          ],
+          [
+            37.065970727921275,
+            39.77924854821737
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14090",
+      "properties": {
+        "osm_id": "14090",
+        "fid": "14090",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 20,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.071271334624505,
+            39.77733765745265
+          ],
+          [
+            37.07144780640387,
+            39.777452414604646
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14160",
+      "properties": {
+        "osm_id": "14160",
+        "fid": "14160",
+        "name": "NECMETTİN ERBAKAN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 13,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.09202362764839,
+            39.78780002300082
+          ],
+          [
+            37.092174049946934,
+            39.787774644025504
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14681",
+      "properties": {
+        "osm_id": "14681",
+        "fid": "14681",
+        "name": "SULTANŞEHİR Bulvar1",
+        "highway": "primary",
+        "width": 16,
+        "length_m": 21,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.09287759671054,
+            39.788092340268406
+          ],
+          [
+            37.09301729365403,
+            39.78825308210197
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "14779",
+      "properties": {
+        "osm_id": "14779",
+        "fid": "14779",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 40,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05802406372378,
+            39.775167607909616
+          ],
+          [
+            37.05811891001433,
+            39.77552137934464
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15236",
+      "properties": {
+        "osm_id": "15236",
+        "fid": "15236",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 237,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05456344952245,
+            39.775052649154084
+          ],
+          [
+            37.05437620691134,
+            39.77520407347236
+          ],
+          [
+            37.05349625835438,
+            39.77579230212811
+          ],
+          [
+            37.052350728180876,
+            39.776320504827524
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15237",
+      "properties": {
+        "osm_id": "15237",
+        "fid": "15237",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 130,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05560797626029,
+            39.774207916063126
+          ],
+          [
+            37.05456344952245,
+            39.775052649154084
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15241",
+      "properties": {
+        "osm_id": "15241",
+        "fid": "15241",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 150,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05801479915151,
+            39.771645082481385
+          ],
+          [
+            37.05700117620794,
+            39.7727448834603
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15233",
+      "properties": {
+        "osm_id": "15233",
+        "fid": "15233",
+        "name": "SEHERYELİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 11,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05653627962381,
+            39.7731087496354
+          ],
+          [
+            37.05661732921229,
+            39.7731848322972
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15234",
+      "properties": {
+        "osm_id": "15234",
+        "fid": "15234",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 143,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05661732921229,
+            39.7731848322972
+          ],
+          [
+            37.05560797626029,
+            39.774207916063126
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "15244",
+      "properties": {
+        "osm_id": "15244",
+        "fid": "15244",
+        "name": "ŞEHİT SONER MÜŞTERİ Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 59,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.05700117620794,
+            39.7727448834603
+          ],
+          [
+            37.05661732921229,
+            39.7731848322972
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "6647",
+      "properties": {
+        "osm_id": "6647",
+        "fid": "6647",
+        "name": "ALPEREN Caddesi",
+        "highway": "secondary",
+        "width": 14,
+        "length_m": 81,
+        "surface": "asphalt",
+        "oneway": false,
+        "lanes": 2,
+        "maxspeed": "50",
+        "sprayable": true,
+        "mahalle": "AHMET TURANGAZİ"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            37.07017053571149,
+            39.77662136514652
+          ],
+          [
+            37.07089236817699,
+            39.77709015029374
+          ]
+        ]
+      }
+    }
+  ]
+}

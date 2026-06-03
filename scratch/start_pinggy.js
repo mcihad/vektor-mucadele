@@ -14,6 +14,7 @@ const tunnel = spawn('ssh', [
   '-tt',
   '-p', '443',
   '-o', 'StrictHostKeyChecking=no',
+  '-o', 'UserKnownHostsFile=/dev/null',
   '-o', 'ServerAliveInterval=30',
   '-R', '80:localhost:3000',
   'public@a.pinggy.io'

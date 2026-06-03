@@ -83,7 +83,10 @@
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">🗺️ 30 Günlük İlaç Etki Haritası</span>
-                    <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
+                    <div style="display:flex;gap:6px;">
+                        <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
+                        <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konumum</button>
+                    </div>
                 </div>
                 <div id="map" class="map-container fullheight"></div>
                 <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);align-items:center">
@@ -193,6 +196,7 @@ const overlayMaps = {
 L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
 
 function centerMap(){map.setView([39.7477,37.0179],13);}
+function locateMe(){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],17);L.circleMarker([pos.coords.latitude,pos.coords.longitude],{radius:8,fillColor:'#3b82f6',color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup('Konumunuz').openPopup();},()=>{toast('Konum alınamadı','error');},{enableHighAccuracy:true,timeout:8000});}else{toast('Tarayıcınız konumu desteklemiyor','error');}}
 
 function haversine(lat1,lon1,lat2,lon2){
     const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
@@ -929,7 +933,7 @@ function showBottomRightIssuePopup(vehiclePlate, neighborhood, issueText, sessio
     0% { transform: rotate(-12deg); }
     100% { transform: rotate(12deg); }
 }
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .page-content {
         display: flex !important;
         flex-direction: column !important;

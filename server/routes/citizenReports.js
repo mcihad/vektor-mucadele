@@ -46,6 +46,20 @@ module.exports = function(io) {
 
         const db = getDb();
         try {
+            // ─── Günlük 2 ihbar limiti (telefon numarasına göre) ───
+            if (reporter_phone && reporter_phone.trim()) {
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+                const todayCountResult = await db.exec(
+                    "SELECT COUNT(*) as count FROM citizen_reports WHERE reporter_phone = ? AND created_at >= ?",
+                    [reporter_phone.trim(), todayStart.toISOString()]
+                );
+                const todayCount = rowsToObjects(todayCountResult);
+                if (todayCount.length > 0 && todayCount[0].count >= 2) {
+                    return res.status(429).json({ error: 'Günlük ihbar limitiniz (2) dolmuştur. Lütfen yarın tekrar deneyin.' });
+                }
+            }
+
             await db.run(`INSERT INTO citizen_reports (reporter_name, reporter_phone, report_type, description, neighborhood, address, latitude, longitude, priority)
                     VALUES (?,?,?,?,?,?,?,?,?)`,
                 [reporter_name, reporter_phone, report_type || 'haşere', description, neighborhood, address, latitude, longitude, priority || 'normal']);

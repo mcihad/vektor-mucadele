@@ -179,20 +179,46 @@ async function updateCoordinates(lat, lng, doGeocode = true) {
                 let cleanVal = descTextarea.value.replace(/^Adres: .*\n\n/, ""); // Remove old autofilled address if exists
                 descTextarea.value = `Adres: ${data.address}\n\n` + cleanVal;
                 
-                // Autoselect neighborhood
+                // Autoselect neighborhood - improved matching
                 if (data.neighborhood) {
                     const select = document.getElementById('rNeighborhood');
-                    const upperNeighborhood = data.neighborhood.toUpperCase('tr-TR');
+                    // Clean the neighborhood name: remove 'Mahallesi', 'Mah.', 'mah' suffixes
+                    let cleanNeighborhood = data.neighborhood
+                        .replace(/\s*(mahallesi|mah\.|mah)\s*$/i, '')
+                        .trim()
+                        .toUpperCase('tr-TR');
+                    
+                    let found = false;
+                    // Strategy 1: Exact match
                     for (let option of select.options) {
-                        if (option.value.toUpperCase('tr-TR') === upperNeighborhood || option.value.toUpperCase('tr-TR').includes(upperNeighborhood) || upperNeighborhood.includes(option.value.toUpperCase('tr-TR'))) {
+                        const optClean = option.value.replace(/\s*(mahallesi|mah\.|mah)\s*$/i, '').trim().toUpperCase('tr-TR');
+                        if (optClean === cleanNeighborhood) {
                             select.value = option.value;
+                            found = true;
                             break;
                         }
+                    }
+                    // Strategy 2: Partial match (includes)
+                    if (!found) {
+                        for (let option of select.options) {
+                            const optClean = option.value.replace(/\s*(mahallesi|mah\.|mah)\s*$/i, '').trim().toUpperCase('tr-TR');
+                            if (optClean.includes(cleanNeighborhood) || cleanNeighborhood.includes(optClean)) {
+                                select.value = option.value;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (found) {
+                        alertEl.innerHTML = `✅ Konum Seçildi: <b>${lat.toFixed(5)}, ${lng.toFixed(5)}</b> — 📍 Mahalle: <b>${select.value}</b>`;
                     }
                 }
             }
         } catch(e) {
             console.error("Adres ters sorgulama hatası:", e);
+            // Geocoding failed, but location is still valid
+            alertEl.innerHTML = `✅ Konum Seçildi: <b>${lat.toFixed(5)}, ${lng.toFixed(5)}</b> — <span style="color:#f59e0b;">⚠️ Mahalle otomatik bulunamadı, lütfen elle seçin</span>`;
         }
     }
 }
@@ -256,7 +282,9 @@ document.getElementById('reportForm').addEventListener('submit', async (e) => {
             document.getElementById('formCard').style.display = 'none';
             document.getElementById('successCard').style.display = 'block';
         } else {
-            alert('İhbar gönderilemedi. Lütfen tüm alanları kontrol edin.');
+            const errData = await res.json().catch(() => ({}));
+            const errMsg = errData.error || 'İhbar gönderilemedi. Lütfen tüm alanları kontrol edin.';
+            alert(errMsg);
             submitBtn.disabled = false;
             submitBtn.textContent = '📨 İhbar Gönder';
         }

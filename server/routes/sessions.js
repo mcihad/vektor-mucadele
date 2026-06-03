@@ -464,10 +464,103 @@ module.exports = function(io) {
             
             // Eğer status 'sorunlu' yapıldıysa, bağlı rotanın da durumunu 'sorunlu' yap
             if (status === 'sorunlu') {
-                const sessionResult = await db.exec("SELECT route_id, neighborhood FROM spray_sessions WHERE id = ?", [req.params.id]);
+                const sessionResult = await db.exec(`
+                    SELECT s.*, v.machine_type, v.tank_capacity_lt
+                    FROM spray_sessions s
+                    LEFT JOIN vehicles v ON s.vehicle_id = v.id
+                    WHERE s.id = ?
+                `, [req.params.id]);
                 const sessionRows = rowsToObjects(sessionResult);
-                if (sessionRows.length > 0 && sessionRows[0].route_id) {
-                    await db.run("UPDATE planned_routes SET status = 'sorunlu' WHERE id = ?", [sessionRows[0].route_id]);
+                if (sessionRows.length > 0) {
+                    const sess = sessionRows[0];
+                    if (sess.route_id) {
+                        await db.run("UPDATE planned_routes SET status = 'sorunlu' WHERE id = ?", [sess.route_id]);
+                    }
+
+                    // ─── MADDE 1: Sorun bildirildiğinde ilaç stoğundan düş ───
+                    if (sess.start_time && sess.chemical_id) {
+                        try {
+                            const durationSeconds = req.body.duration_seconds;
+                            let durationMinutes;
+                            if (durationSeconds !== undefined && durationSeconds > 0) {
+                                durationMinutes = parseFloat(durationSeconds) / 60;
+                            } else {
+                                durationMinutes = (Date.now() - new Date(sess.start_time).getTime()) / (1000 * 60);
+                            }
+
+                            if (durationMinutes > 0) {
+                                const machineType = sess.machine_type || 'ulv';
+                                const chemUsed = calculateChemicalUsage(durationMinutes, machineType);
+                                const roundedChem = Math.round(chemUsed * 10) / 10;
+
+                                if (roundedChem > 0) {
+                                    // Stoktan düş
+                                    await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
+                                        [roundedChem, roundedChem, sess.chemical_id]);
+                                    // İşlem kaydı
+                                    await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
+                                            VALUES (?, 'kullanim', ?, 'Sorun bildirimi - Kısmi ilaçlama stok düşümü', ?)`,
+                                        [sess.chemical_id, roundedChem, req.params.id]);
+                                    // Oturumun chemical_used_lt alanını güncelle
+                                    await db.run("UPDATE spray_sessions SET chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
+                                        [roundedChem, req.params.id]);
+                                    console.log(`[Sessions] Sorunlu oturum #${req.params.id}: ${roundedChem} lt ilaç stoktan düşüldü.`);
+                                }
+                            }
+                        } catch (chemErr) {
+                            console.error(`[Sessions] Sorunlu oturum #${req.params.id} ilaç stok düşümü hatası:`, chemErr.message);
+                        }
+                    }
+
+                    // ─── MADDE 2: İlaçlanan alanı haritada işaretle (sprayed_streets) ───
+                    try {
+                        const pointsResult = await db.exec(
+                            "SELECT latitude, longitude, COALESCE(is_spraying, 1) as is_spraying FROM route_points WHERE session_id = ? ORDER BY timestamp ASC",
+                            [req.params.id]
+                        );
+                        const rawPoints = rowsToObjects(pointsResult);
+
+                        // Sadece is_spraying = 1 olan noktaları segmentlere ayır
+                        const segments = [];
+                        let currentSegment = [];
+                        for (const p of rawPoints) {
+                            if (p.is_spraying === 1) {
+                                currentSegment.push(p);
+                            } else {
+                                if (currentSegment.length >= 2) segments.push(currentSegment);
+                                currentSegment = [];
+                            }
+                        }
+                        if (currentSegment.length >= 2) segments.push(currentSegment);
+
+                        if (segments.length > 0) {
+                            const neighborhood = sessionRows[0].neighborhood || 'Saha';
+                            for (let i = 0; i < segments.length; i++) {
+                                const segPoints = segments[i];
+                                const coordinates = segPoints.map(p => [p.longitude, p.latitude]);
+                                let segmentLengthMt = 0;
+                                for (let j = 1; j < segPoints.length; j++) {
+                                    segmentLengthMt += haversine(segPoints[j-1].latitude, segPoints[j-1].longitude, segPoints[j].latitude, segPoints[j].longitude);
+                                }
+                                const geojsonFeature = {
+                                    type: 'Feature',
+                                    properties: { name: `${neighborhood} İlaçlama Hattı ${i + 1} (Kısmi)`, session_id: parseInt(req.params.id), oneway: false },
+                                    geometry: { type: 'LineString', coordinates }
+                                };
+                                const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                                await db.run(
+                                    `INSERT INTO sprayed_streets (session_id, street_name, osm_way_id, width_mt, pass_count, length_mt, sprayed_at, expires_at, geometry_geojson)
+                                     VALUES (?,?,?,?,?,?,datetime('now'),?,?)`,
+                                    [req.params.id, `${neighborhood} İlaçlama Hattı ${i + 1} (Kısmi)`, '', 8, 1, Math.round(segmentLengthMt), expiresAt, JSON.stringify(geojsonFeature)]
+                                );
+                            }
+                            console.log(`[Sessions] Sorunlu oturum #${req.params.id}: ${segments.length} kısmi ilaçlama segmenti sprayed_streets tablosuna kaydedildi.`);
+                        } else {
+                            console.log(`[Sessions] Sorunlu oturum #${req.params.id}: Hiç ilaçlama yapılmamış, sprayed_streets kaydı oluşturulmadı.`);
+                        }
+                    } catch (geoErr) {
+                        console.error(`[Sessions] Sorunlu oturum #${req.params.id} güzergah kaydı hatası:`, geoErr.message);
+                    }
                 }
             }
 
