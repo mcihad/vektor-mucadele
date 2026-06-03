@@ -902,12 +902,26 @@ async function loadAssignedRoute(){
                 document.getElementById('tiNeighborhood').textContent=session.neighborhood||'Belirtilmedi';
                 document.getElementById('tiChemical').textContent=session.chemical_name||'İlaç Seçilmedi';
                 
+                const tiStatus = document.getElementById('tiStatus');
                 if(session.status==='active'){
-                    document.getElementById('tiStatus').textContent='⚡ Görev Aktif - İlaçlama Yapılıyor';
-                    document.getElementById('tiStatus').style.color='var(--success)';
+                    tiStatus.textContent='⚡ Görev Aktif - İlaçlama Yapılıyor';
+                    tiStatus.style.color='var(--success)';
+                } else if(session.status==='beklemede'){
+                    tiStatus.textContent='⏸️ Görev Beklemede (Duraklatıldı)';
+                    tiStatus.style.color='var(--warning)';
+                } else if(session.status==='sorunlu'){
+                    const startTimeMs = new Date(session.start_time || session.created_at).getTime();
+                    const hoursElapsed = (Date.now() - startTimeMs) / (1000 * 60 * 60);
+                    if (hoursElapsed > 48) {
+                        tiStatus.textContent='❌ Görev İptal Oldu';
+                        tiStatus.style.color='var(--danger)';
+                    } else {
+                        tiStatus.textContent='⚠️ Sorun Bildirildi (İşlem Durdu)';
+                        tiStatus.style.color='var(--danger)';
+                    }
                 } else {
-                    document.getElementById('tiStatus').textContent='📋 Görev Planlandı - Başlatılması Bekleniyor';
-                    document.getElementById('tiStatus').style.color='var(--warning)';
+                    tiStatus.textContent='📋 Görev Planlandı - Başlatılması Bekleniyor';
+                    tiStatus.style.color='var(--warning)';
                 }
             }
 

@@ -184,8 +184,31 @@ async function loadSessions() {
     
     const tbody = document.getElementById('sessionTable');
     tbody.innerHTML = sessions.map(s => {
-        const statusBadge = s.status === 'completed' ? 'badge-success' : s.status === 'active' ? 'badge-warning' : 'badge-info';
-        const statusText = s.status === 'completed' ? 'Tamamlandı' : s.status === 'active' ? 'Aktif' : 'Planlandı';
+        let statusText = '';
+        let statusBadge = '';
+        if (s.status === 'completed') {
+            statusText = 'Tamamlandı';
+            statusBadge = 'badge-success';
+        } else if (s.status === 'active') {
+            statusText = 'Görev Devam Ediyor';
+            statusBadge = 'badge-warning';
+        } else if (s.status === 'beklemede') {
+            statusText = 'Beklemede';
+            statusBadge = 'badge-warning';
+        } else if (s.status === 'sorunlu') {
+            const startTimeMs = new Date(s.start_time || s.created_at).getTime();
+            const hoursElapsed = (Date.now() - startTimeMs) / (1000 * 60 * 60);
+            if (hoursElapsed > 48) {
+                statusText = 'Görev İptal Oldu';
+                statusBadge = 'badge-danger';
+            } else {
+                statusText = 'Sorunlu (İşlem Durdu)';
+                statusBadge = 'badge-danger';
+            }
+        } else {
+            statusText = 'Planlandı';
+            statusBadge = 'badge-info';
+        }
         
         const intakeInfo = s.intake_chemical_name
             ? `<div style="margin-top:6px; font-size:9px; color:#10b981; line-height:1.3; background:rgba(16,185,129,0.06); padding:4px 8px; border-radius:6px; border:1px solid rgba(16,185,129,0.15); display:block; max-width:180px;">
