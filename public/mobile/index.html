@@ -213,8 +213,8 @@
             <div id="drawerAdminTitle" style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 8px;">YÖNETİM SAYFALARI</div>
             <div id="drawerAdminLinks">
                 <a href="/admin/dashboard" class="drawer-item">📊 Ana Ekran</a>
-                <a href="/admin/planning" class="drawer-item">🗺️ Rota Planlama</a>
                 <a href="/admin/sessions" class="drawer-item">💉 İlaçlama Kayıtları</a>
+                <a href="/admin/planning" class="drawer-item">🗺️ Rota Planlama</a>
                 <a href="/admin/vehicles" class="drawer-item">🚐 Araçlar</a>
                 <a href="/admin/personnel" class="drawer-item">👥 Personel</a>
                 <a href="/admin/chemicals" class="drawer-item">🧪 İlaç Stok</a>
@@ -247,7 +247,7 @@
             <button class="btn btn-sm btn-outline" onclick="mobileLogout()" style="padding:4px 6px;border:none;background:transparent">🚪</button>
         </div>
     </div>
-    <div class="mobile-map"><div id="mobileMap"></div><button id="btnLocateMe" onclick="locateMe()" style="position:absolute;top:55px;right:10px;z-index:1000;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.9);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;">📍</button></div>
+    <div class="mobile-map"><div id="mobileMap"></div><button id="btnLocateMe" onclick="locateMe()" style="position:absolute;top:145px;right:10px;z-index:1000;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.9);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;">📍</button></div>
     <div class="mobile-panel">
         <!-- Route Info -->
         <div id="routeInfoCard" class="route-info-card" style="display:none">
@@ -1400,7 +1400,29 @@ function locateMe() {
     if (lastPos) {
         map.setView([lastPos.lat, lastPos.lng], 17);
     } else {
-        alert('GPS konumu henüz alınamadı. Lütfen bekleyin.');
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => {
+                    const {latitude, longitude} = pos.coords;
+                    lastPos = {lat: latitude, lng: longitude};
+                    map.setView([latitude, longitude], 17);
+                },
+                err => {
+                    let msg = 'GPS konumu henüz alınamadı. Lütfen bekleyin.';
+                    if (err.code === err.PERMISSION_DENIED) {
+                        msg = 'GPS konumu alınamadı. Lütfen tarayıcınızda veya telefonunuzda konum izinlerinin açık olduğundan ve bu siteye izin verildiğinden emin olun.';
+                    } else if (err.code === err.POSITION_UNAVAILABLE) {
+                        msg = 'GPS konumu belirlenemiyor. Lütfen cihazınızın GPS/konum servislerinin açık olduğundan emin olun.';
+                    } else if (err.code === err.TIMEOUT) {
+                        msg = 'GPS konumu alma süresi doldu. Lütfen açık alana çıkıp tekrar deneyin.';
+                    }
+                    alert(msg);
+                },
+                {enableHighAccuracy: true, timeout: 5000}
+            );
+        } else {
+            alert('GPS konumu henüz alınamadı. Tarayıcınız konum servislerini desteklemiyor.');
+        }
     }
 }
 
