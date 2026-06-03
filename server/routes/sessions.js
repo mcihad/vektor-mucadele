@@ -192,9 +192,10 @@ module.exports = function(io) {
             const sess = session[0];
             
             // Süreyi hesapla (dakika)
-            const startTime = new Date(sess.start_time);
             const endTime = new Date();
-            const durationMinutes = (endTime - startTime) / (1000 * 60);
+            const durationMinutes = req.body.duration_seconds !== undefined
+                ? parseFloat(req.body.duration_seconds) / 60
+                : (endTime - new Date(sess.start_time)) / (1000 * 60);
             
             // Otomatik ilaç tüketimi hesapla
             const machineType = sess.machine_type || 'ulv';

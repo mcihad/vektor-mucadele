@@ -339,7 +339,7 @@
         <h2>✅ İlaçlama Tamamlandı</h2>
         <div class="stat-row"><span>Süre</span><span id="sumTime">-</span></div>
         <div class="stat-row"><span>Mesafe</span><span id="sumDist">-</span></div>
-        <div class="stat-row"><span>İlaç Tüketimi</span><span id="sumChem">-</span></div>
+        <div class="stat-row" style="display:none"><span>İlaç Tüketimi</span><span id="sumChem">-</span></div>
         <div class="stat-row"><span>Kaplanan Alan</span><span id="sumArea">-</span></div>
         <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:20px" onclick="closeSummary()">Tamam</button>
     </div>
@@ -1652,7 +1652,18 @@ async function finishSessionClick() {
     const btnFinish = document.getElementById('btnFinish');
     btnFinish.disabled = true; btnFinish.textContent = '⏳ Hesaplanıyor...';
     try {
-        const res=await fetch(`/api/sessions/${sessionId}/end`,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({total_km:totalDistance/1000})});
+        const activeSeconds = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+        const activeTimeStr = document.getElementById('mTime').textContent;
+        const activeDistStr = document.getElementById('mDistance').textContent;
+
+        const res=await fetch(`/api/sessions/${sessionId}/end`,{
+            method:'POST',
+            headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
+            body:JSON.stringify({
+                total_km: totalDistance/1000,
+                duration_seconds: activeSeconds
+            })
+        });
         const data=await res.json();
         
         isSpraying=false;
@@ -1680,10 +1691,10 @@ async function finishSessionClick() {
         }
         
         if(data.summary){
-            document.getElementById('sumTime').textContent=data.summary.duration_min+' dakika';
-            document.getElementById('sumDist').textContent=(data.summary.total_km||0).toFixed(2)+' km';
-            document.getElementById('sumChem').textContent=data.summary.chemical_used_lt+' litre';
-            document.getElementById('sumArea').textContent=Math.round(data.summary.area_covered_m2)+' m²';
+            document.getElementById('sumTime').textContent = activeTimeStr + ' (ilaçlanan süre)';
+            document.getElementById('sumDist').textContent = activeDistStr + ' km (gidilen mesafe)';
+            document.getElementById('sumChem').textContent = data.summary.chemical_used_lt+' litre';
+            document.getElementById('sumArea').textContent = Math.round(data.summary.area_covered_m2)+' m²';
             document.getElementById('appScreen').style.display='none';
             document.getElementById('summaryScreen').style.display='block';
         }
