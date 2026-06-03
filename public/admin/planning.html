@@ -21,6 +21,18 @@
         @keyframes blink{0%,100%{opacity:1}50%{opacity:0.4}}
         .blink{animation:blink 1.5s ease-in-out infinite}
         .preview-arrow-icon{background:none !important;border:none !important;box-shadow:none !important}
+        @media (max-width: 768px) {
+            .grid-sidebar {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            .grid-sidebar > :nth-child(1) {
+                order: 2 !important; /* Map card at the bottom */
+            }
+            .grid-sidebar > :nth-child(2) {
+                order: 1 !important; /* Parameters card at the top */
+            }
+        }
     </style>
 </head>
 <body>

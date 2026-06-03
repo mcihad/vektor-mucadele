@@ -929,6 +929,26 @@ function showBottomRightIssuePopup(vehiclePlate, neighborhood, issueText, sessio
     0% { transform: rotate(-12deg); }
     100% { transform: rotate(12deg); }
 }
+@media (max-width: 768px) {
+    .page-content {
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    .grid-sidebar {
+        display: flex !important;
+        flex-direction: column !important;
+        order: 1 !important;
+    }
+    .stats-grid {
+        order: 2 !important;
+    }
+    .grid-sidebar > :nth-child(1) {
+        order: 2 !important; /* Map card at the bottom of grid-sidebar */
+    }
+    .grid-sidebar > :nth-child(2) {
+        order: 1 !important; /* Sidebar (vehicles/schedule) at the top of grid-sidebar */
+    }
+}
 </style>
 </body>
 </html>
