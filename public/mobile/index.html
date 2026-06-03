@@ -354,7 +354,7 @@ let vehicleId=localStorage.getItem('vms_vehicle_id');
 let vehiclePlate=localStorage.getItem('vms_vehicle_plate');
 
 let map,socket,watchId;
-let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null;
+let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null,pauseTime=null,timerTimeout=null;
 let routeCoords=[],routeLine=null,positionMarker=null;
 let assignedRoute=null,assignedRouteLayer=null,sprayedStreetsLayer=null,assignedSession=null;
 let routeSegmentsGroup=null,sessionPathPoints=[];
@@ -1553,6 +1553,12 @@ function pauseSessionClick() {
     localStorage.setItem('vms_is_spraying', 'false');
     updateControlButtons();
     
+    pauseTime = Date.now();
+    if (timerTimeout) {
+        clearTimeout(timerTimeout);
+        timerTimeout = null;
+    }
+    
     if (lastPos) {
         sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 0 });
         drawSessionPath();
@@ -1589,6 +1595,12 @@ function resumeSessionClick() {
     isSpraying = true;
     localStorage.setItem('vms_is_spraying', 'true');
     updateControlButtons();
+    
+    if (pauseTime) {
+        startTime += (Date.now() - pauseTime);
+        pauseTime = null;
+    }
+    updateTimer();
     
     if (lastPos) {
         sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 1 });
@@ -1675,12 +1687,16 @@ function closeSummary(){
 }
 
 function updateTimer(){
+    if(timerTimeout) {
+        clearTimeout(timerTimeout);
+        timerTimeout = null;
+    }
     if(!sessionId || !isSpraying) return;
     const elapsed=Math.floor((Date.now()-startTime)/1000);
     const min=Math.floor(elapsed/60).toString().padStart(2,'0');
     const sec=(elapsed%60).toString().padStart(2,'0');
     document.getElementById('mTime').textContent=`${min}:${sec}`;
-    setTimeout(updateTimer,1000);
+    timerTimeout = setTimeout(updateTimer,1000);
 }
 
 function openGoogleNavigation() {
