@@ -104,12 +104,14 @@ module.exports = function(io) {
         const { status, vehicle_id, date_from, date_to } = req.query;
         let sql = `SELECT s.*, v.plate, v.machine_name, v.machine_type,
                    p1.name as driver_name, p2.name as operator_name,
-                   c.name as chemical_name
+                   c.name as chemical_name,
+                   r.route_coords, r.route_geojson
                    FROM spray_sessions s
                    LEFT JOIN vehicles v ON s.vehicle_id = v.id
                    LEFT JOIN personnel p1 ON s.driver_id = p1.id
                    LEFT JOIN personnel p2 ON s.operator_id = p2.id
                    LEFT JOIN chemicals c ON s.chemical_id = c.id
+                   LEFT JOIN planned_routes r ON s.route_id = r.id
                    WHERE 1=1`;
         const params = [];
 
@@ -134,12 +136,14 @@ module.exports = function(io) {
         try {
             const result = await db.exec(`SELECT s.*, v.plate, v.machine_name, v.machine_type,
                     p1.name as driver_name, p2.name as operator_name,
-                    c.name as chemical_name
+                    c.name as chemical_name,
+                    r.route_coords, r.route_geojson
                     FROM spray_sessions s
                     LEFT JOIN vehicles v ON s.vehicle_id = v.id
                     LEFT JOIN personnel p1 ON s.driver_id = p1.id
                     LEFT JOIN personnel p2 ON s.operator_id = p2.id
                     LEFT JOIN chemicals c ON s.chemical_id = c.id
+                    LEFT JOIN planned_routes r ON s.route_id = r.id
                     WHERE s.id = ?`, [req.params.id]);
             const rows = rowsToObjects(result);
             if (rows.length === 0) return res.status(404).json({ error: 'Oturum bulunamadı' });
@@ -701,13 +705,22 @@ module.exports = function(io) {
 
             // Also update vehicle location
             const session = rowsToObjects(await db.exec("SELECT vehicle_id FROM spray_sessions WHERE id = ?", [req.params.id]));
+            let vehicleId = null;
             if (session.length > 0) {
+                vehicleId = session[0].vehicle_id;
                 await db.run("UPDATE vehicles SET last_lat = ?, last_lng = ?, last_location_time = datetime('now') WHERE id = ?",
-                    [latitude, longitude, session[0].vehicle_id]);
+                    [latitude, longitude, vehicleId]);
             }
 
             if (io) {
-                io.to('admin').emit('vehicle-location-update', { session_id: parseInt(req.params.id), latitude, longitude, speed_kmh: speed_kmh || 0, is_spraying: is_spraying !== undefined ? is_spraying : 1 });
+                io.to('admin').emit('vehicle-location-update', { 
+                    session_id: parseInt(req.params.id), 
+                    vehicle_id: vehicleId,
+                    latitude, 
+                    longitude, 
+                    speed_kmh: speed_kmh || 0, 
+                    is_spraying: is_spraying !== undefined ? is_spraying : 1 
+                });
             }
 
             saveDatabase();

@@ -224,6 +224,7 @@
             
             <div style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-top: 16px; margin-bottom: 8px;">SAHA İŞLEMLERİ</div>
             <a href="#" onclick="toggleDrawer(false); animateRoutePreview();" class="drawer-item" id="drawerPreviewBtn">▶️ Rota Önizle</a>
+            <a href="#" onclick="toggleDrawer(false); navigateToRouteStart();" class="drawer-item" id="drawerNavStartBtn">📍 Başlangıca Navigasyon</a>
             <a href="#" onclick="toggleDrawer(false); openGoogleNavigation();" class="drawer-item" id="drawerNavBtn">🗺️ Google Navigasyon</a>
             <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item" style="color:var(--danger)">🚪 Oturumu Kapat</a>
         </nav>
@@ -259,6 +260,9 @@
                 <div style="display:flex;gap:4px">
                     <button class="btn btn-sm" onclick="animateRoutePreview()" id="btnAnimate" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#10b981;color:#fff;border:none;font-weight:700;cursor:pointer;">
                         ▶️ Önizle
+                    </button>
+                    <button class="btn btn-sm" onclick="navigateToRouteStart()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;">
+                        📍 Başlangıca Git
                     </button>
                     <button class="btn btn-sm" onclick="openGoogleNavigation()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#4285f4;color:#fff;border:none;font-weight:700;cursor:pointer;">
                         🗺️ Navigasyon
@@ -337,7 +341,7 @@ let vehiclePlate=localStorage.getItem('vms_vehicle_plate');
 let map,socket,watchId;
 let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null,pauseTime=null,timerTimeout=null;
 let routeCoords=[],routeLine=null,positionMarker=null;
-let assignedRoute=null,assignedRouteLayer=null,sprayedStreetsLayer=null,assignedSession=null;
+let assignedRoute=null,assignedRouteLayer=null,assignedRouteArrowsGroup=null,sprayedStreetsLayer=null,assignedSession=null;
 let routeSegmentsGroup=null,sessionPathPoints=[];
 let routeOffTimeout=null,sprayedAlertTimeout=null;
 let reportMarkersLayer=null,allActiveReports=[],selectedReport=null;
@@ -763,6 +767,7 @@ async function loadSprayedStreets(){
                     🕐 Ne Zaman: <b>${sprayedStr}</b><br>
                     📅 Bitiş: ${expiresStr}<br>
                     ⏳ ${daysText}<br>
+                    🧪 İlaç: ${s.chemical_name || '-'}<br>
                     🚐 Araç: ${s.plate||'-'}`);
             }catch(e){}}
         });
@@ -795,22 +800,25 @@ async function loadAssignedRoute(){
                 try{
                     const coords=JSON.parse(route.route_coords);
                     if(coords.length>0){
+                        // Clear old layers if exist
+                        if(assignedRouteLayer){
+                            map.removeLayer(assignedRouteLayer);
+                        }
+                        if(assignedRouteArrowsGroup){
+                            assignedRouteArrowsGroup.clearLayers();
+                        } else {
+                            assignedRouteArrowsGroup = L.layerGroup().addTo(map);
+                        }
                         // Main route line (calculated route in red)
                         assignedRouteLayer=L.polyline(coords,{color:'#ef4444',weight:5,opacity:0.7,dashArray:'10 6'}).addTo(map);
                         // Start marker
                         L.circleMarker(coords[0],{radius:10,color:'#10b981',fillColor:'#10b981',fillOpacity:1}).bindPopup('🏁 BAŞLANGIÇ').addTo(map);
                         // End marker
                         L.circleMarker(coords[coords.length-1],{radius:10,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1}).bindPopup('🏁 BİTİŞ').addTo(map);
-                        // Direction arrows every ~500m
-                        let accDist=0;
-                        for(let i=1;i<coords.length;i++){
-                            accDist+=haversine(coords[i-1][0],coords[i-1][1],coords[i][0],coords[i][1]);
-                            if(accDist>500){
-                                accDist=0;
-                                const angle=Math.atan2(coords[i][1]-coords[i-1][1],coords[i][0]-coords[i-1][0])*180/Math.PI;
-                                L.marker(coords[i],{icon:L.divIcon({className:'route-direction-arrow',html:`<div style="font-size:16px;color:#ef4444;transform:rotate(${-angle+90}deg)">▲</div>`,iconSize:[16,16],iconAnchor:[8,8]})}).addTo(map);
-                            }
-                        }
+                        
+                        // Yön oklarını çiz
+                        drawRouteDirectionArrows(coords, assignedRouteArrowsGroup);
+                        
                         map.fitBounds(assignedRouteLayer.getBounds(),{padding:[50,50]});
                     }
                 }catch(e){console.error('Rota parse hatası:',e);}
@@ -1854,6 +1862,67 @@ function openGoogleNavigation() {
         window.open(navUrl, '_blank');
     } catch(e) {
         alert("Navigasyon başlatılırken hata oluştu: " + e.message);
+    }
+}
+
+function navigateToRouteStart() {
+    if (!assignedRoute || !assignedRoute.route_coords) {
+        alert("Atanmış rota bulunamadı.");
+        return;
+    }
+    try {
+        const coords = typeof assignedRoute.route_coords === 'string' 
+            ? JSON.parse(assignedRoute.route_coords) 
+            : assignedRoute.route_coords;
+            
+        if (!coords || coords.length === 0) {
+            alert("Rota koordinatları geçersiz.");
+            return;
+        }
+        
+        let origin = "";
+        if (lastPos && lastPos.lat && lastPos.lng) {
+            origin = `${lastPos.lat},${lastPos.lng}`;
+        }
+        
+        const startPoint = `${coords[0][0]},${coords[0][1]}`;
+        const travelMode = assignedRoute.transport_type === 'pedestrian' ? 'walking' : 'driving';
+        const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${startPoint}` + 
+                       (origin ? `&origin=${origin}` : "") + 
+                       `&travelmode=${travelMode}`;
+        window.open(navUrl, '_blank');
+    } catch(e) {
+        alert("Başlangıç noktasına navigasyon başlatılırken hata oluştu: " + e.message);
+    }
+}
+
+function drawRouteDirectionArrows(coords, layerGroup) {
+    if (!coords || coords.length < 2) return;
+    const cosLat = 0.77; // Sivas enlemi için boylam düzeltmesi (cos(39.75 deg))
+    let accDist = 0;
+    for (let i = 1; i < coords.length; i++) {
+        const p1 = coords[i - 1];
+        const p2 = coords[i];
+        const d = haversine(p1[0], p1[1], p2[0], p2[1]);
+        accDist += d;
+        if (accDist >= 150 || d > 120) {
+            accDist = 0;
+            const midLat = (p1[0] + p2[0]) / 2;
+            const midLng = (p1[1] + p2[1]) / 2;
+            const dLat = p2[0] - p1[0];
+            const dLng = (p2[1] - p1[1]) * cosLat;
+            const angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+            
+            const arrowIcon = L.divIcon({
+                className: 'route-arrow-marker',
+                html: `<div style="transform: rotate(${angle}deg); display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;">
+                    <svg viewBox="0 0 10 10" width="12" height="12"><path d="M 5 0 L 10 10 L 5 7.5 L 0 10 z" fill="#ef4444" /></svg>
+                </div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            L.marker([midLat, midLng], { icon: arrowIcon, interactive: false }).addTo(layerGroup);
+        }
     }
 }
 

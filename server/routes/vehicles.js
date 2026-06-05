@@ -13,11 +13,26 @@ function rowsToObjects(result) {
     });
 }
 
-// Get all vehicles (with online_status based on 30 second movement threshold)
+// Get all vehicles (with online_status based on 30 second movement threshold and currently assigned active/planned personnel)
 router.get('/', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
-        const result = await db.exec("SELECT * FROM vehicles ORDER BY plate");
+        const query = `
+            SELECT v.*, 
+                   s.id as active_session_id,
+                   p1.name as driver_name, p1.status as driver_status,
+                   p2.name as operator_name, p2.status as operator_status
+            FROM vehicles v
+            LEFT JOIN spray_sessions s ON s.id = (
+                SELECT id FROM spray_sessions 
+                WHERE vehicle_id = v.id AND status IN ('planned', 'active', 'beklemede')
+                ORDER BY created_at DESC LIMIT 1
+            )
+            LEFT JOIN personnel p1 ON s.driver_id = p1.id
+            LEFT JOIN personnel p2 ON s.operator_id = p2.id
+            ORDER BY v.plate
+        `;
+        const result = await db.exec(query);
         const vehicles = rowsToObjects(result);
         // Her araç için çevrimiçi/çevrimdışı durumunu hesapla (30 sn eşik)
         const now = Date.now();

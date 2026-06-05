@@ -293,9 +293,10 @@ socket.on('session-paused', data => {
 });
 socket.on('vehicle-location-update', data => {
     // Real-time spray line tracking on admin map
-    if (data.session_id && data.latitude && data.longitude) {
+    const vehicleId = data.vehicle_id || data.session_id;
+    if (vehicleId && data.latitude && data.longitude) {
         updateVehiclePath({
-            vehicle_id: data.session_id,
+            vehicle_id: vehicleId,
             latitude: data.latitude,
             longitude: data.longitude,
             is_spraying: data.is_spraying !== undefined ? data.is_spraying : 1
@@ -436,15 +437,38 @@ async function loadActiveVehiclePaths() {
         const activeSessions = await api('/api/sessions?status=active');
         if (activeSessions) {
             for (const s of activeSessions) {
+                const vehicleId = s.vehicle_id;
+                if (!vehiclePathsData[vehicleId]) {
+                    vehiclePathsData[vehicleId] = {
+                        points: [],
+                        group: L.layerGroup().addTo(activeVehiclePathsGroup),
+                        plannedGroup: L.layerGroup().addTo(activeVehiclePathsGroup)
+                    };
+                }
+
+                // Canlı takip haritasında planlanan rotayı kırmızı kesikli çizgiyle çiz
+                if (s.route_coords) {
+                    try {
+                        const coords = typeof s.route_coords === 'string' ? JSON.parse(s.route_coords) : s.route_coords;
+                        if (coords && coords.length > 0) {
+                            vehiclePathsData[vehicleId].plannedGroup.clearLayers();
+                            L.polyline(coords, {
+                                color: '#ef4444',
+                                weight: 5,
+                                opacity: 0.7,
+                                dashArray: '10 6'
+                            }).bindPopup(`<b>Planlanan Rota (Plaka: ${s.plate || ''})</b><br>${s.neighborhood || ''}`).addTo(vehiclePathsData[vehicleId].plannedGroup);
+                            
+                            // Yön oklarını çiz
+                            drawRouteDirectionArrows(coords, vehiclePathsData[vehicleId].plannedGroup);
+                        }
+                    } catch (err) {
+                        console.error('Planlanan rota çizim hatası:', err);
+                    }
+                }
+
                 const points = await api(`/api/sessions/${s.id}/route`);
                 if (points && points.length > 0) {
-                    const vehicleId = s.vehicle_id;
-                    if (!vehiclePathsData[vehicleId]) {
-                        vehiclePathsData[vehicleId] = {
-                            points: [],
-                            group: L.layerGroup().addTo(activeVehiclePathsGroup)
-                        };
-                    }
                     vehiclePathsData[vehicleId].points = points.map(p => ({
                         lat: p.latitude,
                         lng: p.longitude,
@@ -459,6 +483,36 @@ async function loadActiveVehiclePaths() {
     }
 }
 
+function drawRouteDirectionArrows(coords, layerGroup) {
+    if (!coords || coords.length < 2) return;
+    const cosLat = 0.77; // Sivas enlemi için boylam düzeltmesi (cos(39.75 deg))
+    let accDist = 0;
+    for (let i = 1; i < coords.length; i++) {
+        const p1 = coords[i - 1];
+        const p2 = coords[i];
+        const d = haversine(p1[0], p1[1], p2[0], p2[1]);
+        accDist += d;
+        if (accDist >= 150 || d > 120) {
+            accDist = 0;
+            const midLat = (p1[0] + p2[0]) / 2;
+            const midLng = (p1[1] + p2[1]) / 2;
+            const dLat = p2[0] - p1[0];
+            const dLng = (p2[1] - p1[1]) * cosLat;
+            const angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+            
+            const arrowIcon = L.divIcon({
+                className: 'route-arrow-marker',
+                html: `<div style="transform: rotate(${angle}deg); display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;">
+                    <svg viewBox="0 0 10 10" width="12" height="12"><path d="M 5 0 L 10 10 L 5 7.5 L 0 10 z" fill="#ef4444" /></svg>
+                </div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            L.marker([midLat, midLng], { icon: arrowIcon, interactive: false }).addTo(layerGroup);
+        }
+    }
+}
+
 function updateVehiclePath(data) {
     const { vehicle_id, latitude, longitude, is_spraying } = data;
     if (!latitude || !longitude) return;
@@ -466,7 +520,8 @@ function updateVehiclePath(data) {
     if (!vehiclePathsData[vehicle_id]) {
         vehiclePathsData[vehicle_id] = {
             points: [],
-            group: L.layerGroup().addTo(activeVehiclePathsGroup)
+            group: L.layerGroup().addTo(activeVehiclePathsGroup),
+            plannedGroup: L.layerGroup().addTo(activeVehiclePathsGroup)
         };
     }
     
@@ -565,10 +620,33 @@ async function loadDashboard(){
         updateVehicleOnlineUI();
         vList.innerHTML=vehicles.map(v=>{
             const online = vehicleOnlineStates[v.id] || false;
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);" id="vehicle-status-${v.id}">
-                <div><div style="font-weight:600;font-size:13px;">${v.plate}</div>
-                <div style="font-size:11px;color:var(--text-muted);">${v.machine_name} • ${v.usage_type==='sokak_ilacalama'?'Sokak':'Larva/Gübre'}</div></div>
-                <span class="badge ${online?'badge-success':'badge-danger'}">${online?'● Çevrimiçi':'○ Çevrimdışı'}</span></div>`;
+            
+            // Atanmış aktif personelleri göster
+            const personnelList = [];
+            if (v.driver_name) {
+                const dot = v.driver_status === 'aktif' ? '🟢' : '🔴';
+                const txt = v.driver_status === 'aktif' ? 'Aktif' : 'Pasif';
+                personnelList.push(`Şoför: ${v.driver_name} (${dot} ${txt})`);
+            }
+            if (v.operator_name) {
+                const dot = v.operator_status === 'aktif' ? '🟢' : '🔴';
+                const txt = v.operator_status === 'aktif' ? 'Aktif' : 'Pasif';
+                personnelList.push(`Operatör: ${v.operator_name} (${dot} ${txt})`);
+            }
+            const personnelHtml = personnelList.length > 0 
+                ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;display:flex;flex-direction:column;gap:1px;">
+                    ${personnelList.map(p => `<span>${p}</span>`).join('')}
+                   </div>` 
+                : '';
+
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);" id="vehicle-status-${v.id}">
+                <div>
+                    <div style="font-weight:600;font-size:13px;">${v.plate}</div>
+                    <div style="font-size:11px;color:var(--text-muted);">${v.machine_name} • ${v.usage_type==='sokak_ilacalama'?'Sokak':'Larva/Gübre'}</div>
+                    ${personnelHtml}
+                </div>
+                <span class="badge ${online?'badge-success':'badge-danger'}">${online?'● Çevrimiçi':'○ Çevrimdışı'}</span>
+            </div>`;
         }).join('');
         const locs=await api('/api/reports/vehicle-locations');
         if(locs) locs.forEach(v=>updateVehicleOnMap({vehicle_id:v.id,plate:v.plate,latitude:v.last_lat,longitude:v.last_lng}));
@@ -623,6 +701,7 @@ async function loadDashboard(){
                     🕐 Ne Zaman: <b>${sprayedStr}</b><br>
                     📅 Bitiş: ${expiresStr}<br>
                     ⏳ ${daysText}<br>
+                    🧪 İlaç: ${s.chemical_name || '-'}<br>
                     🚐 Araç: ${s.plate||'-'}`);
                 sprayedLayers.addLayer(layer);
                 

@@ -365,6 +365,7 @@ async function loadSprayedStreets() {
                     🕐 Ne Zaman: <b>${sprayedStr}</b><br>
                     📅 Bitiş: ${expiresStr}<br>
                     ⏳ ${daysText}<br>
+                    🧪 İlaç: ${s.chemical_name || '-'}<br>
                     🚐 Araç: ${s.plate || '-'}`);
                 sprayedLayers.addLayer(layer);
                 

@@ -347,6 +347,7 @@ async function init(){
                 🕐 Ne Zaman: <b>${sprayedStr}</b><br>
                 📅 Bitiş: ${expiresStr}<br>
                 ⏳ ${daysText}<br>
+                🧪 İlaç: ${s.chemical_name || '-'}<br>
                 🚐 Araç: ${s.plate||'-'}`);
             layer.addTo(sprayedLayer);
             
@@ -601,6 +602,9 @@ async function calculateRoute(){
         if(result.route_coords&&result.route_coords.length>0){
             L.circleMarker(result.route_coords[0],{radius:8,color:'#10b981',fillColor:'#10b981',fillOpacity:1}).bindPopup('🏁 Başlangıç').addTo(routeLayer);
             L.circleMarker(result.route_coords[result.route_coords.length-1],{radius:8,color:'#ef4444',fillColor:'#ef4444',fillOpacity:1}).bindPopup('🏁 Bitiş').addTo(routeLayer);
+            
+            // Rota üstüne yön okları ekle
+            drawRouteDirectionArrows(result.route_coords, routeLayer);
         }
         const s=result.stats;
         document.getElementById('rDist').textContent=s.total_distance_km+' km';
@@ -730,6 +734,36 @@ function calculateRouteIfFetched() {
 async function deleteRoute(id){
     await api(`/api/routes/planned-routes/${id}`,{method:'DELETE'});
     toast('Rota silindi');loadSavedRoutes();
+}
+
+function drawRouteDirectionArrows(coords, layerGroup) {
+    if (!coords || coords.length < 2) return;
+    const cosLat = 0.77; // Sivas enlemi için boylam düzeltmesi (cos(39.75 deg))
+    let accDist = 0;
+    for (let i = 1; i < coords.length; i++) {
+        const p1 = coords[i - 1];
+        const p2 = coords[i];
+        const d = haversine(p1[0], p1[1], p2[0], p2[1]);
+        accDist += d;
+        if (accDist >= 150 || d > 120) {
+            accDist = 0;
+            const midLat = (p1[0] + p2[0]) / 2;
+            const midLng = (p1[1] + p2[1]) / 2;
+            const dLat = p2[0] - p1[0];
+            const dLng = (p2[1] - p1[1]) * cosLat;
+            const angle = Math.atan2(dLng, dLat) * 180 / Math.PI;
+            
+            const arrowIcon = L.divIcon({
+                className: 'route-arrow-marker',
+                html: `<div style="transform: rotate(${angle}deg); display: flex; align-items: center; justify-content: center; width: 14px; height: 14px;">
+                    <svg viewBox="0 0 10 10" width="12" height="12"><path d="M 5 0 L 10 10 L 5 7.5 L 0 10 z" fill="#ef4444" /></svg>
+                </div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7]
+            });
+            L.marker([midLat, midLng], { icon: arrowIcon, interactive: false }).addTo(layerGroup);
+        }
+    }
 }
 
 function haversine(lat1,lon1,lat2,lon2){
