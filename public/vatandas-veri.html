@@ -37,7 +37,7 @@
             flex-direction: column;
             align-items: stretch;
             gap: 0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(59, 130, 246, 0.1);
             transition: all 0.3s ease;
         }
 
@@ -110,15 +110,15 @@
             position: absolute;
             bottom: 20px;
             left: 20px;
-            width: 320px;
+            width: 340px;
             background: rgba(15, 23, 42, 0.9);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(99, 179, 237, 0.2);
+            border: 1px solid rgba(99, 179, 237, 0.25);
             border-radius: 16px;
             padding: 24px 20px 20px 20px;
             z-index: 1000;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
             color: #fff;
             
             /* Desktop transition state */
@@ -175,13 +175,51 @@
 
         .info-item {
             font-size: 11.5px;
-            color: var(--text-secondary);
+            color: rgba(255,255,255,0.75);
             line-height: 1.6;
             margin-bottom: 10px;
         }
 
         .info-item b {
-            color: var(--accent);
+            color: #3b82f6;
+        }
+
+        /* Efficacy Decay Progress Visualization */
+        .decay-bar-container {
+            margin: 16px 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .decay-bar-title {
+            font-size: 10.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+        }
+
+        .decay-bar {
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #10b981 0%, #84cc16 25%, #f59e0b 50%, #f97316 75%, #ef4444 100%);
+            position: relative;
+            margin-bottom: 6px;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .decay-bar-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
         }
 
         /* Efficacy Colors Legend */
@@ -195,15 +233,44 @@
         .legend-row {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 10.5px;
+            gap: 10px;
+            font-size: 11px;
+            padding: 6px 8px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .legend-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.08);
+            transform: translateX(4px);
         }
 
         .legend-color {
-            width: 14px;
-            height: 14px;
-            border-radius: 4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
             flex-shrink: 0;
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+        
+        .legend-text-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+        
+        .legend-title {
+            font-weight: 700;
+            color: #fff;
+            font-size: 11px;
+        }
+        
+        .legend-desc {
+            font-size: 9.5px;
+            color: rgba(255, 255, 255, 0.55);
         }
 
         /* Pulsing Action Button */
@@ -239,10 +306,44 @@
             100% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
         }
 
+        /* Floating Admin Login Button */
+        .admin-login-btn {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            color: #fff;
+            border-radius: 50px;
+            padding: 12px 24px;
+            z-index: 1000;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            font-weight: 700;
+            font-size: 13.5px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .admin-login-btn:hover {
+            transform: scale(1.05) translateY(-2px);
+            background: rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.6);
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.25);
+        }
+        
+        .admin-login-btn:active {
+            transform: scale(0.98) translateY(0);
+        }
+
         /* Floating GPS Location Button */
         .gps-locate-btn {
             position: absolute;
-            bottom: 90px;
+            bottom: 140px;
             right: 20px;
             width: 48px;
             height: 48px;
@@ -446,7 +547,7 @@
                 right: 0;
                 width: 100%;
                 border-radius: 24px 24px 0 0;
-                padding: 24px 20px 95px 20px;
+                padding: 24px 20px 155px 20px;
                 z-index: 1005;
                 border-left: none;
                 border-right: none;
@@ -472,14 +573,134 @@
                 z-index: 1006; /* Above the bottom sheet */
             }
 
+            .admin-login-btn {
+                bottom: 70px;
+                left: 15px;
+                right: 15px;
+                justify-content: center;
+                padding: 12px 20px;
+                font-size: 12.5px;
+                z-index: 1006; /* Above the bottom sheet */
+            }
+
             .gps-locate-btn {
-                bottom: 80px;
+                bottom: 125px;
                 right: 15px;
                 width: 44px;
                 height: 44px;
                 font-size: 18px;
                 z-index: 1004; /* Floating above the map layer, below bottom drawer */
             }
+        }
+
+        /* Flowing Ant-Path Animations */
+        @keyframes flow-fresh {
+            to { stroke-dashoffset: -24; }
+        }
+        .flow-line-fresh {
+            stroke-dasharray: 8 4;
+            animation: flow-fresh 0.8s linear infinite !important;
+        }
+
+        @keyframes flow-active {
+            to { stroke-dashoffset: -24; }
+        }
+        .flow-line-active {
+            stroke-dasharray: 8 4;
+            animation: flow-active 1.2s linear infinite !important;
+        }
+
+        @keyframes flow-moderate {
+            to { stroke-dashoffset: -20; }
+        }
+        .flow-line-moderate {
+            stroke-dasharray: 6 5;
+            animation: flow-moderate 2s linear infinite !important;
+        }
+
+        @keyframes flow-slowing {
+            to { stroke-dashoffset: -20; }
+        }
+        .flow-line-slowing {
+            stroke-dasharray: 4 6;
+            animation: flow-slowing 3.5s linear infinite !important;
+        }
+
+        @keyframes pulse-expiring {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.9; }
+            100% { opacity: 0.4; }
+        }
+        .flow-line-expiring {
+            stroke-dasharray: 2 6;
+            animation: pulse-expiring 2s ease-in-out infinite !important;
+        }
+        
+        .flow-line-expired {
+            stroke-dasharray: 4 4;
+            animation: none !important;
+            opacity: 0.45 !important;
+        }
+
+        /* Future Simulation Slider Styles */
+        .simulation-container {
+            margin: 14px 0;
+            background: rgba(59, 130, 246, 0.05);
+            border-radius: 10px;
+            padding: 12px;
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+        }
+        
+        .simulation-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+        }
+
+        #simulationSlider {
+            width: 100%;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 6px 0 8px 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #simulationSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        #simulationSlider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            background: #60a5fa;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 1);
+        }
+
+        .simulation-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 600;
         }
     </style>
 </head>
@@ -505,8 +726,8 @@
         <div class="header-controls-wrapper">
             <!-- Toggle map rendering style -->
             <div class="map-toggle-group">
-                <button class="map-toggle-btn" id="btnToggleLines" onclick="setMapMode('lines')">🔀 Görünüm</button>
-                <button class="map-toggle-btn active" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
+                <button class="map-toggle-btn active" id="btnToggleLines" onclick="setMapMode('lines')">🔀 Görünüm</button>
+                <button class="map-toggle-btn" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
             </div>
 
             <!-- Toggle basemap -->
@@ -525,34 +746,84 @@
     <!-- Floating Info Panel / Slide-up Bottom Sheet -->
     <div class="floating-info-card" id="infoCard">
         <button class="info-card-close" onclick="toggleInfoCard(false)">✕</button>
-        <div class="info-card-title">ℹ️ İlaçlama Etki Süresi Nedir?</div>
+        <div class="info-card-title">📉 Günden Güne Azalan Koruma Süreci</div>
         <div class="info-item">
-            Sivas genelinde sivrisinek, karasinek ve haşerelerle mücadele amacıyla caddelerimiz <b>misblower ve ULV cihazlarıyla</b> düzenli olarak ilaçlanmaktadır.
+            Sivas genelinde haşerelerle mücadele amacıyla caddelerimiz <b>misblower ve ULV cihazlarıyla</b> düzenli olarak ilaçlanmaktadır.
         </div>
-        <div class="info-item">
-            Kullanılan ilaçların etkisi <b>30 gün boyunca</b> koruyuculuk sağlamaktadır. Haritada caddelerin etki durumu renk skalası ile gösterilir.
+        <div class="info-item" style="margin-bottom: 12px;">
+            Kullanılan ilaçların koruma etkisi, açık hava koşulları ve doğal biyolojik çözünme sebebiyle <b>30 gün boyunca günden güne azalarak</b> devam eder.
+        </div>
+
+        <!-- Efficacy Decay Progress Visualization -->
+        <div class="decay-bar-container">
+            <div class="decay-bar-title">
+                <span>İlaçlama Koruma Seviyesi</span>
+                <span style="color: #60a5fa; font-weight: 800;">30 Günlük Akış</span>
+            </div>
+            <div class="decay-bar"></div>
+            <div class="decay-bar-labels">
+                <span>1. Gün (%100)</span>
+                <span>15. Gün (%50)</span>
+                <span>30. Gün (%0)</span>
+            </div>
+        </div>
+
+        <!-- Future Simulation Slider -->
+        <div class="simulation-container">
+            <div class="simulation-title">
+                <span>🔮 Gelecek Simülasyonu</span>
+                <span id="simulationValue" style="color: #10b981; font-weight: 800;">Bugün (0. Gün)</span>
+            </div>
+            <input type="range" id="simulationSlider" min="0" max="30" value="0" step="1" oninput="runEfficacySimulation(this.value)">
+            <div class="simulation-labels">
+                <span>Bugün</span>
+                <span>15 Gün Sonra</span>
+                <span>30 Gün Sonra</span>
+            </div>
         </div>
         
         <div class="legend-container">
             <div class="legend-row">
                 <div class="legend-color" style="background:#10b981"></div>
-                <span>Yeni İlaçlanmış (0-10 gün)</span>
+                <div class="legend-text-container">
+                    <span class="legend-title">0 - 5. Gün (Maksimum Koruma)</span>
+                    <span class="legend-desc">Yeni ilaçlanmış hatlar. Etki gücü: %100 - %85</span>
+                </div>
+            </div>
+            <div class="legend-row">
+                <div class="legend-color" style="background:#84cc16"></div>
+                <div class="legend-text-container">
+                    <span class="legend-title">6 - 10. Gün (Yüksek Koruma)</span>
+                    <span class="legend-desc">Koruma etkisi güçlü seviyede: %85 - %70</span>
+                </div>
             </div>
             <div class="legend-row">
                 <div class="legend-color" style="background:#f59e0b"></div>
-                <span>Etki Devam Ediyor (11-20 gün)</span>
+                <div class="legend-text-container">
+                    <span class="legend-title">11 - 15. Gün (Orta Koruma)</span>
+                    <span class="legend-desc">Etki stabil şekilde devam ediyor: %70 - %50</span>
+                </div>
             </div>
             <div class="legend-row">
                 <div class="legend-color" style="background:#f97316"></div>
-                <span>Etkisi Azalıyor (21-25 gün)</span>
+                <div class="legend-text-container">
+                    <span class="legend-title">16 - 20. Gün (Azalan Etki)</span>
+                    <span class="legend-desc">Koruyuculuk zayıflamaya başlıyor: %50 - %35</span>
+                </div>
             </div>
             <div class="legend-row">
                 <div class="legend-color" style="background:#ef4444"></div>
-                <span>Koruma Süresi Dolanlar (26-30 gün)</span>
+                <div class="legend-text-container">
+                    <span class="legend-title">21 - 30. Gün (Kritik Dönem)</span>
+                    <span class="legend-desc">Etki süresi dolmak üzere olan hatlar: %35 - %5</span>
+                </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#6b7280; border: 1px dashed rgba(255,255,255,0.3);"></div>
-                <span>Etkisi Tamamen Bitmiş</span>
+                <div class="legend-color" style="background:#6b7280; border: 1px dashed rgba(255,255,255,0.4);"></div>
+                <div class="legend-text-container">
+                    <span class="legend-title">30+ Gün (Etki Tamamen Bitti)</span>
+                    <span class="legend-desc">Koruma süresi dolmuş, etkisiz hatlar: %0</span>
+                </div>
             </div>
         </div>
     </div>
@@ -561,6 +832,12 @@
     <button class="gps-locate-btn" onclick="locateUser()" title="Konumuma Odaklan">
         🎯
     </button>
+
+    <!-- Floating Admin Login Button -->
+    <a href="/" class="admin-login-btn">
+        <span>🔑</span>
+        <span>YÖNETİCİ GİRİŞİ</span>
+    </a>
 
     <!-- Floating Action Button -->
     <a href="/ihbar" class="floating-action-btn">
@@ -578,7 +855,7 @@
         let map;
         let sprayedLinesGroup;
         let sprayedHeatmapGroup;
-        let activeMode = 'heatmap'; // 'heatmap' or 'lines'
+        let activeMode = 'lines'; // 'heatmap' or 'lines'
         let osmLayer;
         let satelliteLayer;
         let isInfoOpen = false;
@@ -615,8 +892,8 @@
 
             L.control.zoom({ position: 'topright' }).addTo(map);
 
-            sprayedLinesGroup = L.layerGroup(); 
-            sprayedHeatmapGroup = L.layerGroup().addTo(map);
+            sprayedLinesGroup = L.layerGroup().addTo(map); 
+            sprayedHeatmapGroup = L.layerGroup();
             
             loadSprayedData();
 
@@ -631,14 +908,22 @@
         }
 
         function getSprayStyle(daysRemaining) {
-            if (daysRemaining <= 0) return { color: '#6b7280', opacity: 0.45, weight: 3, dashArray: '4 4' };
-            if (daysRemaining <= 2) return { color: '#991b1b', opacity: 0.9, weight: 6, className: 'blink' };
-            if (daysRemaining <= 5) return { color: '#dc2626', opacity: 0.85, weight: 5 };
-            if (daysRemaining <= 10) return { color: '#ef4444', opacity: 0.8, weight: 5 };
-            if (daysRemaining <= 15) return { color: '#f97316', opacity: 0.75, weight: 4 };
-            if (daysRemaining <= 20) return { color: '#f59e0b', opacity: 0.7, weight: 4 };
-            if (daysRemaining <= 25) return { color: '#84cc16', opacity: 0.65, weight: 4 };
-            return { color: '#10b981', opacity: 0.8, weight: 5 };
+            if (daysRemaining <= 0) {
+                return { color: '#6b7280', opacity: 0.45, weight: 3, className: 'flow-line-expired' };
+            }
+            if (daysRemaining <= 10) {
+                return { color: '#ef4444', opacity: 0.8, weight: 4.5, className: 'flow-line-expiring' };
+            }
+            if (daysRemaining <= 15) {
+                return { color: '#f97316', opacity: 0.75, weight: 4.5, className: 'flow-line-slowing' };
+            }
+            if (daysRemaining <= 20) {
+                return { color: '#f59e0b', opacity: 0.7, weight: 5, className: 'flow-line-moderate' };
+            }
+            if (daysRemaining <= 25) {
+                return { color: '#84cc16', opacity: 0.65, weight: 5, className: 'flow-line-active' };
+            }
+            return { color: '#10b981', opacity: 0.8, weight: 5.5, className: 'flow-line-fresh' };
         }
 
         async function loadSprayedData() {
@@ -660,6 +945,7 @@
                             
                             // 1. Çizgi Katmanı oluştur
                             const layer = L.geoJSON(geom, { style: () => style });
+                            layer.originalDaysRemaining = remaining;
                             const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
                             const sprayedDate = new Date(s.sprayed_at);
                             const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -712,6 +998,12 @@
                     sprayedHeatmapGroup.addLayer(heatLayer);
                 }
 
+                // Simülasyon aktifse yeni gelen verilere de uygula
+                const simSlider = document.getElementById('simulationSlider');
+                if (simSlider && simSlider.value > 0) {
+                    runEfficacySimulation(simSlider.value);
+                }
+
             } catch (err) {
                 console.error("Veriler yüklenemedi:", err);
             }
@@ -742,6 +1034,31 @@
                 map.removeLayer(osmLayer);
                 map.addLayer(satelliteLayer);
             }
+        }
+
+        function runEfficacySimulation(daysAhead) {
+            daysAhead = parseFloat(daysAhead);
+            
+            // Simülasyon değerini arayüzde güncelle
+            const simVal = document.getElementById('simulationValue');
+            if (simVal) {
+                if (daysAhead === 0) {
+                    simVal.innerHTML = "Bugün (0. Gün)";
+                    simVal.style.color = "#10b981";
+                } else {
+                    simVal.innerHTML = `+${daysAhead} Gün Sonra`;
+                    simVal.style.color = "#3b82f6";
+                }
+            }
+
+            // Harita üzerindeki çizgileri simüle et
+            sprayedLinesGroup.eachLayer(layer => {
+                if (typeof layer.originalDaysRemaining !== 'undefined') {
+                    const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
+                    const newStyle = getSprayStyle(simulatedRemaining);
+                    layer.setStyle(newStyle);
+                }
+            });
         }
 
         function toggleInfoCard(forceState) {
@@ -816,6 +1133,9 @@
         }
 
         initMap();
+        
+        // Her 2 dakikada bir ilaçlama verilerini arka planda otomatik yenile
+        setInterval(loadSprayedData, 120000);
     </script>
 </body>
 </html>

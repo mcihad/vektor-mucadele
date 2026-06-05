@@ -226,7 +226,7 @@ module.exports = function(io) {
                 ]);
             
             // Eğer rotaya bağlıysa, rotanın durumunu da güncelle
-            const sessionResult = await db.exec("SELECT route_id, vehicle_id, driver_id, operator_id FROM spray_sessions WHERE id = ?", [req.params.id]);
+            const sessionResult = await db.exec("SELECT route_id, vehicle_id, driver_id, operator_id, chemical_id FROM spray_sessions WHERE id = ?", [req.params.id]);
             const session = rowsToObjects(sessionResult);
             if (session.length > 0) {
                 const sess = session[0];
@@ -244,6 +244,42 @@ module.exports = function(io) {
                 if (sess.operator_id) {
                     await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [sess.operator_id]);
                 }
+
+                // ─── İlaç Stokundan Düş ───
+                let chemicalId = sess.chemical_id;
+                if (!chemicalId && intake_chemical_name) {
+                    // İlaç adına göre tablodan bulmaya çalış
+                    const chemRes = await db.exec("SELECT id FROM chemicals WHERE name = ?", [intake_chemical_name]);
+                    const chems = rowsToObjects(chemRes);
+                    if (chems.length > 0) {
+                        chemicalId = chems[0].id;
+                    } else {
+                        const chemLikeRes = await db.exec("SELECT id FROM chemicals WHERE name LIKE ?", [`%${intake_chemical_name}%`]);
+                        const chemsLike = rowsToObjects(chemLikeRes);
+                        if (chemsLike.length > 0) {
+                            chemicalId = chemsLike[0].id;
+                        } else {
+                            const allChemsRes = await db.exec("SELECT id FROM chemicals LIMIT 1");
+                            const allChems = rowsToObjects(allChemsRes);
+                            if (allChems.length > 0) {
+                                chemicalId = allChems[0].id;
+                            }
+                        }
+                    }
+                }
+
+                const intakeAmountFloat = intake_amount_lt ? parseFloat(intake_amount_lt) : 0;
+                
+                // Oturumu güncel chemical_id ve chemical_used_lt (başlangıçta 0) ile güncelle
+                await db.run(`UPDATE spray_sessions SET 
+                    chemical_id = ?,
+                    chemical_used_lt = 0
+                    WHERE id = ?`,
+                    [chemicalId, req.params.id]
+                );
+
+                console.log(`[Sessions] Oturum #${req.params.id} başlatıldı: ${intakeAmountFloat} lt ${intake_chemical_name || 'ilaç'} (ID: ${chemicalId}) araca alındı (depo stoğu henüz düşülmedi).`);
+
 
                 // Send push notification to all admin users
                 await sendStartNotification(db, req, req.params.id);
@@ -279,6 +315,10 @@ module.exports = function(io) {
             }
 
             const sess = session[0];
+
+            if (sess.status === 'completed' || sess.status === 'sorunlu') {
+                return res.json({ message: 'Oturum zaten sonlandırılmış', already_ended: true });
+            }
             
             // Süreyi hesapla (dakika)
             const endTime = new Date();
@@ -286,9 +326,20 @@ module.exports = function(io) {
                 ? parseFloat(req.body.duration_seconds) / 60
                 : (endTime - new Date(sess.start_time)) / (1000 * 60);
             
-            // Otomatik ilaç tüketimi hesapla
-            const machineType = sess.machine_type || 'ulv';
-            const chemical_used_lt = calculateChemicalUsage(durationMinutes, machineType);
+            const intakeAmountFloat = sess.intake_amount_lt || 0;
+            let chemical_used_lt = 0;
+            let remaining_chemical_lt = 0;
+
+            if (req.body.remaining_chemical_lt !== undefined) {
+                remaining_chemical_lt = parseFloat(req.body.remaining_chemical_lt);
+                chemical_used_lt = Math.max(0, intakeAmountFloat - remaining_chemical_lt);
+            } else if (req.body.chemical_used_lt !== undefined) {
+                chemical_used_lt = parseFloat(req.body.chemical_used_lt);
+                remaining_chemical_lt = Math.max(0, intakeAmountFloat - chemical_used_lt);
+            } else {
+                chemical_used_lt = intakeAmountFloat;
+                remaining_chemical_lt = 0;
+            }
             
             // Gidilen km (client'tan gelen veya hesaplanan)
             const finalKm = total_km || 0;
@@ -301,15 +352,22 @@ module.exports = function(io) {
                     WHERE id = ?`,
                 [Math.round(chemical_used_lt * 10) / 10, finalKm, area_covered_m2, notes, req.params.id]);
 
-            // Update chemical stock
-            // Check if session was marked as problematic - don't deduct stock
-            const currentStatus = sess.status;
-            if (chemical_used_lt > 0 && sess.chemical_id && currentStatus !== 'sorunlu') {
+            // ─── İlaç Stokundan Düş (Yalnızca forma yazılan kalan miktar kadar depodan düşüp, araca aktarıyoruz) ───
+            const chemicalId = sess.chemical_id;
+            if (chemicalId && remaining_chemical_lt > 0) {
+                // Depo stoğundan düş
                 await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
-                    [chemical_used_lt, chemical_used_lt, sess.chemical_id]);
+                    [remaining_chemical_lt, remaining_chemical_lt, chemicalId]);
+                
+                const userName = req.user ? (req.user.full_name || req.user.username) : 'Saha Operatörü';
+
+                // Yalnızca araca aktarılan kalan miktar için stok hareketi
+                const transferDesc = `Araç Deposuna Aktarılan Stok - Oturum #${req.params.id} (Operatör: ${userName})`;
                 await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
-                        VALUES (?, 'kullanim', ?, 'Otomatik hesaplama - İlaçlama oturumu', ?)`,
-                    [sess.chemical_id, chemical_used_lt, req.params.id]);
+                        VALUES (?, 'kullanim', ?, ?, ?)`,
+                    [chemicalId, remaining_chemical_lt, transferDesc, req.params.id]);
+
+                console.log(`[Sessions] Oturum #${req.params.id} sonlandırıldı. Toplam depo stoğundan ${remaining_chemical_lt} lt (kalan miktar) düşüldü.`);
             }
 
             // Eğer rotaya bağlıysa, rotanın durumunu güncelle
@@ -416,7 +474,7 @@ module.exports = function(io) {
                     total_km: finalKm,
                     chemical_used_lt: Math.round(chemical_used_lt * 10) / 10,
                     area_covered_m2: Math.round(area_covered_m2),
-                    machine_type: machineType
+                    machine_type: sess.machine_type
                 }
             });
         } catch (err) {
@@ -429,9 +487,16 @@ module.exports = function(io) {
         const { status, notes, chemical_used_lt, total_km, area_covered_m2 } = req.body;
         const db = getDb();
         
-        let sql = "UPDATE spray_sessions SET";
-        const sets = [];
-        const params = [];
+        try {
+            // Get current session before updating to avoid double chemical stock deduction
+            const currentSessionResult = await db.exec("SELECT * FROM spray_sessions WHERE id = ?", [req.params.id]);
+            const currentSessionRows = rowsToObjects(currentSessionResult);
+            if (currentSessionRows.length === 0) return res.status(404).json({ error: 'Oturum bulunamadı' });
+            const prevSession = currentSessionRows[0];
+
+            let sql = "UPDATE spray_sessions SET";
+            const sets = [];
+            const params = [];
         
         if (status !== undefined) {
             sets.push(" status = ?");
@@ -459,11 +524,10 @@ module.exports = function(io) {
         sql += sets.join(',') + " WHERE id = ?";
         params.push(req.params.id);
         
-        try {
-            await db.run(sql, params);
+        await db.run(sql, params);
             
-            // Eğer status 'sorunlu' yapıldıysa, bağlı rotanın da durumunu 'sorunlu' yap
-            if (status === 'sorunlu') {
+            // Eğer status 'sorunlu' yapıldıysa ve oturum daha önce tamamlanmamış/sorunlu değilse
+            if (status === 'sorunlu' && prevSession.status !== 'completed' && prevSession.status !== 'sorunlu') {
                 const sessionResult = await db.exec(`
                     SELECT s.*, v.machine_type, v.tank_capacity_lt
                     FROM spray_sessions s
@@ -477,38 +541,45 @@ module.exports = function(io) {
                         await db.run("UPDATE planned_routes SET status = 'sorunlu' WHERE id = ?", [sess.route_id]);
                     }
 
-                    // ─── MADDE 1: Sorun bildirildiğinde ilaç stoğundan düş ───
-                    if (sess.start_time && sess.chemical_id) {
+                    // ─── MADDE 1: Sorun bildirildiğinde end_time ve stok güncellemesi ───
+                    if (sess.start_time) {
                         try {
-                            const durationSeconds = req.body.duration_seconds;
-                            let durationMinutes;
-                            if (durationSeconds !== undefined && durationSeconds > 0) {
-                                durationMinutes = parseFloat(durationSeconds) / 60;
+                            const intakeAmountFloat = sess.intake_amount_lt || 0;
+                            let chemical_used_lt = 0;
+                            let remaining_chemical_lt = 0;
+
+                            if (req.body.remaining_chemical_lt !== undefined) {
+                                remaining_chemical_lt = parseFloat(req.body.remaining_chemical_lt);
+                                chemical_used_lt = Math.max(0, intakeAmountFloat - remaining_chemical_lt);
+                            } else if (req.body.chemical_used_lt !== undefined) {
+                                chemical_used_lt = parseFloat(req.body.chemical_used_lt);
+                                remaining_chemical_lt = Math.max(0, intakeAmountFloat - chemical_used_lt);
                             } else {
-                                durationMinutes = (Date.now() - new Date(sess.start_time).getTime()) / (1000 * 60);
+                                chemical_used_lt = intakeAmountFloat;
+                                remaining_chemical_lt = 0;
                             }
 
-                            if (durationMinutes > 0) {
-                                const machineType = sess.machine_type || 'ulv';
-                                const chemUsed = calculateChemicalUsage(durationMinutes, machineType);
-                                const roundedChem = Math.round(chemUsed * 10) / 10;
+                            await db.run("UPDATE spray_sessions SET chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
+                                [Math.round(chemical_used_lt * 10) / 10, req.params.id]);
 
-                                if (roundedChem > 0) {
-                                    // Stoktan düş
-                                    await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
-                                        [roundedChem, roundedChem, sess.chemical_id]);
-                                    // İşlem kaydı
-                                    await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
-                                            VALUES (?, 'kullanim', ?, 'Sorun bildirimi - Kısmi ilaçlama stok düşümü', ?)`,
-                                        [sess.chemical_id, roundedChem, req.params.id]);
-                                    // Oturumun chemical_used_lt alanını güncelle
-                                    await db.run("UPDATE spray_sessions SET chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
-                                        [roundedChem, req.params.id]);
-                                    console.log(`[Sessions] Sorunlu oturum #${req.params.id}: ${roundedChem} lt ilaç stoktan düşüldü.`);
-                                }
+                            // Depo stoğundan düşüm (Yalnızca forma yazılan kalan miktar kadar)
+                            const chemicalId = sess.chemical_id;
+                            if (chemicalId && remaining_chemical_lt > 0) {
+                                await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
+                                    [remaining_chemical_lt, remaining_chemical_lt, chemicalId]);
+                                
+                                const userName = req.user ? (req.user.full_name || req.user.username) : 'Saha Operatörü';
+
+                                // Yalnızca araca aktarılan kalan miktar için stok hareketi
+                                const transferDesc = `Araç Deposuna Aktarılan Stok (Sorun Bildirildi) - Oturum #${req.params.id} (Operatör: ${userName})`;
+                                await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
+                                        VALUES (?, 'kullanim', ?, ?, ?)`,
+                                    [chemicalId, remaining_chemical_lt, transferDesc, req.params.id]);
+
+                                console.log(`[Sessions] Oturum #${req.params.id} sorunlu sonlandırıldı. Toplam depo stoğundan ${remaining_chemical_lt} lt (kalan miktar) düşüldü.`);
                             }
                         } catch (chemErr) {
-                            console.error(`[Sessions] Sorunlu oturum #${req.params.id} ilaç stok düşümü hatası:`, chemErr.message);
+                            console.error(`[Sessions] Sorunlu oturum #${req.params.id} end_time/stok güncelleme hatası:`, chemErr.message);
                         }
                     }
 

@@ -70,7 +70,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item active"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -83,7 +84,10 @@
             <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
             📋 Vatandaş İhbarları
         </div>
-        <div class="topbar-actions"><span class="badge badge-success" id="socketStatus">● Bağlı</span></div>
+        <div class="topbar-actions" style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-outline btn-sm" onclick="exportToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
+            <span class="badge badge-success" id="socketStatus">● Bağlı</span>
+        </div>
     </header>
     <div class="page-content">
         <div class="stats-grid" id="reportStats"></div>
@@ -107,7 +111,7 @@
         <!-- İhbar Tablosu -->
         <div class="card" style="margin-bottom:20px;">
             <div class="card-header"><span class="card-title">📋 İhbar Listesi</span><span id="reportCount" style="font-size:11px;color:var(--text-muted);"></span></div>
-            <div class="table-container"><table><thead><tr>
+            <div class="table-container"><table id="citizenReportsExcelTable"><thead><tr>
                 <th>Tarih</th><th>İhbar Eden</th><th>Tür</th><th>Detay/Adres</th><th>Mahalle</th><th>Atanan Personel</th><th>Çözülme Süresi</th><th>Öncelik</th><th>Durum</th><th>İşlem</th>
             </tr></thead>
             <tbody id="reportTable"></tbody></table></div>
@@ -162,7 +166,16 @@
 const TOKEN = localStorage.getItem('vms_token');
 const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
 if (!TOKEN || USER.role !== 'admin') { localStorage.clear(); window.location.href = '/'; }
-function logout() { localStorage.clear(); window.location.href = '/'; }
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
 async function api(url, opts={}) {
     const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
     if (res.status === 401 || res.status === 403) { logout(); return; }
@@ -985,6 +998,130 @@ function goToReport(reportId) {
 
 function goToSession(sessionId) {
     window.location.href = `/admin/sessions?search=${sessionId}`;
+}
+
+function exportToExcel() {
+    exportHtmlTableToExcel('citizenReportsExcelTable', 'Vatandas_Ihbarlari');
+}
+
+function exportHtmlTableToExcel(tableID, filename = 'rapor') {
+    const table = document.getElementById(tableID);
+    if (!table) return;
+    
+    // Clone the table to avoid styling the actual UI table
+    const clone = table.cloneNode(true);
+    
+    // Set basic properties for Excel borders
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    // Remove the last column ("İşlem") if it exists
+    let hasActionColumn = false;
+    const headersList = clone.querySelectorAll('thead tr');
+    headersList.forEach(tr => {
+        const lastTh = tr.querySelector('th:last-child');
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler'))) {
+            lastTh.remove();
+            hasActionColumn = true;
+        }
+    });
+    
+    if (hasActionColumn) {
+        const bodyRows = clone.querySelectorAll('tbody tr');
+        bodyRows.forEach(tr => {
+            const lastTd = tr.querySelector('td:last-child');
+            if (lastTd) lastTd.remove();
+        });
+    }
+    
+    // Process headers
+    const ths = clone.querySelectorAll('th');
+    ths.forEach(th => {
+        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    // Process rows
+    const trs = clone.querySelectorAll('tr');
+    trs.forEach(tr => {
+        tr.removeAttribute('class');
+        tr.removeAttribute('style'); // Clear all inline style on tr
+        tr.style.backgroundColor = '#ffffff';
+        
+        const tds = tr.querySelectorAll('td');
+        tds.forEach(td => {
+            td.removeAttribute('class');
+            
+            // Keep important inline style values before removing all styles
+            const originalColor = td.style.color;
+            const originalPaddingLeft = td.style.paddingLeft;
+            
+            td.removeAttribute('style');
+            
+            // Apply standard Excel cell styles
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalPaddingLeft) {
+                td.style.paddingLeft = originalPaddingLeft;
+            }
+            
+            // Clean up text colors for Excel readability
+            if (originalColor) {
+                if (originalColor.includes('var(--text-secondary)')) {
+                    td.style.color = '#475569';
+                } else if (originalColor.includes('var(--text-muted)')) {
+                    td.style.color = '#64748b';
+                } else if (originalColor.includes('var(--danger)')) {
+                    td.style.color = '#dc2626';
+                } else if (originalColor.includes('var(--success)')) {
+                    td.style.color = '#16a34a';
+                } else {
+                    td.style.color = originalColor;
+                }
+            }
+        });
+    });
+
+    // Also style any status badges cleanly for Excel
+    clone.querySelectorAll('.badge').forEach(badge => {
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = 'bold';
+        badge.style.fontSize = '10px';
+        if (badge.classList.contains('badge-danger')) {
+            badge.style.backgroundColor = '#fee2e2';
+            badge.style.color = '#dc2626';
+        } else if (badge.classList.contains('badge-warning')) {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.color = '#d97706';
+        } else if (badge.classList.contains('badge-success')) {
+            badge.style.backgroundColor = '#dcfce7';
+            badge.style.color = '#16a34a';
+        } else if (badge.classList.contains('badge-info')) {
+            badge.style.backgroundColor = '#e0f2fe';
+            badge.style.color = '#0284c7';
+        }
+    });
+    
+    // Turkish character support with UTF-8 BOM
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 </script>
 

@@ -267,24 +267,7 @@
             </div>
         </div>
 
-        <!-- Selected Citizen Report Info -->
-        <div id="selectedReportCard" class="route-info-card" style="display:none; border-left: 3px solid #10b981; background: rgba(16, 185, 129, 0.08); border-color: #10b981;">
-            <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
-                <div style="flex:1">
-                    <div style="font-weight:700;color:#10b981;font-size:11px;">📢 SEÇİLİ İHBAR GÖREVİ</div>
-                    <div style="font-weight:600;color:#fff;font-size:11px;margin-top:2px;" id="srTitle">-</div>
-                    <div id="srAdminNotes" style="color:#60a5fa;font-size:9.5px;margin-top:2px;font-weight:600;">-</div>
-                </div>
-                <div style="display:flex;gap:4px;align-items:center;">
-                    <button class="btn btn-sm" onclick="reportIssueActive()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;">
-                        ⚠️ Sorun Bildir
-                    </button>
-                    <button class="btn btn-sm" onclick="clearSelectedReport()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:rgba(239, 68, 68, 0.2);color:#ef4444;border:1px solid rgba(239, 68, 68, 0.4);font-weight:700;cursor:pointer;">
-                        ✕
-                    </button>
-                </div>
-            </div>
-        </div>
+
         <!-- Task Info -->
         <div id="taskInfoCard" class="route-info-card" style="display:none; border-left: 3px solid var(--accent);">
             <div style="display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px">
@@ -324,9 +307,7 @@
             <button class="spray-btn pause" id="btnPause" onclick="pauseSessionClick()" style="display:none;flex:1">⏸️ DURAKLAT</button>
             <button class="spray-btn resume" id="btnResume" onclick="resumeSessionClick()" style="display:none;flex:1">▶️ DEVAM ET</button>
             <button class="spray-btn finish" id="btnFinish" onclick="finishSessionClick()" style="display:none;flex:1">⏹️ BİTİR</button>
-        </div>
-        <div id="sessionIssueControls" style="display:none;margin-top:6px;width:100%">
-            <button class="spray-btn" id="btnSessionIssue" onclick="reportSessionIssueClick()" style="width:100%;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:12px;font-weight:700;">⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR</button>
+            <button class="spray-btn" id="btnSessionIssue" onclick="reportSessionIssueClick()" style="display:none;flex:1;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:12px;font-weight:700;">⚠️ SORUN BİLDİR</button>
         </div>
         <div class="gps-status" id="gpsStatus">📡 GPS bekleniyor...</div>
         </div>
@@ -468,12 +449,6 @@ function goToReport(reportId) {
         document.getElementById('noRouteCard').style.display = 'none';
     }
     
-    // Show selected report card
-    const card = document.getElementById('selectedReportCard');
-    card.style.display = 'block';
-    document.getElementById('srTitle').textContent = `${r.report_type.toUpperCase()} - ${r.neighborhood || ''}`;
-    document.getElementById('srAdminNotes').textContent = r.admin_notes ? `Not: ${r.admin_notes}` : 'Yönetici notu yok';
-    
     const coords = getReportCoordinates(r);
     if (coords) {
         const [lat, lng] = coords;
@@ -522,11 +497,13 @@ function goToReport(reportId) {
         // If no coordinates, alert the user with details
         alert(`ℹ️ Bu ihbarın harita koordinatı veya çizilmiş bir çalışma alanı bulunmamaktadır.\n\n📍 Mahalle: ${r.neighborhood || '-'}\n🏠 Adres: ${r.address || 'Belirtilmedi'}`);
     }
+    
+    // Refresh list to show selection styling
+    loadMyAssignedReports();
 }
 
 function clearSelectedReport() {
     selectedReport = null;
-    document.getElementById('selectedReportCard').style.display = 'none';
     
     // Restore regular route or task cards if they exist
     if (assignedRoute) {
@@ -538,75 +515,28 @@ function clearSelectedReport() {
             document.getElementById('noRouteCard').style.display = 'block';
         }
     }
-}
-
-async function reportIssueActive() {
-    if (!selectedReport) return;
-    const sorun = prompt("İlaçlama yaparken karşılaştığınız sorunu açıklayın (Yöneticiye anlık olarak iletilecektir):");
-    if (sorun === null) return; // Cancelled
-    if (!sorun.trim()) {
-        alert("Lütfen geçerli bir sorun açıklaması yazın.");
-        return;
-    }
     
-    try {
-        const r = selectedReport;
-        const currentNotes = r.admin_notes || "";
-        const formattedDate = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
-        
-        // Calculate sprayed vs. unsprayed parts
-        let sprayInfo = "";
-        if (sessionId) {
-            const distMeters = Math.round(totalDistance);
-            if (distMeters === 0) {
-                sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI";
-            } else {
-                sprayInfo = `⚠️ KISMEN İLAÇLAMA YAPILDI (İlaçlanan Mesafe: ${distMeters} metre)`;
-            }
-        } else {
-            sprayInfo = "❌ HİÇ İLAÇLAMA YAPILMADI (Oturum başlatılmadan bildirildi)";
-        }
-        
-        const newNotes = currentNotes 
-            ? `${currentNotes}\n[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`
-            : `[⚠️ SAHA SORUNU (${formattedDate}): ${sorun.trim()} | Bilgi: ${sprayInfo}]`;
-            
-        const res = await fetch(`/api/citizen-reports/${r.id}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': 'Bearer ' + TOKEN,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                admin_notes: newNotes,
-                status: 'sorunlu'
-            })
-        });
-        
-        if (res.ok) {
-            alert("⚠️ Sorun başarıyla yöneticiye bildirildi. Geçmiş olsun.");
-            await loadMyAssignedReports();
-        } else {
-            alert("Sorun bildirilirken hata oluştu.");
-        }
-    } catch(e) {
-        console.error("Sorun bildirme hatası:", e);
-    }
+    // Refresh list to clear selection styling
+    loadMyAssignedReports();
 }
 
-async function updateMobileReportStatus(id, status, silent = false) {
+async function updateMobileReportStatus(id, status, silent = false, adminNotes = null) {
     try {
+        const body = { status };
+        if (adminNotes !== null) {
+            body.admin_notes = adminNotes;
+        }
         const res = await fetch(`/api/citizen-reports/${id}`, {
             method: 'PUT',
             headers: {
                 'Authorization': 'Bearer ' + TOKEN,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ status })
+            body: JSON.stringify(body)
         });
         if (res.ok) {
             if (!silent) {
-                alert(status === 'çözüldü' ? 'İhbar görevi başarıyla tamamlandı! Tebrikler. 🏁' : 'Görev başarıyla başlatıldı, kolay gelsin!');
+                alert(status === 'çözüldü' ? 'İhbar görevi başarıyla tamamlandı! Tebrikler. 🏁' : (status === 'sorunlu' ? 'İhbar görevi sorunlu olarak güncellendi.' : 'Görev başarıyla başlatıldı, kolay gelsin!'));
             }
             await loadMyAssignedReports();
             if (typeof loadSprayedStreets === 'function') loadSprayedStreets();
@@ -638,8 +568,6 @@ async function loadMyAssignedReports() {
                 clearSelectedReport();
             } else {
                 selectedReport = stillActive;
-                document.getElementById('srTitle').textContent = `${stillActive.report_type.toUpperCase()} - ${stillActive.neighborhood || ''}`;
-                document.getElementById('srAdminNotes').textContent = stillActive.admin_notes ? `Not: ${stillActive.admin_notes}` : 'Yönetici notu yok';
             }
         }
         
@@ -724,8 +652,16 @@ async function loadMyAssignedReports() {
             card.style.display = 'block';
             count.textContent = `${activeReports.length} Görev`;
             
-            list.innerHTML = activeReports.map(r => `
-                <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:8px;">
+            list.innerHTML = activeReports.map(r => {
+                const isSelected = selectedReport && selectedReport.id === r.id;
+                const cardStyle = isSelected 
+                    ? `background:rgba(16, 185, 129, 0.08);border:1px solid #10b981;border-radius:6px;padding:8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:8px;`
+                    : `background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:8px;display:flex;justify-content:space-between;align-items:center;font-size:11px;gap:8px;`;
+                
+                const gitBtn = `<button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#3b82f6;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="goToReport(${r.id})">📍 İhbar Noktasına Git</button>`;
+                
+                return `
+                <div style="${cardStyle}">
                     <div style="flex:1;">
                         <div style="font-weight:700;color:#fff;display:flex;align-items:center;gap:6px;">
                             <span>📢 ${r.report_type.toUpperCase()}</span>
@@ -738,13 +674,14 @@ async function loadMyAssignedReports() {
                         ${r.admin_notes ? '<div style="color:#60a5fa;font-size:9px;margin-top:2px;font-weight:600;">📝 Yönetici Notu: ' + r.admin_notes + '</div>' : ''}
                     </div>
                     <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-                        <button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#3b82f6;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="goToReport(${r.id})">📍 Git</button>
+                        ${gitBtn}
                         ${r.status === 'beklemede' 
                             ? `<button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="updateMobileReportStatus(${r.id}, 'işlemde')">Başla</button>` 
                             : `<button class="btn btn-sm" style="padding:4px 6px;font-size:9px;background:#10b981;color:#fff;border:none;font-weight:700;cursor:pointer;border-radius:4px;" onclick="updateMobileReportStatus(${r.id}, 'çözüldü')">Çözüldü</button>`}
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
         } else {
             card.style.display = 'none';
         }
@@ -935,6 +872,11 @@ async function loadAssignedRoute(){
                 
                 updateControlButtons();
                 
+                // Aktif ilaçlama devam ediyorsa arka plan sesini de başlat
+                if (isSpraying) {
+                    startBackgroundAudio();
+                }
+                
                 // WebSocket durumunu bildir
                 if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:isSpraying ? 'İlaçlama devam ediyor (yenilendi)' : 'İlaçlama duraklatıldı (yenilendi)',status:'active'});
                 
@@ -960,7 +902,9 @@ async function loadAssignedRoute(){
                         // Mesafeyi ve süreyi geçmiş noktalara göre hesaplamaya başla
                         let tempDist=0;
                         for(let i=1;i<sessionPathPoints.length;i++){
-                            tempDist+=haversine(sessionPathPoints[i-1].lat, sessionPathPoints[i-1].lng, sessionPathPoints[i].lat, sessionPathPoints[i].lng);
+                            if(sessionPathPoints[i].is_spraying) {
+                                tempDist+=haversine(sessionPathPoints[i-1].lat, sessionPathPoints[i-1].lng, sessionPathPoints[i].lat, sessionPathPoints[i].lng);
+                            }
                         }
                         totalDistance=tempDist;
                         document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
@@ -1085,8 +1029,10 @@ function startGPS(){
                     const lastRecorded = sessionPathPoints[sessionPathPoints.length - 1];
                     const d = haversine(lastRecorded.lat, lastRecorded.lng, latitude, longitude);
                     if(d > 3){// Min 3m to avoid GPS jitter
-                        totalDistance+=d;
-                        document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
+                        if(isSpraying) {
+                            totalDistance+=d;
+                            document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
+                        }
                         sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
                         drawSessionPath();
                     }
@@ -1098,19 +1044,48 @@ function startGPS(){
                 }
             }
             lastPos={lat:latitude,lng:longitude};
-            // Send to server
-            if(sessionId){
-                const activeSpraying = isSpraying ? 1 : 0;
-                fetch(`/api/sessions/${sessionId}/track`,{method:'POST',headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},body:JSON.stringify({latitude,longitude,speed_kmh:speedKmh,is_spraying:activeSpraying})}).catch(()=>{});
-            }
-            if(socket){
-                const activeSpraying = isSpraying ? 1 : 0;
-                socket.emit('vehicle-location',{vehicle_id:vehicleId,plate:vehiclePlate,latitude,longitude,speed:speedKmh,is_spraying:activeSpraying});
+            // Send to server - 3 saniyede bir gönder (throttle)
+            const now = Date.now();
+            if (!window._lastLocationSendTime || (now - window._lastLocationSendTime) >= 3000) {
+                window._lastLocationSendTime = now;
+                if(sessionId){
+                    const activeSpraying = isSpraying ? 1 : 0;
+                    const pointPayload = {
+                        latitude: latitude,
+                        longitude: longitude,
+                        speed_kmh: parseFloat(speedKmh) || 0,
+                        is_spraying: activeSpraying,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    fetch(`/api/sessions/${sessionId}/track`, {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(pointPayload)
+                    })
+                    .then(res => {
+                        if (res.ok) {
+                            // Başarılıysa bekleyen çevrimdışı kayıtları eşitle
+                            syncOfflineTracks();
+                        } else {
+                            // Sunucudan hata alındıysa kuyruğa at (örn. kesinti başlangıcı)
+                            queueOfflineTrack(sessionId, pointPayload);
+                        }
+                    })
+                    .catch(() => {
+                        // Tamamen bağlantı yoksa (catch bloğu) kuyruğa at
+                        queueOfflineTrack(sessionId, pointPayload);
+                    });
+                }
+                if(socket){
+                    const activeSpraying = isSpraying ? 1 : 0;
+                    socket.emit('vehicle-location',{vehicle_id:vehicleId,plate:vehiclePlate,latitude,longitude,speed:speedKmh,is_spraying:activeSpraying});
+                }
             }
             if(sessionId && isSpraying) map.panTo([latitude,longitude]);
         },
         err=>{document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${err.message}`;},
-        {enableHighAccuracy:true,maximumAge:3000,timeout:15000}
+        {enableHighAccuracy:true,maximumAge:3000,timeout:10000}
     );
 }
 
@@ -1347,20 +1322,20 @@ function updateControlButtons() {
     const btnPause = document.getElementById('btnPause');
     const btnResume = document.getElementById('btnResume');
     const btnFinish = document.getElementById('btnFinish');
-    const issueControls = document.getElementById('sessionIssueControls');
+    const btnSessionIssue = document.getElementById('btnSessionIssue');
     
-    if (!btnStart || !btnPause || !btnResume || !btnFinish) return;
+    if (!btnStart || !btnPause || !btnResume || !btnFinish || !btnSessionIssue) return;
     
     if (sessionId === null) {
         btnStart.style.display = 'block';
         btnPause.style.display = 'none';
         btnResume.style.display = 'none';
         btnFinish.style.display = 'none';
-        if (issueControls) issueControls.style.display = 'none';
+        btnSessionIssue.style.display = 'none';
     } else {
         btnStart.style.display = 'none';
         btnFinish.style.display = 'block';
-        if (issueControls) issueControls.style.display = 'block';
+        btnSessionIssue.style.display = 'block';
         if (isSpraying) {
             btnPause.style.display = 'block';
             btnResume.style.display = 'none';
@@ -1376,6 +1351,7 @@ async function reportSessionIssueClick() {
     const modal = document.getElementById('issueModal');
     modal.style.display = 'flex';
     document.getElementById('issueText').value = '';
+    document.getElementById('issueRemainingChem').value = '';
     document.getElementById('issueText').focus();
 }
 
@@ -1389,6 +1365,13 @@ async function submitIssue() {
         alert('Lütfen geçerli bir sorun açıklaması yazın.');
         return;
     }
+    const remChemVal = document.getElementById('issueRemainingChem').value;
+    if (remChemVal === '' || parseFloat(remChemVal) < 0 || isNaN(parseFloat(remChemVal))) {
+        alert('Lütfen depoda kalan geçerli bir ilaç miktarı girin (en az 0).');
+        return;
+    }
+    const remaining_chemical_lt = parseFloat(remChemVal);
+    
     closeIssueModal();
     
     const btnIssue = document.getElementById('btnSessionIssue');
@@ -1406,7 +1389,13 @@ async function submitIssue() {
         const res = await fetch(`/api/sessions/${sessionId}`, {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'sorunlu', notes: issueNotes, total_km: totalDistance / 1000, duration_seconds: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0 })
+            body: JSON.stringify({ 
+                status: 'sorunlu', 
+                notes: issueNotes, 
+                total_km: totalDistance / 1000, 
+                duration_seconds: startTime ? Math.floor((Date.now() - startTime) / 1000) : 0,
+                remaining_chemical_lt: remaining_chemical_lt
+            })
         });
         
         if (res.ok) {
@@ -1422,6 +1411,18 @@ async function submitIssue() {
                 document.getElementById('taskInfoCard').style.display = 'none';
                 assignedSession = null;
             }
+            
+            // UPDATE CITIZEN REPORT STATUS IF SELECTED
+            if (selectedReport) {
+                const reportId = selectedReport.id;
+                const currentNotes = selectedReport.admin_notes || "";
+                const newNotes = currentNotes 
+                    ? `${currentNotes}\n${issueNotes}`
+                    : issueNotes;
+                await updateMobileReportStatus(reportId, 'sorunlu', true, newNotes);
+                clearSelectedReport();
+            }
+            
             await loadAssignedRoute();
         } else {
             alert('Sorun bildirilirken hata oluştu.');
@@ -1432,7 +1433,7 @@ async function submitIssue() {
     } finally {
         if (btnIssue) {
             btnIssue.disabled = false;
-            btnIssue.textContent = '⚠️ İLAÇLAMA ESNASINDA SORUN BİLDİR';
+            btnIssue.textContent = '⚠️ SORUN BİLDİR';
         }
     }
 }
@@ -1578,6 +1579,9 @@ async function startSessionClick() {
         if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama başladı',status:'active'});
         updateTimer();
         
+        // Arka plan ses uyanıklık takibini başlat
+        startBackgroundAudio();
+        
         // Reset intake data once started successfully
         chemicalIntakeData = null;
     } catch(err) {
@@ -1593,6 +1597,9 @@ function pauseSessionClick() {
     isSpraying = false;
     localStorage.setItem('vms_is_spraying', 'false');
     updateControlButtons();
+    
+    // Arka plan uyanıklık sesini duraklat
+    stopBackgroundAudio();
     
     pauseTime = Date.now();
     if (timerTimeout) {
@@ -1637,6 +1644,9 @@ function resumeSessionClick() {
     localStorage.setItem('vms_is_spraying', 'true');
     updateControlButtons();
     
+    // Arka plan ses uyanıklık takibini yeniden başlat
+    startBackgroundAudio();
+    
     if (pauseTime) {
         startTime += (Date.now() - pauseTime);
         pauseTime = null;
@@ -1676,6 +1686,27 @@ function resumeSessionClick() {
 }
 
 async function finishSessionClick() {
+    if (!sessionId) return;
+    document.getElementById('endRemainingChem').value = '';
+    document.getElementById('endNotes').value = '';
+    document.getElementById('chemicalEndModal').style.display = 'flex';
+}
+
+function closeEndModal() {
+    document.getElementById('chemicalEndModal').style.display = 'none';
+}
+
+async function submitEndAndFinish() {
+    const remChemVal = document.getElementById('endRemainingChem').value;
+    if (remChemVal === '' || parseFloat(remChemVal) < 0 || isNaN(parseFloat(remChemVal))) {
+        alert('Lütfen depoda kalan geçerli bir ilaç miktarı girin (en az 0).');
+        return;
+    }
+    const remaining_chemical_lt = parseFloat(remChemVal);
+    const endNotesText = document.getElementById('endNotes').value.trim();
+
+    closeEndModal();
+
     const btnFinish = document.getElementById('btnFinish');
     btnFinish.disabled = true; btnFinish.textContent = '⏳ Hesaplanıyor...';
     try {
@@ -1683,25 +1714,30 @@ async function finishSessionClick() {
         const activeTimeStr = document.getElementById('mTime').textContent;
         const activeDistStr = document.getElementById('mDistance').textContent;
 
-        const res=await fetch(`/api/sessions/${sessionId}/end`,{
-            method:'POST',
-            headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json'},
-            body:JSON.stringify({
-                total_km: totalDistance/1000,
-                duration_seconds: activeSeconds
+        const res = await fetch(`/api/sessions/${sessionId}/end`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                total_km: totalDistance / 1000,
+                duration_seconds: activeSeconds,
+                remaining_chemical_lt: remaining_chemical_lt,
+                notes: endNotesText || undefined
             })
         });
-        const data=await res.json();
+        const data = await res.json();
         
-        isSpraying=false;
-        sessionId=null;
+        isSpraying = false;
+        sessionId = null;
         localStorage.removeItem('vms_is_spraying');
         
         updateControlButtons();
         
-        if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama tamamlandı',status:'completed'});
+        // Arka plan ses uyanıklık takibini sonlandır
+        stopBackgroundAudio();
         
-        if(assignedSession){
+        if (socket) socket.emit('spray-status', { plate: vehiclePlate, message: 'İlaçlama tamamlandı', status: 'completed' });
+        
+        if (assignedSession) {
             document.getElementById('taskInfoCard').style.display = 'none';
             assignedSession = null;
         }
@@ -1717,16 +1753,16 @@ async function finishSessionClick() {
             }
         }
         
-        if(data.summary){
+        if (data.summary) {
             document.getElementById('sumTime').textContent = activeTimeStr + ' (ilaçlanan süre)';
             document.getElementById('sumDist').textContent = activeDistStr + ' km (gidilen mesafe)';
-            document.getElementById('sumChem').textContent = data.summary.chemical_used_lt+' litre';
-            document.getElementById('sumArea').textContent = Math.round(data.summary.area_covered_m2)+' m²';
-            document.getElementById('appScreen').style.display='none';
-            document.getElementById('summaryScreen').style.display='block';
+            document.getElementById('sumChem').textContent = data.summary.chemical_used_lt + ' litre';
+            document.getElementById('sumArea').textContent = Math.round(data.summary.area_covered_m2) + ' m²';
+            document.getElementById('appScreen').style.display = 'none';
+            document.getElementById('summaryScreen').style.display = 'block';
         }
-    } catch(e) {
-        alert('Hata: '+e.message);
+    } catch (e) {
+        alert('Hata: ' + e.message);
     } finally {
         btnFinish.disabled = false;
         btnFinish.textContent = '⏹️ BİTİR';
@@ -1927,7 +1963,7 @@ function haversine(lat1,lon1,lat2,lon2){
     return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 
-function mobileLogout(){
+async function mobileLogout(){
     if(watchId) navigator.geolocation.clearWatch(watchId);
     if(previewAnimationActive) {
         previewAnimationActive = false;
@@ -1935,6 +1971,15 @@ function mobileLogout(){
             map.removeLayer(previewMarker);
             previewMarker = null;
         }
+    }
+    // Sunucuya çıkış bildir → personeli pasif yap
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {
+        console.error('[Logout] Sunucuya çıkış bildirilemedi:', e.message);
     }
     localStorage.clear();
     window.location.href='/';
@@ -2157,17 +2202,249 @@ function showBottomRightIssuePopup(vehiclePlate, neighborhood, issueText, sessio
     container.appendChild(card);
 }
 
+// ─── Ekranın Kapanmasını/Kararmasını Engelleme (Wake Lock API) ───
+let wakeLock = null;
+
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        console.log('[WakeLock] Ekran kilidi aktif. Ekran kapanmayacak.');
+    } catch (err) {
+        console.warn('[WakeLock] Ekran uyanık tutma isteği reddedildi/beklemede:', err.message);
+    }
+}
+
+// Görünürlük değiştiğinde (sekme arka plana gidip geri geldiğinde) uyanık tutma kilidini tazele
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        requestWakeLock();
+    }
+});
+
+// Uyanıklık kilidini ve ses oynatımını kullanıcı etkileşimiyle tetikleyelim (tarayıcı güvenlik kısıtlamalarını aşmak için)
+function activateBackgroundServices() {
+    requestWakeLock();
+    if (isSpraying) {
+        startBackgroundAudio();
+    }
+}
+document.addEventListener('click', activateBackgroundServices, { once: true });
+document.addEventListener('touchstart', activateBackgroundServices, { once: true });
+
+// İlk yüklemede uyanık tutmayı dene
+requestWakeLock();
+
+// ─── Arka Planda Konum Takibini Sürdürmek İçin Sessiz Ses (Silent Audio) ───
+let backgroundAudio = null;
+
+function createSilentAudioBlob() {
+    const sampleRate = 8000;
+    const numChannels = 1;
+    const bitsPerSample = 8;
+    const duration = 1; // 1 saniye
+    
+    const blockAlign = numChannels * (bitsPerSample / 8);
+    const byteRate = sampleRate * blockAlign;
+    const subChunk2Size = duration * byteRate;
+    const chunkSize = 36 + subChunk2Size;
+    
+    const buffer = new ArrayBuffer(44 + subChunk2Size);
+    const view = new DataView(buffer);
+    
+    // RIFF tanımı
+    view.setUint8(0, 0x52); // 'R'
+    view.setUint8(1, 0x49); // 'I'
+    view.setUint8(2, 0x46); // 'F'
+    view.setUint8(3, 0x46); // 'F'
+    view.setUint32(4, chunkSize, true);
+    // WAVE tanımı
+    view.setUint8(8, 0x57); // 'W'
+    view.setUint8(9, 0x41); // 'A'
+    view.setUint8(10, 0x56); // 'V'
+    view.setUint8(11, 0x45); // 'E'
+    // fmt subchunk
+    view.setUint8(12, 0x66); // 'f'
+    view.setUint8(13, 0x6d); // 'm'
+    view.setUint8(14, 0x74); // 't'
+    view.setUint8(15, 0x20); // ' '
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM = 1
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, bitsPerSample, true);
+    // data subchunk
+    view.setUint8(36, 0x64); // 'd'
+    view.setUint8(37, 0x61); // 'a'
+    view.setUint8(38, 0x74); // 't'
+    view.setUint8(39, 0x61); // 'a'
+    view.setUint32(40, subChunk2Size, true);
+    
+    // 8-bit PCM için sessizlik değeri 128'dir.
+    for (let i = 0; i < subChunk2Size; i++) {
+        view.setUint8(44 + i, 128);
+    }
+    
+    return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function startBackgroundAudio() {
+    if (backgroundAudio) return;
+    try {
+        const blob = createSilentAudioBlob();
+        const url = URL.createObjectURL(blob);
+        backgroundAudio = new Audio(url);
+        backgroundAudio.loop = true;
+        backgroundAudio.play().then(() => {
+            console.log('[BackgroundAudio] Konum takibini uyanık tutmak için arka plan sessiz sesi başlatıldı.');
+        }).catch(err => {
+            console.warn('[BackgroundAudio] Arka plan sessiz ses oynatılamadı:', err.message);
+        });
+    } catch (e) {
+        console.error('[BackgroundAudio] Hata:', e);
+    }
+}
+
+function stopBackgroundAudio() {
+    if (backgroundAudio) {
+        try {
+            backgroundAudio.pause();
+            backgroundAudio = null;
+        } catch(e) {}
+    }
+}
+
+// ─── Çevrimdışı Konum Kaydı (Offline GPS Queue) ve Eşitleme ───
+let isSyncing = false;
+
+function queueOfflineTrack(sessId, point) {
+    try {
+        let queue = JSON.parse(localStorage.getItem('vms_offline_queue') || '[]');
+        queue.push({
+            sessionId: sessId,
+            latitude: point.latitude,
+            longitude: point.longitude,
+            speed_kmh: point.speed_kmh,
+            is_spraying: point.is_spraying,
+            timestamp: point.timestamp || new Date().toISOString()
+        });
+        localStorage.setItem('vms_offline_queue', JSON.stringify(queue));
+        console.log(`[OfflineQueue] İnternet yok. Konum çevrimdışı kaydedildi. Toplam kuyruk: ${queue.length}`);
+        
+        const gpsStatus = document.getElementById('gpsStatus');
+        if (gpsStatus) {
+            gpsStatus.textContent = `📡 GPS Aktif • 🌐 Çevrimdışı (Kuyruk: ${queue.length})`;
+            gpsStatus.style.color = '#fbbf24'; // warning yellow
+        }
+    } catch(e) {
+        console.error('[OfflineQueue] Kuyruğa yazma hatası:', e);
+    }
+}
+
+async function syncOfflineTracks() {
+    if (isSyncing || !navigator.onLine) return;
+    try {
+        let queue = JSON.parse(localStorage.getItem('vms_offline_queue') || '[]');
+        if (queue.length === 0) return;
+        
+        isSyncing = true;
+        console.log(`[OfflineQueue] ${queue.length} adet çevrimdışı kayıt eşitleniyor...`);
+        
+        // Gruplara ayır (sessionId bazında)
+        const groups = {};
+        queue.forEach(item => {
+            if (!groups[item.sessionId]) groups[item.sessionId] = [];
+            groups[item.sessionId].push({
+                latitude: item.latitude,
+                longitude: item.longitude,
+                speed_kmh: item.speed_kmh,
+                is_spraying: item.is_spraying,
+                timestamp: item.timestamp
+            });
+        });
+        
+        const sessionsToSync = Object.keys(groups);
+        for (const sId of sessionsToSync) {
+            const points = groups[sId];
+            await fetch(`/api/sessions/${sId}/track-bulk`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + TOKEN,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ points })
+            });
+            console.log(`[OfflineQueue] Oturum #${sId} için ${points.length} konum başarıyla eşitlendi.`);
+        }
+        
+        localStorage.removeItem('vms_offline_queue');
+        isSyncing = false;
+        
+        const gpsStatus = document.getElementById('gpsStatus');
+        if (gpsStatus) {
+            gpsStatus.style.color = ''; // default color
+        }
+    } catch (err) {
+        console.warn('[OfflineQueue] Eşitleme başarısız (bir sonraki denemede tekrar edilecek):', err.message);
+        isSyncing = false;
+    }
+}
+
+// Cihaz tekrar internete bağlandığında otomatik eşitlemeyi tetikle
+window.addEventListener('online', syncOfflineTracks);
+
+// Her 30 saniyede bir kuyrukta veri varsa ve internet aktifse eşitlemeyi dene
+setInterval(syncOfflineTracks, 30000);
+
 setupPushNotifications();
 </script>
 
 <!-- Issue Report Modal -->
 <div id="issueModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:20000;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
-    <div style="background:rgba(15,23,42,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-        <h3 style="color:#fff;margin:0 0 16px 0;font-size:16px;">⚠️ Sorun Bildir</h3>
-        <textarea id="issueText" rows="4" placeholder="Karşılaştığınız sorunu açıklayın..." style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:12px;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box;"></textarea>
-        <div style="display:flex;gap:8px;margin-top:16px;">
+    <div style="background:rgba(15,23,42,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:12px;">
+        <h3 style="color:#fff;margin:0;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;">⚠️ Sorun Bildir</h3>
+        <p style="font-size:11px; color:#94a3b8; margin:0; line-height:1.4;">Lütfen karşılaştığınız sorunu açıklayın ve güncel depo seviyesini belirtin.</p>
+        
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">📝 Sorun Açıklaması</label>
+            <textarea id="issueText" rows="3" placeholder="Karşılaştığınız sorunu açıklayın..." style="width:100%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:8px;color:#fff;padding:12px;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">🧪 Araç/Sırt Deposunda Kalan İlaç (Litre)</label>
+            <input type="number" id="issueRemainingChem" class="form-input" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="Litre cinsinden (Örn: 5)" min="0" step="0.1" required>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
             <button onclick="closeIssueModal()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">İptal</button>
             <button onclick="submitIssue()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Gönder</button>
+        </div>
+    </div>
+</div>
+
+<!-- Chemical End Form Modal -->
+<div id="chemicalEndModal" style="display:none; position:fixed; inset:0; z-index:100000; background:rgba(10,14,26,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:100%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); padding:24px; display:flex; flex-direction:column; gap:12px; animation: slide-up-premium 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        <div style="font-size:16px; font-weight:800; color:#10b981; display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <span>🏁 İLAÇLAMA SONLANDIRMA FORMU</span>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); line-height:1.4;">İlaçlamayı sonlandırmadan önce araç veya sırt deposunda kalan ilaç miktarını girmeniz gerekmektedir.</p>
+        
+        <div>
+            <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🧪 Depoda Kalan İlaç (Litre)</label>
+            <input type="number" id="endRemainingChem" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="Litre cinsinden (Örn: 12.5)" min="0" step="0.1" required>
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">📝 Görev Notları (İsteğe Bağlı)</label>
+            <textarea id="endNotes" rows="2" placeholder="Görevle ilgili notlarınızı ekleyebilirsiniz..." style="width:100%; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:10px; font-size:13px; resize:none; font-family:inherit; box-sizing:border-box;"></textarea>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:8px;">
+            <button class="btn" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; height:40px; border-radius:8px;" onclick="closeEndModal()">İptal</button>
+            <button class="btn" style="flex:1.5; background:#10b981; color:#fff; font-weight:700; cursor:pointer; height:40px; border-radius:8px; border:none;" onclick="submitEndAndFinish()">💾 Kaydet ve Bitir</button>
         </div>
     </div>
 </div>

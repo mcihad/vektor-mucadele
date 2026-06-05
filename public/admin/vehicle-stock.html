@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Araç Stok Yönetimi</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item active"><span class="icon">🚚</span> Araç Stok</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar">
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            🚚 Araç Stok Takibi
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-outline btn-sm" onclick="exportToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
+        </div>
+    </header>
+    <div class="page-content">
+        <!-- Summary Cards -->
+        <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card blue">
+                <div class="stat-icon blue">🚐</div>
+                <div>
+                    <div class="stat-value" id="totalVehiclesCount">0</div>
+                    <div class="stat-label">Toplam Kayıtlı Araç</div>
+                </div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon green">🟢</div>
+                <div>
+                    <div class="stat-value" id="totalActiveTanks">0</div>
+                    <div class="stat-label">Aktif İlaçlayan Araç</div>
+                </div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon orange">🧪</div>
+                <div>
+                    <div class="stat-value" id="totalChemicalInTanks">0.00 lt</div>
+                    <div class="stat-label">Tanklardaki Toplam İlaç</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vehicle Stock Table -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">Araç Tankı İlaç Stok Seviyeleri</span></div>
+            <div class="table-container">
+                <table id="vehicleStockExcelTable">
+                    <thead>
+                        <tr>
+                            <th>Plaka</th>
+                            <th>Araç / Makine</th>
+                            <th>Tank Kapasitesi</th>
+                            <th>Durum</th>
+                            <th>Yüklenen İlaç</th>
+                            <th>Depodan Alınan</th>
+                            <th>İlaçlama Tüketimi</th>
+                            <th>Tanktaki Kalan</th>
+                            <th>Doluluk Oranı</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vehicleStockTable">
+                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
+async function api(url, opts={}) {
+    const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Sunucu hatası: ' + res.status);
+    }
+    return res.json();
+}
+function toast(msg,type='info'){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),4000);}
+
+async function load() {
+    try {
+        const data = await api('/api/vehicles/stock/levels');
+        
+        let totalActiveTanks = 0;
+        let totalChemicalInTanks = 0;
+        
+        data.forEach(v => {
+            if (v.session_status === 'active') {
+                totalActiveTanks++;
+            }
+            if (v.session_status === 'active' || v.session_status === 'completed' || v.session_status === 'sorunlu') {
+                const rem = Math.max(0, (v.intake_amount_lt || 0) - (v.chemical_used_lt || 0));
+                totalChemicalInTanks += rem;
+            }
+        });
+        
+        document.getElementById('totalActiveTanks').textContent = totalActiveTanks;
+        document.getElementById('totalChemicalInTanks').textContent = totalChemicalInTanks.toFixed(2) + ' lt';
+        document.getElementById('totalVehiclesCount').textContent = data.length;
+        
+        document.getElementById('vehicleStockTable').innerHTML = data.map(v => {
+            const cap = v.tank_capacity_lt || 100;
+            const status = v.session_status;
+            let chemicalName = v.chemical_name || '-';
+            let intake = 0;
+            let used = 0;
+            let rem = 0;
+            let pct = 0;
+            let barColor = '#10b981'; // green
+            let showStock = false;
+            
+            let statusBadge = '';
+            if (status === 'active') {
+                statusBadge = '<span class="badge badge-success">🟢 Aktif</span>';
+                showStock = true;
+            } else if (status === 'completed') {
+                statusBadge = '<span class="badge badge-info">⚪ Tamamlandı</span>';
+                showStock = true;
+            } else if (status === 'sorunlu') {
+                statusBadge = '<span class="badge badge-danger">⚠️ Sorunlu</span>';
+                showStock = true;
+            } else if (status === 'planned') {
+                statusBadge = '<span class="badge badge-warning">🟡 Planlandı</span>';
+            } else {
+                statusBadge = '<span class="badge badge-secondary">🔴 Oturum Yok</span>';
+            }
+            
+            if (showStock) {
+                intake = v.intake_amount_lt || 0;
+                used = v.chemical_used_lt || 0;
+                rem = intake - used;
+                if (rem < 0) rem = 0;
+                pct = (rem / cap) * 100;
+                if (pct > 100) pct = 100;
+                if (pct < 15) barColor = '#ef4444'; // red
+                else if (pct < 40) barColor = '#f59e0b'; // orange
+            }
+            
+            const fillLevelHtml = showStock ? `
+                <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 140px;">
+                    <div style="background:var(--border); border-radius:4px; height:8px; width:100%; overflow:hidden; position:relative;">
+                        <div style="background:${barColor}; height:100%; width:${pct}%;"></div>
+                    </div>
+                    <span style="font-size:10px; font-weight:700; margin-top:4px; display:inline-block; color:var(--text-secondary);">
+                        %${pct.toFixed(0)} (${rem.toFixed(2)} / ${cap.toFixed(2)} lt)
+                    </span>
+                </div>
+            ` : `
+                <div style="color:var(--text-muted); font-size:11px;">-</div>
+            `;
+            
+            return `<tr>
+                <td><strong>${v.plate}</strong></td>
+                <td>${v.machine_name} <span style="font-size:10px;color:var(--text-muted)">(${v.usage_type === 'sokak_ilacalama' ? 'Sokak' : 'Larva'})</span></td>
+                <td>${cap.toFixed(2)} lt</td>
+                <td>${statusBadge}</td>
+                <td><strong>${chemicalName}</strong></td>
+                <td>${intake > 0 ? intake.toFixed(2) + ' lt' : '-'}</td>
+                <td>${used > 0 ? used.toFixed(2) + ' lt' : '-'}</td>
+                <td style="font-weight:700; color:${rem > 0 ? 'var(--success)' : 'inherit'}">${rem > 0 ? rem.toFixed(2) + ' lt' : '-'}</td>
+                <td>${fillLevelHtml}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Araç bulunamadı.</td></tr>';
+        
+    } catch(err) {
+        toast('Araç stok verileri yüklenirken hata oluştu: ' + err.message, 'error');
+    }
+}
+
+function exportToExcel() {
+    exportHtmlTableToExcel('vehicleStockExcelTable', 'Arac_Tank_Stok_Raporu');
+}
+
+function exportHtmlTableToExcel(tableID, filename = 'rapor') {
+    const table = document.getElementById(tableID);
+    if (!table) return;
+    
+    const clone = table.cloneNode(true);
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    // Process headers
+    const ths = clone.querySelectorAll('th');
+    ths.forEach(th => {
+        th.style.backgroundColor = '#1e3a8a';
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    // Process rows
+    const trs = clone.querySelectorAll('tr');
+    trs.forEach(tr => {
+        tr.removeAttribute('class');
+        tr.removeAttribute('style');
+        tr.style.backgroundColor = '#ffffff';
+        
+        const tds = tr.querySelectorAll('td');
+        tds.forEach(td => {
+            td.removeAttribute('class');
+            const originalColor = td.style.color;
+            td.removeAttribute('style');
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalColor) td.style.color = originalColor;
+        });
+    });
+
+    // Style badges
+    clone.querySelectorAll('.badge').forEach(badge => {
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = 'bold';
+        badge.style.fontSize = '10px';
+        if (badge.classList.contains('badge-danger')) {
+            badge.style.backgroundColor = '#fee2e2';
+            badge.style.color = '#dc2626';
+        } else if (badge.classList.contains('badge-warning')) {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.color = '#d97706';
+        } else if (badge.classList.contains('badge-success')) {
+            badge.style.backgroundColor = '#dcfce7';
+            badge.style.color = '#16a34a';
+        } else if (badge.classList.contains('badge-info')) {
+            badge.style.backgroundColor = '#e0f2fe';
+            badge.style.color = '#0284c7';
+        }
+    });
+    
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+load();
+</script>
+</body>
+</html>

@@ -51,7 +51,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -116,8 +117,12 @@
                         <select class="form-select" id="planVehicle" onchange="updateVehicleInfo()"></select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Personel Ata</label>
+                        <label class="form-label">Personel Ata (Sürücü)</label>
                         <select class="form-select" id="planUser"></select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Operatör Ata</label>
+                        <select class="form-select" id="planOperator"></select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">Planlanan Tarih</label>
@@ -142,7 +147,10 @@
                     </div>
                 </div>
                 <div class="card">
-                    <div class="card-title" style="margin-bottom:12px">📋 Kayıtlı Rotalar</div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <div class="card-title" style="margin:0">📋 Kayıtlı Rotalar</div>
+                        <button class="btn btn-sm btn-outline" onclick="exportRoutesToExcel()" style="border-color:#10b981;color:#10b981;font-size:10px;padding:4px 8px;margin:0;">🟢 Excel'e Aktar</button>
+                    </div>
                     <div id="savedRoutes" style="max-height:200px;overflow-y:auto"></div>
                 </div>
             </div>
@@ -160,7 +168,16 @@ if (!TOKEN || USER.role !== 'admin') {
     localStorage.clear();
     window.location.href = '/';
 }
-function logout(){localStorage.clear();window.location.href='/';}
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
 async function api(url,opts={}){const res=await fetch(url,{...opts,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json',...opts.headers}});return res.json();}
 function toast(msg,type='info'){const c=document.getElementById('toastContainer');const t=document.createElement('div');t.className=`toast toast-${type}`;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),5000);}
 function showLoading(v){document.getElementById('mapLoading').style.display=v?'flex':'none';}
@@ -301,12 +318,15 @@ async function init(){
     document.getElementById('planNeighborhood').innerHTML='<option value="">Seçiniz</option>'+
         neighborhoods.map(n=>`<option value="${n.name}">${n.name}</option>`).join('');
     document.getElementById('planVehicle').innerHTML=
-        vehicles.filter(v=>v.usage_type==='sokak_ilacalama').map(v=>
-            `<option value="${v.id}" data-tank="${v.tank_capacity_lt}" data-machine="${v.machine_type||'ulv'}">${v.plate} - ${v.machine_name}</option>`
+        vehicles.map(v=>
+            `<option value="${v.id}" data-tank="${v.tank_capacity_lt}" data-machine="${v.machine_type||'ulv'}">${v.plate} - ${v.machine_name} (${v.usage_type==='sokak_ilacalama'?'Sokak':'Larva/Gübre'})</option>`
         ).join('');
     // Users (field)
     const allUsers=await api('/api/personnel').catch(()=>[]);
     document.getElementById('planUser').innerHTML='<option value="">Atama Yapılmadı</option>'+
+        allUsers.map(u=>`<option value="${u.user_id||''}">${u.name}</option>`).join('');
+    // Operatör seçimi
+    document.getElementById('planOperator').innerHTML='<option value="">Atama Yapılmadı</option>'+
         allUsers.map(u=>`<option value="${u.user_id||''}">${u.name}</option>`).join('');
     // Sprayed streets
     const sprayed=await api('/api/reports/sprayed-streets');
@@ -657,18 +677,26 @@ async function saveRoute(){
         }
         
         // Assign if user selected
-        if(userId && res.id){
+        const operatorId=document.getElementById('planOperator').value;
+        if((userId || operatorId) && res.id){
+            const personnelIds = [];
+            if(userId) personnelIds.push(parseInt(userId));
+            if(operatorId) personnelIds.push(parseInt(operatorId));
             const assignRes = await api(`/api/routes/planned-routes/${res.id}/assign`,{
                 method:'POST',
                 body:JSON.stringify({
-                    user_id: parseInt(userId),
-                    personnel_ids: [parseInt(userId)]
+                    user_id: userId ? parseInt(userId) : (operatorId ? parseInt(operatorId) : null),
+                    personnel_ids: personnelIds,
+                    operator_id: operatorId ? parseInt(operatorId) : null
                 })
             });
             if(assignRes.error) {
                 throw new Error('Rota kaydedildi ancak personele atanamadı: ' + assignRes.error);
             }
-            toast('Rota başarıyla kaydedildi ve personele atandı!','success');
+            let msg = 'Rota başarıyla kaydedildi';
+            if(userId) msg += ' ve sürücüye atandı';
+            if(operatorId) msg += (userId ? ', operatör de atandı' : ' ve operatöre atandı');
+            toast(msg + '!','success');
         } else {
             toast('Rota başarıyla kaydedildi (Personel atanmadı)','success');
         }
@@ -905,6 +933,71 @@ function animateRoutePreview() {
         btn.textContent = "▶️ Animasyon";
         btn.className = "btn btn-sm btn-primary";
     }
+}
+
+function exportRoutesToExcel() {
+    api('/api/routes/planned-routes').then(routes => {
+        if (!routes || routes.length === 0) {
+            alert("Dışa aktarılacak planlanmış rota bulunamadı.");
+            return;
+        }
+        const headers = ["ID", "Rota Adı / Mahalle", "Araç Plakası", "Planlanan Tarih", "Mesafe (km)", "Tahmini İlaç (lt)", "Ulaşım Türü", "Atanan Personel", "Durum"];
+        const rows = routes.map(r => [
+            r.id,
+            r.name || r.neighborhood || '-',
+            r.plate || '-',
+            r.planned_date || '-',
+            Number(r.total_distance_km || 0).toFixed(1),
+            Number(r.estimated_chemical_lt || 0).toFixed(1),
+            r.transport_type === 'pedestrian' ? '🚶 Yaya' : '🚗 Araç',
+            r.assigned_user_name || 'Atanmamış',
+            r.status || '-'
+        ]);
+        
+        // Append grand total row
+        const totalDistance = routes.reduce((sum, r) => sum + Number(r.total_distance_km || 0), 0);
+        const totalChemical = routes.reduce((sum, r) => sum + Number(r.estimated_chemical_lt || 0), 0);
+        rows.push([
+            "GENEL TOPLAM",
+            "-",
+            "-",
+            "-",
+            totalDistance.toFixed(1),
+            totalChemical.toFixed(1),
+            "-",
+            "-",
+            "-"
+        ]);
+
+        exportDataToExcel(headers, rows, 'Planlanmis_Rotalar');
+    });
+}
+
+function exportDataToExcel(headers, rows, filename = 'rapor') {
+    let html = '<table border="1" style="border-collapse:collapse;font-family:Segoe UI,sans-serif;">';
+    html += '<thead><tr style="background:#1e3a8a;color:#fff;font-weight:bold;">' + 
+            headers.map(h => `<th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">${h}</th>`).join('') + '</tr></thead>';
+    html += '<tbody>';
+    rows.forEach(row => {
+        const isTotal = row[0] === "GENEL TOPLAM";
+        html += '<tr>' + row.map(cell => {
+            const tdStyle = isTotal ? 'padding:6px 8px;border:1px solid #cbd5e1;background:#ecfdf5;font-weight:bold;' : 'padding:6px 8px;border:1px solid #cbd5e1;';
+            return `<td style="${tdStyle}">${cell}</td>`;
+        }).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 function updateVehicleInfo(){updateManualStats();}

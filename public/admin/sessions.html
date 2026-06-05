@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VMS - İlaçlama Kayıtları</title>
     <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -22,7 +24,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -36,7 +39,10 @@
             <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
             💉 İlaçlama Kayıtları
         </div>
-        <button class="btn btn-primary" onclick="openNewSession()">+ Yeni İlaçlama</button>
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" onclick="exportToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
+            <button class="btn btn-primary" onclick="openNewSession()">+ Yeni İlaçlama</button>
+        </div>
     </header>
 
     <div class="page-content">
@@ -65,10 +71,9 @@
             </div>
         </div>
 
-        <!-- Table -->
         <div class="card">
             <div class="table-container">
-                <table>
+                <table id="sessionsExcelTable">
                     <thead>
                         <tr>
                             <th>ID</th><th>Araç</th><th>Ekip</th><th>Mahalle</th>
@@ -133,6 +138,30 @@
     </div>
 </div>
 
+<!-- Route Map Modal -->
+<div class="modal-overlay" id="routeMapModal">
+    <div class="modal" style="max-width: 800px; width: 95%; background: var(--bg-card); border: 1px solid var(--border);">
+        <div class="modal-header" style="border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 16px;">
+            <div class="modal-title" id="routeMapTitle" style="font-size: 15px; font-weight: 800; color: var(--text-primary);">🗺️ İlaçlama Rotası</div>
+            <button class="modal-close" onclick="closeRouteMapModal()" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px;">&times;</button>
+        </div>
+        <div id="sessionRouteMap" style="height: 450px; border-radius: 8px; border: 1px solid var(--border); background: #1e293b; position: relative; z-index: 1;"></div>
+        <div style="display: flex; gap: 16px; margin-top: 12px; font-size: 11px; justify-content: center; align-items: center; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05); flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 20px; height: 6px; background: #10b981; border-radius: 3px;"></span>
+                <span style="color: var(--text-primary); font-weight: 600;">İlaçlama Yapılan Alan (Aktif)</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 20px; height: 3px; border-bottom: 2px dashed #6b7280;"></span>
+                <span style="color: var(--text-secondary);">İlaçlama Duraklatılan / Yapılmayan (Pasif)</span>
+            </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+            <button class="btn btn-outline btn-sm" onclick="closeRouteMapModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
@@ -142,7 +171,16 @@ if (!TOKEN || USER.role !== 'admin') {
     localStorage.clear();
     window.location.href = '/';
 }
-function logout() { localStorage.clear(); window.location.href = '/'; }
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
 
 async function api(url, opts = {}) {
     const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
@@ -244,7 +282,6 @@ async function loadSessions() {
             <td style="font-size:11px;">${s.end_time ? new Date(s.end_time).toLocaleString('tr-TR') : '-'}</td>
             <td>${Number(s.total_km || 0).toFixed(1)} km</td>
             <td>
-                ${Number(s.chemical_used_lt || 0).toFixed(1)} lt
                 ${intakeInfo}
             </td>
             <td>
@@ -256,6 +293,7 @@ async function loadSessions() {
                     ${s.status === 'planned' ? `<button class="btn btn-sm btn-success" onclick="startSession(${s.id})">▶ Başlat</button>` : ''}
                     ${s.status === 'active' ? `<button class="btn btn-sm btn-danger" onclick="endSession(${s.id})">⏹ Bitir</button>` : ''}
                     ${s.status === 'sorunlu' ? `<button class="btn btn-sm btn-success" style="font-size:10px;padding:3px 8px;" onclick="resolveSession(${s.id})">✅ Sorun Çözüldü</button>` : ''}
+                    ${s.status !== 'planned' ? `<button class="btn btn-sm btn-outline" style="font-size:10px;padding:3px 8px;border-color:rgba(59,130,246,0.3);color:#60a5fa;" onclick="viewSessionRoute(${s.id}, '${s.plate || ''}')">🗺️ Harita</button>` : ''}
                     <button class="btn btn-sm btn-outline btn-danger" style="padding:2px 6px;color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deleteSession(${s.id})">🗑️ Sil</button>
                 </div>
             </td>
@@ -319,7 +357,7 @@ async function startSession(id) {
 }
 
 async function endSession(id) {
-    const km = prompt('Toplam mesafe (km):');
+    const km = prompt('İlaçlama esnasında gidilen mesafe (km):');
     const chem = prompt('Kullanılan ilaç (lt):');
     await api(`/api/sessions/${id}/end`, {
         method: 'POST',
@@ -356,6 +394,219 @@ async function resolveSession(id) {
     } catch(err) {
         toast('Hata: ' + err.message, 'error');
     }
+}
+
+// ─── Oturum Rotasını Haritada Gösteren Fonksiyonlar ───
+let routeMap = null;
+let routeSegmentsGroup = null;
+
+async function viewSessionRoute(sessionId, plate) {
+    document.getElementById('routeMapTitle').textContent = `🗺️ İlaçlama Rotası - Oturum #${sessionId} (${plate})`;
+    document.getElementById('routeMapModal').classList.add('active');
+    
+    // Haritayı yüklemek için modal animasyonunun bitmesini bekle
+    setTimeout(() => {
+        if (!routeMap) {
+            routeMap = L.map('sessionRouteMap').setView([39.7505, 37.0150], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(routeMap);
+            routeSegmentsGroup = L.layerGroup().addTo(routeMap);
+        } else {
+            routeSegmentsGroup.clearLayers();
+        }
+        
+        // Sunucudan konum noktalarını çek
+        api(`/api/sessions/${sessionId}/route`).then(points => {
+            if (!points || points.length === 0) {
+                toast('Bu oturuma ait konum kaydı bulunamadı.', 'warning');
+                return;
+            }
+            
+            const pathPoints = points.map(p => ({
+                lat: p.latitude,
+                lng: p.longitude,
+                is_spraying: p.is_spraying !== undefined ? p.is_spraying : 1
+            }));
+            
+            // Segmentlere göre rotayı çiz
+            let currentSegment = [pathPoints[0]];
+            let currentSpraying = pathPoints[0].is_spraying;
+            
+            for (let i = 1; i < pathPoints.length; i++) {
+                const pt = pathPoints[i];
+                if (pt.is_spraying === currentSpraying) {
+                    currentSegment.push(pt);
+                } else {
+                    drawHistoryPathSegment(currentSegment, currentSpraying);
+                    currentSegment = [pathPoints[i - 1], pt];
+                    currentSpraying = pt.is_spraying;
+                }
+            }
+            if (currentSegment.length >= 2) {
+                drawHistoryPathSegment(currentSegment, currentSpraying);
+            }
+            
+            // Başlangıç (S) ve Bitiş (B) işaretçileri
+            const startPt = pathPoints[0];
+            const endPt = pathPoints[pathPoints.length - 1];
+            
+            L.marker([startPt.lat, startPt.lng], {
+                icon: L.divIcon({
+                    className: 'start-marker',
+                    html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">S</div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            }).bindPopup('<b>İlaçlama Başlangıcı</b>').addTo(routeSegmentsGroup);
+            
+            L.marker([endPt.lat, endPt.lng], {
+                icon: L.divIcon({
+                    className: 'end-marker',
+                    html: '<div style="background:#ef4444;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">B</div>',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                })
+            }).bindPopup('<b>İlaçlama Bitişi</b>').addTo(routeSegmentsGroup);
+            
+            // Harita odağını rotaya göre sığdır
+            const bounds = L.latLngBounds(pathPoints.map(p => [p.lat, p.lng]));
+            routeMap.fitBounds(bounds, { padding: [40, 40] });
+            
+            // Harita yükleme boyut hatasını düzeltmek için invalidate
+            routeMap.invalidateSize();
+        }).catch(err => {
+            toast('Konum verileri yüklenirken hata oluştu: ' + err.message, 'error');
+        });
+    }, 200);
+}
+
+function drawHistoryPathSegment(pts, isSprayingVal) {
+    const latlngs = pts.map(p => [p.lat, p.lng]);
+    const style = isSprayingVal === 1
+        ? { color: '#10b981', weight: 6, opacity: 0.9 } // Aktif ilaçlama yeşil
+        : { color: '#6b7280', weight: 4, opacity: 0.7, dashArray: '6 6' }; // Pasif/Duraklatılmış gri kesikli
+    L.polyline(latlngs, style).addTo(routeSegmentsGroup);
+}
+
+function closeRouteMapModal() {
+    document.getElementById('routeMapModal').classList.remove('active');
+}
+
+function exportToExcel() {
+    exportHtmlTableToExcel('sessionsExcelTable', 'Ilaclama_Kayitlari');
+}
+
+function exportHtmlTableToExcel(tableID, filename = 'rapor') {
+    const table = document.getElementById(tableID);
+    if (!table) return;
+    
+    // Clone the table to avoid styling the actual UI table
+    const clone = table.cloneNode(true);
+    
+    // Set basic properties for Excel borders
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    // Remove the last column ("İşlem") if it exists
+    const headersList = clone.querySelectorAll('thead tr');
+    headersList.forEach(tr => {
+        const lastTh = tr.querySelector('th:last-child');
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('Harita'))) {
+            lastTh.remove();
+        }
+    });
+    
+    const bodyRows = clone.querySelectorAll('tbody tr');
+    bodyRows.forEach(tr => {
+        const lastTd = tr.querySelector('td:last-child');
+        if (lastTd) lastTd.remove();
+    });
+    
+    // Process headers
+    const ths = clone.querySelectorAll('th');
+    ths.forEach(th => {
+        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    // Process rows
+    const trs = clone.querySelectorAll('tr');
+    trs.forEach(tr => {
+        tr.removeAttribute('class');
+        tr.removeAttribute('style'); // Clear all inline style on tr
+        tr.style.backgroundColor = '#ffffff';
+        
+        const tds = tr.querySelectorAll('td');
+        tds.forEach(td => {
+            td.removeAttribute('class');
+            
+            // Keep important inline style values before removing all styles
+            const originalColor = td.style.color;
+            const originalPaddingLeft = td.style.paddingLeft;
+            
+            td.removeAttribute('style');
+            
+            // Apply standard Excel cell styles
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalPaddingLeft) {
+                td.style.paddingLeft = originalPaddingLeft;
+            }
+            
+            // Clean up text colors for Excel readability
+            if (originalColor) {
+                if (originalColor.includes('var(--text-secondary)')) {
+                    td.style.color = '#475569';
+                } else if (originalColor.includes('var(--text-muted)')) {
+                    td.style.color = '#64748b';
+                } else {
+                    td.style.color = originalColor;
+                }
+            }
+        });
+    });
+
+    // Also style any status badges cleanly for Excel
+    clone.querySelectorAll('.badge').forEach(badge => {
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = 'bold';
+        badge.style.fontSize = '10px';
+        if (badge.classList.contains('badge-danger')) {
+            badge.style.backgroundColor = '#fee2e2';
+            badge.style.color = '#dc2626';
+        } else if (badge.classList.contains('badge-warning')) {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.color = '#d97706';
+        } else if (badge.classList.contains('badge-success')) {
+            badge.style.backgroundColor = '#dcfce7';
+            badge.style.color = '#16a34a';
+        } else if (badge.classList.contains('badge-info')) {
+            badge.style.backgroundColor = '#e0f2fe';
+            badge.style.color = '#0284c7';
+        }
+    });
+    
+    // Turkish character support with UTF-8 BOM
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 loadSessions();

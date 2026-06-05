@@ -32,8 +32,13 @@ router.post('/:id/stock-in', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
         await db.run("UPDATE chemicals SET stock_amount = stock_amount + ? WHERE id = ?", [amount, req.params.id]);
+        
+        // Log who performed the stock-in transaction
+        const userName = req.user ? (req.user.full_name || req.user.username) : 'Yönetici';
+        const finalDesc = `${description || 'Stok girişi'} (İşlemi Yapan: ${userName})`;
+
         await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description) VALUES (?, 'giris', ?, ?)`,
-            [req.params.id, amount, description || 'Stok girişi']);
+            [req.params.id, amount, finalDesc]);
         saveDatabase();
         res.json({ message: 'Stok eklendi' });
     } catch (err) {
@@ -46,9 +51,16 @@ router.get('/:id/transactions', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
         const result = await db.exec(`
-            SELECT ct.*, c.name as chemical_name
+            SELECT ct.*, c.name as chemical_name,
+                   s.id as session_id, s.application_type,
+                   v.plate as vehicle_plate, v.machine_name as vehicle_machine_name,
+                   d.name as driver_name, op.name as operator_name
             FROM chemical_transactions ct
             JOIN chemicals c ON ct.chemical_id = c.id
+            LEFT JOIN spray_sessions s ON ct.session_id = s.id
+            LEFT JOIN vehicles v ON s.vehicle_id = v.id
+            LEFT JOIN personnel d ON s.driver_id = d.id
+            LEFT JOIN personnel op ON s.operator_id = op.id
             WHERE ct.chemical_id = ?
             ORDER BY ct.created_at DESC
             LIMIT 50

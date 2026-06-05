@@ -43,7 +43,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -132,7 +133,16 @@ const TOKEN=localStorage.getItem('vms_token');
 const USER=JSON.parse(localStorage.getItem('vms_user')||'{}');
 if(!TOKEN || USER.role !== 'admin') { localStorage.clear(); window.location.href='/'; }
 document.getElementById('currentUser').textContent=USER.full_name||'Admin';
-function logout(){localStorage.clear();window.location.href='/';}
+async function logout(){
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href='/';
+}
 
 async function api(url,opts={}){
     const res=await fetch(url,{...opts,headers:{'Authorization':'Bearer '+TOKEN,'Content-Type':'application/json',...opts.headers}});
@@ -223,6 +233,23 @@ socket.on('vehicle-update',data=>{
     updateVehiclePath(data);
 });
 socket.on('spray-update',data=>{toast(`${data.plate} - ${data.message}`,'success');loadDashboard();});
+
+// ─── Gerçek Zamanlı Araç Çevrimiçi/Çevrimdışı Durumu ───
+const vehicleOnlineStates = {}; // vehicle_id -> boolean
+socket.on('vehicle-online-status', data => {
+    const { vehicle_id, online } = data;
+    vehicleOnlineStates[vehicle_id] = online;
+    // Araç listesini güncelle
+    updateVehicleOnlineUI();
+});
+
+// ─── Gerçek Zamanlı Personel Aktif/Pasif Durumu ───
+socket.on('personnel-status-changed', data => {
+    const statusText = data.status === 'aktif' ? '🟢 Aktif (Sisteme Giriş Yaptı)' : '🔴 Pasif (Sistemden Çıktı)';
+    toast(`👤 ${data.full_name || data.username || 'Personel'} → ${statusText}`, data.status === 'aktif' ? 'success' : 'info');
+    // Personel ve araç durumlarını yeniden yükle
+    loadDashboard();
+});
 socket.on('citizen-report-new',data=>{
     toast(`📢 Yeni Vatandaş İhbarı: ${data.report_type} - ${data.neighborhood||''}`, 'info');
     showBrowserNotification('📢 Yeni Vatandaş İhbarı', `${data.report_type} - ${data.neighborhood||''}: ${(data.description||'').substring(0,80)}`);
@@ -490,6 +517,22 @@ function drawVehiclePathSegment(group, pts, isSprayingVal) {
     L.polyline(latlngs, style).addTo(group);
 }
 
+// ─── Araç Çevrimiçi/Çevrimdışı Durumunu Dinamik Güncelle ───
+function updateVehicleOnlineUI() {
+    const vehicles = window._dashboardVehicles || [];
+    vehicles.forEach(v => {
+        const el = document.getElementById(`vehicle-status-${v.id}`);
+        if (el) {
+            const online = vehicleOnlineStates[v.id] || false;
+            const badge = el.querySelector('.badge');
+            if (badge) {
+                badge.className = `badge ${online ? 'badge-success' : 'badge-danger'}`;
+                badge.textContent = online ? '● Çevrimiçi' : '○ Çevrimdışı';
+            }
+        }
+    });
+}
+
 async function loadDashboard(){
     activeVehiclePathsGroup.clearLayers();
     for (const key in vehiclePathsData) {
@@ -512,9 +555,17 @@ async function loadDashboard(){
     const vehicles=await api('/api/vehicles');
     const vList=document.getElementById('vehicleList');
     if(vehicles){
+        // Araç online durumlarını kaydet
+        vehicles.forEach(v => {
+            if (vehicleOnlineStates[v.id] === undefined) {
+                vehicleOnlineStates[v.id] = v.online_status === 'çevrimiçi';
+            }
+        });
+        window._dashboardVehicles = vehicles;
+        updateVehicleOnlineUI();
         vList.innerHTML=vehicles.map(v=>{
-            const online=v.last_location_time&&(Date.now()-new Date(v.last_location_time).getTime())<600000;
-            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+            const online = vehicleOnlineStates[v.id] || false;
+            return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);" id="vehicle-status-${v.id}">
                 <div><div style="font-weight:600;font-size:13px;">${v.plate}</div>
                 <div style="font-size:11px;color:var(--text-muted);">${v.machine_name} • ${v.usage_type==='sokak_ilacalama'?'Sokak':'Larva/Gübre'}</div></div>
                 <span class="badge ${online?'badge-success':'badge-danger'}">${online?'● Çevrimiçi':'○ Çevrimdışı'}</span></div>`;
@@ -905,6 +956,33 @@ function showBottomRightIssuePopup(vehiclePlate, neighborhood, issueText, sessio
     
     container.appendChild(card);
 }
+
+// ─── Ekranın Kapanmasını/Kararmasını Engelleme (Wake Lock API) ───
+let wakeLock = null;
+
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        console.log('[WakeLock] Ekran kilidi aktif. Ekran kapanmayacak.');
+    } catch (err) {
+        console.warn('[WakeLock] Ekran uyanık tutma isteği reddedildi/beklemede:', err.message);
+    }
+}
+
+// Görünürlük değiştiğinde (sekme arka plana gidip geri geldiğinde) uyanık tutma kilidini tazele
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        requestWakeLock();
+    }
+});
+
+// Kullanıcı etkileşimiyle de uyanık tutma kilidini tetikleyelim (tarayıcı kısıtlamalarını aşmak için)
+document.addEventListener('click', requestWakeLock, { once: true });
+document.addEventListener('touchstart', requestWakeLock, { once: true });
+
+// Sayfa yüklendiğinde uyanık tutmayı dene
+requestWakeLock();
 </script>
 
 <!-- HTML elements for Floating Bottom-Right Warning Bell -->

@@ -10,7 +10,11 @@
 <body>
 <aside class="sidebar">
     <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
-    <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Ana Menü</div>
         <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
@@ -19,7 +23,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item active"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -42,36 +47,99 @@
 
         <!-- Daily Report -->
         <div id="tab-daily">
-            <div style="margin-bottom:16px;display:flex;gap:12px;align-items:end;">
+            <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
                 <div class="form-group" style="margin:0;"><label class="form-label">Tarih</label><input type="date" class="form-input" id="dailyDate" onchange="loadDaily()"></div>
+                <button class="btn btn-outline btn-sm" onclick="exportDailyExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Günlük Raporu Excel'e Aktar</button>
             </div>
             <div class="stats-grid" id="dailyStats"></div>
-            <div class="card"><div class="card-title" style="margin-bottom:12px;">Günün İlaçlamaları</div>
-                <div class="table-container"><table><thead><tr><th>Araç</th><th>Ekip</th><th>Mahalle</th><th>Mesafe</th><th>İlaç</th><th>Süre</th></tr></thead><tbody id="dailyTable"></tbody></table></div>
+            
+            <!-- Combined Unified Table Card -->
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title" style="margin-bottom:12px;">📊 Günlük İlaçlama ve Araç Detay Tablosu (Birleşik)</div>
+                <div class="table-container">
+                    <table id="combinedDailyTable">
+                        <thead>
+                            <tr>
+                                <th>Araç / Detay</th>
+                                <th>Ekip (Şoför & Operatör)</th>
+                                <th>İlaçlanan Mahalle</th>
+                                <th>İlaçlama Mesafesi</th>
+                                <th>Kullanılan İlaç</th>
+                                <th>Oturum Süresi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyTable"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Daily Charts Section -->
+            <div class="grid-2" style="margin-top:20px; gap: 20px;">
+                <div class="card" style="margin: 0;">
+                    <div class="card-title" style="margin-bottom:12px;">🚐 Araç Bazlı Günlük Performans</div>
+                    <div style="position:relative; height:300px;"><canvas id="dailyVehicleChart"></canvas></div>
+                </div>
+                <div class="card" style="margin: 0;">
+                    <div class="card-title" style="margin-bottom:12px;">🗺️ Mahalle Bazlı Dağılım (Mesafe / km)</div>
+                    <div style="position:relative; height:300px;"><canvas id="dailyNeighborhoodChart"></canvas></div>
+                </div>
             </div>
         </div>
 
         <!-- Monthly Report -->
         <div id="tab-monthly" style="display:none;">
-            <div style="margin-bottom:16px;display:flex;gap:12px;align-items:end;">
-                <div class="form-group" style="margin:0;"><label class="form-label">Ay</label><select class="form-select" id="monthSelect" onchange="loadMonthly()">
-                    <option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option><option value="4">Nisan</option>
-                    <option value="5" selected>Mayıs</option><option value="6">Haziran</option><option value="7">Temmuz</option><option value="8">Ağustos</option>
-                    <option value="9">Eylül</option><option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
-                </select></div>
-                <div class="form-group" style="margin:0;"><label class="form-label">Yıl</label><input type="number" class="form-input" id="yearSelect" value="2026" onchange="loadMonthly()"></div>
+            <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;gap:12px;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Ay</label><select class="form-select" id="monthSelect" onchange="loadMonthly()">
+                        <option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option><option value="4">Nisan</option>
+                        <option value="5" selected>Mayıs</option><option value="6">Haziran</option><option value="7">Temmuz</option><option value="8">Ağustos</option>
+                        <option value="9">Eylül</option><option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
+                    </select></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Yıl</label><input type="number" class="form-input" id="yearSelect" value="2026" onchange="loadMonthly()"></div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn btn-outline btn-sm" onclick="exportMonthlyVehiclesExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🚐 Araç Raporu Excel</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportMonthlyPersonnelExcel()" style="border-color:#8b5cf6;color:#8b5cf6;margin:0;">👥 Personel Raporu Excel</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportMonthlyTrendExcel()" style="border-color:#3b82f6;color:#3b82f6;margin:0;">📅 Trend Raporu Excel</button>
+                </div>
             </div>
             <div class="grid-2">
-                <div class="card"><div class="card-title" style="margin-bottom:12px;">Araç Bazlı</div><canvas id="vehicleChart"></canvas></div>
-                <div class="card"><div class="card-title" style="margin-bottom:12px;">Personel Bazlı</div><canvas id="personnelChart"></canvas></div>
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:12px;">Araç Bazlı</div>
+                    <div style="position:relative; height:280px;"><canvas id="vehicleChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="margin-bottom:12px;">Personel Bazlı</div>
+                    <div style="position:relative; height:280px;"><canvas id="personnelChart"></canvas></div>
+                </div>
             </div>
-            <div class="card" style="margin-top:20px;"><div class="card-title" style="margin-bottom:12px;">Günlük Trend</div><canvas id="dailyChart"></canvas></div>
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title" style="margin-bottom:12px;">Günlük Trend</div>
+                <div style="position:relative; height:280px;"><canvas id="dailyChart"></canvas></div>
+            </div>
         </div>
 
         <!-- Coverage -->
         <div id="tab-coverage" style="display:none;">
-            <div class="card"><div class="card-title" style="margin-bottom:12px;">Mahalle Kapsam Durumu</div>
-                <div class="table-container"><table><thead><tr><th>Mahalle</th><th>İlaçlanan Sokak</th><th>Son İlaçlama</th><th>En Yakın Bitiş</th><th>Durum</th></tr></thead><tbody id="coverageTable"></tbody></table></div>
+            <div class="card">
+                <div class="card-title" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+                    <span>Mahalle Kapsam Durumu</span>
+                    <button class="btn btn-outline btn-sm" onclick="exportCoverageExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🟢 Excel'e Aktar</button>
+                </div>
+                <div class="table-container">
+                    <table id="coverageExcelTable">
+                        <thead>
+                            <tr>
+                                <th>Mahalle</th>
+                                <th>İlaçlanan Sokak</th>
+                                <th>Son İlaçlama</th>
+                                <th>En Yakın Bitiş</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody id="coverageTable"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -83,8 +151,19 @@ if (!TOKEN || USER.role !== 'admin') {
     localStorage.clear();
     window.location.href = '/';
 }
-function logout() { localStorage.clear(); window.location.href = '/'; }
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
 async function api(url) { const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + TOKEN } }); return res.json(); }
+
+let currentMonthlyData = null; // Store loaded monthly data for Excel export
 
 function showTab(name, el) {
     document.querySelectorAll('[id^="tab-"]').forEach(t => t.style.display = 'none');
@@ -94,6 +173,9 @@ function showTab(name, el) {
 }
 
 document.getElementById('dailyDate').value = new Date().toISOString().split('T')[0];
+
+let dailyVehicleChartInstance, dailyNeighborhoodChartInstance;
+let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
 
 async function loadDaily() {
     const date = document.getElementById('dailyDate').value;
@@ -105,18 +187,196 @@ async function loadDaily() {
         <div class="stat-card orange"><div class="stat-icon orange">🧪</div><div><div class="stat-value">${Number(s.total_chemical||0).toFixed(1)}</div><div class="stat-label">lt İlaç</div></div></div>
         <div class="stat-card purple"><div class="stat-icon purple">📐</div><div><div class="stat-value">${Number(s.total_area||0).toFixed(0)}</div><div class="stat-label">m² Alan</div></div></div>
     `;
-    document.getElementById('dailyTable').innerHTML = (data.sessions || []).map(s => `<tr>
-        <td><strong>${s.plate||'-'}</strong></td><td>${s.driver_name||'-'} & ${s.operator_name||'-'}</td>
-        <td>${s.neighborhood||'-'}</td><td>${Number(s.total_km||0).toFixed(1)} km</td><td>${Number(s.chemical_used_lt||0).toFixed(1)} lt</td>
-        <td>${s.start_time && s.end_time ? Math.round((new Date(s.end_time)-new Date(s.start_time))/60000) + ' dk' : '-'}</td>
-    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">Bu tarihte kayıt yok</td></tr>';
+
+    // Group daily sessions by vehicle
+    const vehicleSummaryMap = {};
+    const neighborhoodSummaryMap = {};
+    
+    (data.sessions || []).forEach(sess => {
+        const plate = sess.plate || 'Bilinmeyen Araç';
+        if (!vehicleSummaryMap[plate]) {
+            vehicleSummaryMap[plate] = {
+                plate: plate,
+                machine_name: sess.machine_name || '-',
+                total_km: 0,
+                chemical_used_lt: 0,
+                session_count: 0,
+                total_duration_min: 0,
+                sessions: []
+            };
+        }
+        vehicleSummaryMap[plate].total_km += Number(sess.total_km || 0);
+        vehicleSummaryMap[plate].chemical_used_lt += Number(sess.chemical_used_lt || 0);
+        vehicleSummaryMap[plate].session_count++;
+        
+        const duration = sess.start_time && sess.end_time 
+            ? Math.round((new Date(sess.end_time) - new Date(sess.start_time)) / 60000) 
+            : 0;
+        vehicleSummaryMap[plate].total_duration_min += duration;
+        vehicleSummaryMap[plate].sessions.push({ ...sess, duration });
+
+        // Neighborhood distribution data
+        const neighborhood = sess.neighborhood || 'Diğer';
+        neighborhoodSummaryMap[neighborhood] = (neighborhoodSummaryMap[neighborhood] || 0) + Number(sess.total_km || 0);
+    });
+
+    // Generate combined daily table rows
+    let html = '';
+    const vehiclesList = Object.values(vehicleSummaryMap);
+    
+    if (vehiclesList.length > 0) {
+        vehiclesList.forEach(v => {
+            // Render vehicle header/total row
+            html += `
+                <tr style="background: rgba(59, 130, 246, 0.08); font-weight: bold; border-left: 4px solid #3b82f6;">
+                    <td style="color: #60a5fa;">🚐 ${v.plate}</td>
+                    <td>${v.machine_name}</td>
+                    <td style="color: var(--text-secondary); font-size: 11px;">[Toplam: ${v.session_count} Oturum]</td>
+                    <td style="color: #10b981;">${v.total_km.toFixed(1)} km</td>
+                    <td style="color: #f59e0b;">${v.chemical_used_lt.toFixed(1)} lt</td>
+                    <td>${v.total_duration_min} dk</td>
+                </tr>
+            `;
+            // Render sub-rows for each session
+            v.sessions.forEach(s => {
+                html += `
+                    <tr style="font-size: 11.5px; opacity: 0.95;">
+                        <td style="padding-left: 28px; color: var(--text-muted);">└─ Oturum #${s.id}</td>
+                        <td>👤 ${s.driver_name || '-'} & ${s.operator_name || '-'}</td>
+                        <td>📍 ${s.neighborhood || '-'}</td>
+                        <td>${Number(s.total_km || 0).toFixed(1)} km</td>
+                        <td>${Number(s.chemical_used_lt || 0).toFixed(1)} lt</td>
+                        <td>${s.duration || '-'} dk</td>
+                    </tr>
+                `;
+            });
+        });
+
+        // Calculate grand totals for daily unified table
+        let grandTotalKm = 0;
+        let grandTotalChemical = 0;
+        let grandTotalDuration = 0;
+        let grandTotalSessions = 0;
+        vehiclesList.forEach(v => {
+            grandTotalKm += v.total_km;
+            grandTotalChemical += v.chemical_used_lt;
+            grandTotalDuration += v.total_duration_min;
+            grandTotalSessions += v.session_count;
+        });
+
+        html += `
+            <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                <td style="color: #10b981;">📈 GENEL TOPLAM</td>
+                <td>-</td>
+                <td style="color: var(--text-secondary); font-size: 11px;">[Toplam: ${grandTotalSessions} Oturum]</td>
+                <td style="color: #10b981;">${grandTotalKm.toFixed(1)} km</td>
+                <td style="color: #f59e0b;">${grandTotalChemical.toFixed(1)} lt</td>
+                <td>${grandTotalDuration} dk</td>
+            </tr>
+        `;
+    } else {
+        html = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Bu tarihte kayıt yok</td></tr>';
+    }
+    document.getElementById('dailyTable').innerHTML = html;
+
+    // Build Daily performance charts
+    if (dailyVehicleChartInstance) dailyVehicleChartInstance.destroy();
+    if (dailyNeighborhoodChartInstance) dailyNeighborhoodChartInstance.destroy();
+
+    const plates = Object.keys(vehicleSummaryMap);
+    const vehicleKms = plates.map(p => vehicleSummaryMap[p].total_km);
+    const vehicleChems = plates.map(p => vehicleSummaryMap[p].chemical_used_lt);
+
+    dailyVehicleChartInstance = new Chart(document.getElementById('dailyVehicleChart'), {
+        type: 'bar',
+        data: {
+            labels: plates,
+            datasets: [
+                { label: 'Mesafe (km)', data: vehicleKms, backgroundColor: 'rgba(59, 130, 246, 0.75)', yAxisID: 'y' },
+                { label: 'İlaç (lt)', data: vehicleChems, backgroundColor: 'rgba(16, 185, 129, 0.75)', yAxisID: 'y1' }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: { color: '#60a5fa', font: { family: 'Inter', size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    title: {
+                        display: true,
+                        text: 'Mesafe (km)',
+                        color: '#60a5fa',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    ticks: { color: '#34d399', font: { family: 'Inter', size: 10 } },
+                    grid: { drawOnChartArea: false },
+                    title: {
+                        display: true,
+                        text: 'İlaç (lt)',
+                        color: '#34d399',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                }
+            }
+        }
+    });
+
+    const neighborhoods = Object.keys(neighborhoodSummaryMap);
+    const neighborhoodKms = Object.values(neighborhoodSummaryMap);
+
+    dailyNeighborhoodChartInstance = new Chart(document.getElementById('dailyNeighborhoodChart'), {
+        type: 'doughnut',
+        data: {
+            labels: neighborhoods,
+            datasets: [{
+                data: neighborhoodKms,
+                backgroundColor: [
+                    'rgba(59, 130, 246, 0.75)',
+                    'rgba(16, 185, 129, 0.75)',
+                    'rgba(245, 158, 11, 0.75)',
+                    'rgba(139, 92, 246, 0.75)',
+                    'rgba(239, 68, 68, 0.75)',
+                    'rgba(6, 182, 212, 0.75)'
+                ],
+                borderWidth: 1,
+                borderColor: '#1e293b'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'right', labels: { color: '#94a3b8', font: { family: 'Inter' } } } }
+        }
+    });
 }
 
-let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
 async function loadMonthly() {
     const month = document.getElementById('monthSelect').value;
     const year = document.getElementById('yearSelect').value;
     const data = await api(`/api/reports/monthly?month=${month}&year=${year}`);
+
+    currentMonthlyData = data; // Save loaded monthly data for Excel export
 
     if (vehicleChartInstance) vehicleChartInstance.destroy();
     if (personnelChartInstance) personnelChartInstance.destroy();
@@ -127,17 +387,69 @@ async function loadMonthly() {
         type: 'bar', data: {
             labels: vData.map(v => v.plate),
             datasets: [
-                { label: 'km', data: vData.map(v => v.km), backgroundColor: 'rgba(59,130,246,0.7)' },
-                { label: 'İlaç (lt)', data: vData.map(v => v.chemical), backgroundColor: 'rgba(16,185,129,0.7)' }
+                { label: 'Mesafe (km)', data: vData.map(v => v.km), backgroundColor: 'rgba(59,130,246,0.7)', yAxisID: 'y' },
+                { label: 'İlaç (lt)', data: vData.map(v => v.chemical), backgroundColor: 'rgba(16,185,129,0.7)', yAxisID: 'y1' }
             ]
-        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+        }, options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: { color: '#60a5fa', font: { family: 'Inter', size: 10 } },
+                    title: {
+                        display: true,
+                        text: 'Mesafe (km)',
+                        color: '#60a5fa',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    ticks: { color: '#34d399', font: { family: 'Inter', size: 10 } },
+                    grid: { drawOnChartArea: false },
+                    title: {
+                        display: true,
+                        text: 'İlaç (lt)',
+                        color: '#34d399',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                }
+            }
+        }
     });
 
     const pData = data.by_personnel || [];
     personnelChartInstance = new Chart(document.getElementById('personnelChart'), {
         type: 'bar', data: {
             labels: pData.map(p => p.name), datasets: [{ label: 'Oturum Sayısı', data: pData.map(p => p.sessions), backgroundColor: 'rgba(139,92,246,0.7)' }]
-        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+        }, options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } },
+                y: { ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } }
+            }
+        }
     });
 
     const dData = data.daily || [];
@@ -145,23 +457,328 @@ async function loadMonthly() {
         type: 'line', data: {
             labels: dData.map(d => d.day),
             datasets: [
-                { label: 'km', data: dData.map(d => d.km), borderColor: '#3b82f6', tension: 0.3, fill: false },
-                { label: 'İlaç (lt)', data: dData.map(d => d.chemical), borderColor: '#10b981', tension: 0.3, fill: false }
+                { label: 'Mesafe (km)', data: dData.map(d => d.km), borderColor: '#3b82f6', tension: 0.3, fill: false, yAxisID: 'y' },
+                { label: 'İlaç (lt)', data: dData.map(d => d.chemical), borderColor: '#10b981', tension: 0.3, fill: false, yAxisID: 'y1' }
             ]
-        }, options: { responsive: true, plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
+        }, options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: { labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } } },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                }
+            },
+            scales: {
+                x: { ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } } },
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    ticks: { color: '#60a5fa', font: { family: 'Inter', size: 10 } },
+                    title: {
+                        display: true,
+                        text: 'Mesafe (km)',
+                        color: '#60a5fa',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    ticks: { color: '#34d399', font: { family: 'Inter', size: 10 } },
+                    grid: { drawOnChartArea: false },
+                    title: {
+                        display: true,
+                        text: 'İlaç (lt)',
+                        color: '#34d399',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                }
+            }
+        }
     });
 }
 
 async function loadCoverage() {
     const data = await api('/api/reports/neighborhood-coverage');
-    document.getElementById('coverageTable').innerHTML = (data || []).map(n => {
+    let html = (data || []).map(n => {
         const days = n.earliest_expiry ? Math.round((new Date(n.earliest_expiry) - Date.now()) / 86400000) : 99;
         const badge = days <= 3 ? 'badge-danger' : days <= 10 ? 'badge-warning' : 'badge-success';
         return `<tr><td><strong>${n.neighborhood||'-'}</strong></td><td>${n.streets_sprayed}</td>
             <td>${n.last_sprayed ? new Date(n.last_sprayed).toLocaleDateString('tr-TR') : '-'}</td>
             <td>${n.earliest_expiry ? new Date(n.earliest_expiry).toLocaleDateString('tr-TR') : '-'}</td>
             <td><span class="badge ${badge}">${days <= 0 ? 'Süresi Doldu' : days + ' gün kaldı'}</span></td></tr>`;
-    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Veri yok</td></tr>';
+    }).join('');
+
+    if (data && data.length > 0) {
+        const totalStreets = data.reduce((sum, n) => sum + Number(n.streets_sprayed || 0), 0);
+        html += `
+            <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                <td><strong>📈 GENEL TOPLAM</strong></td>
+                <td><strong>${totalStreets}</strong></td>
+                <td>-</td>
+                <td>-</td>
+                <td>-</td>
+            </tr>
+        `;
+    } else {
+        html = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted)">Veri yok</td></tr>';
+    }
+    document.getElementById('coverageTable').innerHTML = html;
+}
+
+// ─── Excel İhraç Yardımcı Fonksiyonları ───
+function exportHtmlTableToExcel(tableID, filename = 'rapor') {
+    const table = document.getElementById(tableID);
+    if (!table) return;
+    
+    // Clone the table to avoid styling the actual UI table
+    const clone = table.cloneNode(true);
+    
+    // Set basic properties for Excel borders
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    // Process headers
+    const ths = clone.querySelectorAll('th');
+    ths.forEach(th => {
+        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    // Process rows
+    const trs = clone.querySelectorAll('tr');
+    trs.forEach(tr => {
+        tr.removeAttribute('class');
+        
+        // Check if it's a vehicle header row (light blue background in UI)
+        const isVehicleRow = tr.style.fontWeight === 'bold' || 
+                             (tr.style.background && tr.style.background.includes('rgba(59')) || 
+                             (tr.style.backgroundColor && tr.style.backgroundColor.includes('rgba(59'));
+        
+        // Check if it's the grand total row (light green background in UI)
+        const isGrandTotalRow = (tr.textContent && tr.textContent.includes('GENEL TOPLAM')) ||
+                                (tr.style.background && tr.style.background.includes('rgba(16')) ||
+                                (tr.style.backgroundColor && tr.style.backgroundColor.includes('rgba(16'));
+
+        tr.removeAttribute('style'); // Clear all inline style on tr to prevent leak
+        
+        if (isGrandTotalRow) {
+            tr.style.backgroundColor = '#ecfdf5';
+            tr.style.fontWeight = 'bold';
+        } else if (isVehicleRow) {
+            tr.style.backgroundColor = '#f0f6ff';
+            tr.style.fontWeight = 'bold';
+        } else {
+            tr.style.backgroundColor = '#ffffff';
+        }
+        
+        const tds = tr.querySelectorAll('td');
+        tds.forEach(td => {
+            td.removeAttribute('class');
+            
+            // Keep important inline style values before removing all styles
+            const originalColor = td.style.color;
+            const originalPaddingLeft = td.style.paddingLeft;
+            
+            td.removeAttribute('style');
+            
+            // Apply standard Excel cell styles
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalPaddingLeft) {
+                td.style.paddingLeft = originalPaddingLeft;
+            }
+            if (isGrandTotalRow) {
+                td.style.backgroundColor = '#ecfdf5';
+                td.style.fontWeight = 'bold';
+            } else if (isVehicleRow) {
+                td.style.backgroundColor = '#f0f6ff';
+                td.style.fontWeight = 'bold';
+            }
+            
+            // Clean up text colors for Excel readability
+            if (originalColor) {
+                if (originalColor.includes('var(--text-secondary)')) {
+                    td.style.color = '#475569';
+                } else if (originalColor.includes('var(--text-muted)')) {
+                    td.style.color = '#64748b';
+                } else if (originalColor.includes('rgb(96, 165, 250)') || originalColor.includes('#60a5fa')) {
+                    td.style.color = '#1d4ed8'; // Dark blue plate text for contrast
+                } else {
+                    td.style.color = originalColor;
+                }
+            }
+        });
+    });
+
+    // Also style any status badges in coverageExcelTable cleanly for Excel
+    clone.querySelectorAll('.badge').forEach(badge => {
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = 'bold';
+        badge.style.fontSize = '10px';
+        if (badge.classList.contains('badge-danger')) {
+            badge.style.backgroundColor = '#fee2e2';
+            badge.style.color = '#dc2626';
+        } else if (badge.classList.contains('badge-warning')) {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.color = '#d97706';
+        } else if (badge.classList.contains('badge-success')) {
+            badge.style.backgroundColor = '#dcfce7';
+            badge.style.color = '#16a34a';
+        }
+    });
+    
+    // Turkish character support with UTF-8 BOM
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportDataToExcel(headers, rows, filename = 'rapor') {
+    let html = '<table border="1" style="border-collapse:collapse;font-family:Segoe UI,sans-serif;">';
+    html += '<thead><tr style="background:#1e3a8a;color:#fff;font-weight:bold;">' + 
+            headers.map(h => `<th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">${h}</th>`).join('') + '</tr></thead>';
+    html += '<tbody>';
+    rows.forEach(row => {
+        const isTotal = row[0] === "GENEL TOPLAM";
+        html += '<tr>' + row.map(cell => {
+            const tdStyle = isTotal ? 'padding:6px 8px;border:1px solid #cbd5e1;background:#ecfdf5;font-weight:bold;' : 'padding:6px 8px;border:1px solid #cbd5e1;';
+            return `<td style="${tdStyle}">${cell}</td>`;
+        }).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function exportDailyExcel() {
+    const date = document.getElementById('dailyDate').value;
+    exportHtmlTableToExcel('combinedDailyTable', `Gunluk_Ilaclama_Raporu_${date}`);
+}
+
+function exportCoverageExcel() {
+    exportHtmlTableToExcel('coverageExcelTable', 'Mahalle_Kapsam_Raporu');
+}
+
+function exportMonthlyVehiclesExcel() {
+    if (!currentMonthlyData || !currentMonthlyData.by_vehicle) {
+        alert("Lütfen önce verilerin yüklenmesini bekleyin.");
+        return;
+    }
+    const headers = ["Araç Plakası", "Toplam Oturum Sayısı", "Toplam Mesafe (km)", "Toplam İlaç (lt)"];
+    const rows = currentMonthlyData.by_vehicle.map(v => [
+        v.plate,
+        v.sessions,
+        Number(v.km || 0).toFixed(1),
+        Number(v.chemical || 0).toFixed(1)
+    ]);
+    
+    // Append grand total row
+    const totalSessions = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.sessions || 0), 0);
+    const totalKm = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.km || 0), 0);
+    const totalChemical = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.chemical || 0), 0);
+    rows.push([
+        "GENEL TOPLAM",
+        totalSessions,
+        totalKm.toFixed(1),
+        totalChemical.toFixed(1)
+    ]);
+    
+    const month = document.getElementById('monthSelect').value;
+    const year = document.getElementById('yearSelect').value;
+    exportDataToExcel(headers, rows, `Aylik_Arac_Raporu_${year}_${month}`);
+}
+
+function exportMonthlyPersonnelExcel() {
+    if (!currentMonthlyData || !currentMonthlyData.by_personnel) {
+        alert("Lütfen önce verilerin yüklenmesini bekleyin.");
+        return;
+    }
+    const headers = ["Personel Adı", "Toplam Oturum Sayısı", "Toplam Mesafe (km)"];
+    const rows = currentMonthlyData.by_personnel.map(p => [
+        p.name,
+        p.sessions,
+        Number(p.km || 0).toFixed(1)
+    ]);
+    
+    // Append grand total row
+    const totalSessions = currentMonthlyData.by_personnel.reduce((sum, p) => sum + Number(p.sessions || 0), 0);
+    const totalKm = currentMonthlyData.by_personnel.reduce((sum, p) => sum + Number(p.km || 0), 0);
+    rows.push([
+        "GENEL TOPLAM",
+        totalSessions,
+        totalKm.toFixed(1)
+    ]);
+    
+    const month = document.getElementById('monthSelect').value;
+    const year = document.getElementById('yearSelect').value;
+    exportDataToExcel(headers, rows, `Aylik_Personel_Raporu_${year}_${month}`);
+}
+
+function exportMonthlyTrendExcel() {
+    if (!currentMonthlyData || !currentMonthlyData.daily) {
+        alert("Lütfen önce verilerin yüklenmesini bekleyin.");
+        return;
+    }
+    const headers = ["Gün", "Oturum Sayısı", "Mesafe (km)", "İlaç (lt)", "Alan (m²)"];
+    const rows = currentMonthlyData.daily.map(d => [
+        d.day,
+        d.sessions,
+        Number(d.km || 0).toFixed(1),
+        Number(d.chemical || 0).toFixed(1),
+        Number(d.area || 0).toFixed(0)
+    ]);
+    
+    // Append grand total row
+    const totalSessions = currentMonthlyData.daily.reduce((sum, d) => sum + Number(d.sessions || 0), 0);
+    const totalKm = currentMonthlyData.daily.reduce((sum, d) => sum + Number(d.km || 0), 0);
+    const totalChemical = currentMonthlyData.daily.reduce((sum, d) => sum + Number(d.chemical || 0), 0);
+    const totalArea = currentMonthlyData.daily.reduce((sum, d) => sum + Number(d.area || 0), 0);
+    rows.push([
+        "GENEL TOPLAM",
+        totalSessions,
+        totalKm.toFixed(1),
+        totalChemical.toFixed(1),
+        totalArea.toFixed(0)
+    ]);
+    
+    const month = document.getElementById('monthSelect').value;
+    const year = document.getElementById('yearSelect').value;
+    exportDataToExcel(headers, rows, `Aylik_Gunluk_Trend_Raporu_${year}_${month}`);
 }
 
 loadDaily();

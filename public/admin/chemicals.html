@@ -9,7 +9,11 @@
 <body>
 <aside class="sidebar">
     <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
-    <div class="sidebar-header"><div class="logo">🦟 Vektörle Mücadele<br>Yönetim Sistemi</div><div class="sub">Sivas Belediyesi</div></div>
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
     <nav class="sidebar-nav">
         <div class="nav-section">Ana Menü</div>
         <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
@@ -18,7 +22,8 @@
         <div class="nav-section">Yönetim</div>
         <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
         <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
-        <a href="/admin/chemicals" class="nav-item active"><span class="icon">🧪</span> İlaç Stok</a>
+        <a href="/admin/chemicals" class="nav-item active"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -31,7 +36,8 @@
             <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
             🧪 İlaç Stok Yönetimi
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-outline btn-sm" onclick="exportToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
             <button class="btn btn-success" onclick="openNewChemical()">+ Yeni İlaç Ekle</button>
             <button class="btn btn-primary" onclick="openAddStock()">+ Stok Girişi</button>
         </div>
@@ -41,7 +47,7 @@
         <div class="card">
             <div class="card-header"><span class="card-title">İlaç Envanteri</span></div>
             <div class="table-container">
-                <table>
+                <table id="chemicalsExcelTable">
                     <thead><tr><th>İlaç Adı</th><th>Tür</th><th>Stok</th><th>Min Uyarı</th><th>Durum</th><th>İşlem</th></tr></thead>
                     <tbody id="chemTable"></tbody>
                 </table>
@@ -120,18 +126,19 @@
 
 <!-- Transaction History Modal -->
 <div class="modal-overlay" id="historyModal">
-    <div class="modal" style="max-width:600px; width:90%;">
+    <div class="modal" style="max-width:750px; width:95%;">
         <div class="modal-header">
             <div class="modal-title" id="historyModalTitle">📜 Stok Hareketleri Geçmişi</div>
             <button class="modal-close" onclick="document.getElementById('historyModal').classList.remove('active')">&times;</button>
         </div>
         <div class="table-container" style="max-height: 350px; overflow-y: auto; margin-top: 10px;">
-            <table>
+            <table id="chemHistoryExcelTable">
                 <thead>
                     <tr>
                         <th>Tarih</th>
                         <th>Tür</th>
                         <th>Miktar</th>
+                        <th>İşlem Detayı</th>
                         <th>Açıklama</th>
                     </tr>
                 </thead>
@@ -140,7 +147,8 @@
                 </tbody>
             </table>
         </div>
-        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="exportHistoryToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
             <button type="button" class="btn btn-outline" onclick="document.getElementById('historyModal').classList.remove('active')">Kapat</button>
         </div>
     </div>
@@ -155,7 +163,16 @@ if (!TOKEN || USER.role !== 'admin') {
     localStorage.clear();
     window.location.href = '/';
 }
-function logout() { localStorage.clear(); window.location.href = '/'; }
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
 
 async function api(url, opts={}) {
     const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
@@ -176,7 +193,7 @@ async function load() {
         return `<div class="stat-card ${low ? 'orange' : colors[i%5]}">
             <div class="stat-icon ${low ? 'orange' : colors[i%5]}">${low ? '⚠️' : '🧪'}</div>
             <div>
-                <div class="stat-value" style="font-size:20px;">${c.stock_amount} lt</div>
+                <div class="stat-value" style="font-size:20px;">${Number(c.stock_amount).toFixed(2)} lt</div>
                 <div class="stat-label">${c.name}</div>
                 <div class="stat-label">${c.type}</div>
             </div>
@@ -189,8 +206,8 @@ async function load() {
         return `<tr>
             <td><strong>${c.name}</strong></td>
             <td><span class="badge badge-info">${c.type}</span></td>
-            <td style="font-weight:600;${low?'color:var(--danger)':''}">${c.stock_amount} lt</td>
-            <td>${c.min_stock_alert} lt</td>
+            <td style="font-weight:600;${low?'color:var(--danger)':''}">${Number(c.stock_amount).toFixed(2)} lt</td>
+            <td>${Number(c.min_stock_alert).toFixed(2)} lt</td>
             <td><span class="badge ${low?'badge-danger':'badge-success'}">${low?'⚠ Düşük':'✓ Yeterli'}</span></td>
             <td>
                 <div style="display:flex;gap:4px;align-items:center;">
@@ -206,7 +223,7 @@ async function load() {
 
 function openAddStock() {
     api('/api/chemicals').then(chems => {
-        document.getElementById('stockChemical').innerHTML = chems.map(c => `<option value="${c.id}">${c.name} (${c.stock_amount}lt)</option>`).join('');
+        document.getElementById('stockChemical').innerHTML = chems.map(c => `<option value="${c.id}">${c.name} (${Number(c.stock_amount).toFixed(2)}lt)</option>`).join('');
         document.getElementById('stockModal').classList.add('active');
     });
 }
@@ -294,7 +311,7 @@ async function deleteChemical(id, name) {
 async function openHistoryModal(id, name) {
     document.getElementById('historyModalTitle').textContent = `📜 ${name} - Stok Hareket Geçmişi`;
     const tbody = document.getElementById('historyTable');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Yükleniyor...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">Yükleniyor...</td></tr>';
     document.getElementById('historyModal').classList.add('active');
     
     try {
@@ -306,16 +323,174 @@ async function openHistoryModal(id, name) {
             const dateStr = new Date(tx.created_at).toLocaleString('tr-TR');
             const amountPrefix = isGiris ? '+' : '-';
             const amountColor = isGiris ? 'var(--success)' : 'var(--danger)';
+            
+            let detailHtml = '';
+            if (isGiris) {
+                detailHtml = `<span style="color:var(--text-muted);font-size:11px;">Depo Stok Girişi</span>`;
+            } else {
+                const appTypeDesc = tx.application_type || 'İlaçlama Oturumu';
+                const isYaya = !tx.vehicle_plate;
+                
+                if (isYaya) {
+                    detailHtml = `
+                        <div style="font-size:11px; line-height:1.4; text-align: left;">
+                            <div><strong>Oturum #${tx.session_id}</strong> • ${appTypeDesc}</div>
+                            <div style="color:var(--text-secondary); margin-top:2px;">🚶 Yaya (Sırt Tipi)</div>
+                            <div style="color:var(--text-muted); font-size:10px; margin-top:1px;">👥 Operatör: ${tx.operator_name || '-'}</div>
+                        </div>
+                    `;
+                } else {
+                    detailHtml = `
+                        <div style="font-size:11px; line-height:1.4; text-align: left;">
+                            <div><strong>Oturum #${tx.session_id}</strong> • ${appTypeDesc}</div>
+                            <div style="color:var(--text-secondary); margin-top:2px;">🚐 Araç: <strong>${tx.vehicle_plate}</strong> (${tx.vehicle_machine_name || ''})</div>
+                            <div style="color:var(--text-muted); font-size:10px; margin-top:1px;">👥 Şoför: ${tx.driver_name || '-'}, Operatör: ${tx.operator_name || '-'}</div>
+                        </div>
+                    `;
+                }
+            }
+
             return `<tr>
                 <td style="font-size:11px;">${dateStr}</td>
                 <td><span class="badge ${badgeClass}">${label}</span></td>
-                <td style="font-weight:700; color:${amountColor}">${amountPrefix}${tx.amount} lt</td>
-                <td style="font-size:11px; max-width: 200px; white-space: normal;">${tx.description || '-'}</td>
+                <td style="font-weight:700; color:${amountColor}">${amountPrefix}${Number(tx.amount).toFixed(2)} lt</td>
+                <td>${detailHtml}</td>
+                <td style="font-size:11px; max-width: 150px; white-space: normal; text-align: left;">${tx.description || '-'}</td>
             </tr>`;
-        }).join('') || '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Bu ilaca ait hareket kaydı bulunamadı.</td></tr>';
+        }).join('') || '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted)">Bu ilaca ait hareket kaydı bulunamadı.</td></tr>';
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--danger)">Hata: ${err.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--danger)">Hata: ${err.message}</td></tr>`;
     }
+}
+
+function exportToExcel() {
+    exportHtmlTableToExcel('chemicalsExcelTable', 'Ilac_Envanteri');
+}
+
+function exportHistoryToExcel() {
+    const title = document.getElementById('historyModalTitle').textContent || 'Stok_Hareket_Gecmisi';
+    const cleanTitle = title.replace(/[^a-zA-Z0-9_ğüşöçİĞÜŞÖÇ -]/g, '').trim().replace(/\s+/g, '_');
+    exportHtmlTableToExcel('chemHistoryExcelTable', cleanTitle);
+}
+
+function exportHtmlTableToExcel(tableID, filename = 'rapor') {
+    const table = document.getElementById(tableID);
+    if (!table) return;
+    
+    // Clone the table to avoid styling the actual UI table
+    const clone = table.cloneNode(true);
+    
+    // Set basic properties for Excel borders
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    // Remove the last column ("İşlem") if it exists
+    let hasActionColumn = false;
+    const headersList = clone.querySelectorAll('thead tr');
+    headersList.forEach(tr => {
+        const lastTh = tr.querySelector('th:last-child');
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler'))) {
+            lastTh.remove();
+            hasActionColumn = true;
+        }
+    });
+    
+    if (hasActionColumn) {
+        const bodyRows = clone.querySelectorAll('tbody tr');
+        bodyRows.forEach(tr => {
+            const lastTd = tr.querySelector('td:last-child');
+            if (lastTd) lastTd.remove();
+        });
+    }
+    
+    // Process headers
+    const ths = clone.querySelectorAll('th');
+    ths.forEach(th => {
+        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    // Process rows
+    const trs = clone.querySelectorAll('tr');
+    trs.forEach(tr => {
+        tr.removeAttribute('class');
+        tr.removeAttribute('style'); // Clear all inline style on tr
+        tr.style.backgroundColor = '#ffffff';
+        
+        const tds = tr.querySelectorAll('td');
+        tds.forEach(td => {
+            td.removeAttribute('class');
+            
+            // Keep important inline style values before removing all styles
+            const originalColor = td.style.color;
+            const originalPaddingLeft = td.style.paddingLeft;
+            
+            td.removeAttribute('style');
+            
+            // Apply standard Excel cell styles
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalPaddingLeft) {
+                td.style.paddingLeft = originalPaddingLeft;
+            }
+            
+            // Clean up text colors for Excel readability
+            if (originalColor) {
+                if (originalColor.includes('var(--text-secondary)')) {
+                    td.style.color = '#475569';
+                } else if (originalColor.includes('var(--text-muted)')) {
+                    td.style.color = '#64748b';
+                } else if (originalColor.includes('var(--danger)')) {
+                    td.style.color = '#dc2626';
+                } else if (originalColor.includes('var(--success)')) {
+                    td.style.color = '#16a34a';
+                } else {
+                    td.style.color = originalColor;
+                }
+            }
+        });
+    });
+
+    // Also style any status badges cleanly for Excel
+    clone.querySelectorAll('.badge').forEach(badge => {
+        badge.style.padding = '2px 6px';
+        badge.style.borderRadius = '4px';
+        badge.style.fontWeight = 'bold';
+        badge.style.fontSize = '10px';
+        if (badge.classList.contains('badge-danger')) {
+            badge.style.backgroundColor = '#fee2e2';
+            badge.style.color = '#dc2626';
+        } else if (badge.classList.contains('badge-warning')) {
+            badge.style.backgroundColor = '#fef3c7';
+            badge.style.color = '#d97706';
+        } else if (badge.classList.contains('badge-success')) {
+            badge.style.backgroundColor = '#dcfce7';
+            badge.style.color = '#16a34a';
+        } else if (badge.classList.contains('badge-info')) {
+            badge.style.backgroundColor = '#e0f2fe';
+            badge.style.color = '#0284c7';
+        }
+    });
+    
+    // Turkish character support with UTF-8 BOM
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 }
 
 load();

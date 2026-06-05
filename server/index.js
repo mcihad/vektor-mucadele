@@ -37,7 +37,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Routes
-const authRoutes = require('./routes/auth');
+const createAuthRoutes = require('./routes/auth');
 const vehicleRoutes = require('./routes/vehicles');
 const personnelRoutes = require('./routes/personnel');
 const createSessionRoutes = require('./routes/sessions');
@@ -46,7 +46,7 @@ const chemicalRoutes = require('./routes/chemicals');
 const createCitizenReportRoutes = require('./routes/citizenReports');
 const routeRoutes = require('./routes/routes');
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', createAuthRoutes(io));
 app.use('/api/vehicles', vehicleRoutes);
 app.use('/api/personnel', personnelRoutes);
 app.use('/api/sessions', createSessionRoutes(io));
@@ -158,11 +158,66 @@ app.get('/mobile/*', (req, res) => {
 app.get('/ihbar', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'citizen.html')));
 app.get('/vatandas-veri', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'vatandas-veri.html')));
 
+// ─── Araç Konum Hareketi Takip Sistemi ───
+// Her aracın son konum bilgisini ve hareket zamanlayıcısını tutan yapı
+const vehicleMovementTrackers = new Map(); // vehicle_id -> { lastLat, lastLng, lastMoveTime, offlineTimeout }
+const VEHICLE_OFFLINE_TIMEOUT_MS = 30000; // 30 saniye hareket yoksa çevrimdışı
+
+function checkVehicleMovement(vehicleId, latitude, longitude) {
+    const tracker = vehicleMovementTrackers.get(vehicleId);
+    const now = Date.now();
+    
+    if (!tracker) {
+        // İlk konum - çevrimiçi yap
+        vehicleMovementTrackers.set(vehicleId, {
+            lastLat: latitude,
+            lastLng: longitude,
+            lastMoveTime: now,
+            offlineTimeout: setTimeout(() => setVehicleOffline(vehicleId), VEHICLE_OFFLINE_TIMEOUT_MS)
+        });
+        io.to('admin').emit('vehicle-online-status', { vehicle_id: vehicleId, online: true });
+        return;
+    }
+    
+    // Hareket oldu mu? (3 metreden fazla değişim)
+    const R = 6371000;
+    const dLat = (latitude - tracker.lastLat) * Math.PI / 180;
+    const dLon = (longitude - tracker.lastLng) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(tracker.lastLat*Math.PI/180)*Math.cos(latitude*Math.PI/180)*Math.sin(dLon/2)**2;
+    const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    if (dist > 3) {
+        // Hareket var - çevrimiçi
+        tracker.lastLat = latitude;
+        tracker.lastLng = longitude;
+        tracker.lastMoveTime = now;
+        // Zamanlayıcıyı sıfırla
+        if (tracker.offlineTimeout) clearTimeout(tracker.offlineTimeout);
+        tracker.offlineTimeout = setTimeout(() => setVehicleOffline(vehicleId), VEHICLE_OFFLINE_TIMEOUT_MS);
+        io.to('admin').emit('vehicle-online-status', { vehicle_id: vehicleId, online: true });
+    } else {
+        // Hareket yok - zamanlayıcı çalışmaya devam eder
+    }
+}
+
+function setVehicleOffline(vehicleId) {
+    console.log(`[Vehicle] Araç #${vehicleId} → ÇEVRİMDIŞI (30sn hareket yok)`);
+    io.to('admin').emit('vehicle-online-status', { vehicle_id: vehicleId, online: false });
+    vehicleMovementTrackers.delete(vehicleId);
+}
+
+// ─── Kullanıcı-Socket Eşleştirme ───
+const userSocketMap = new Map(); // userId -> socketId
+
 // Socket.io - real-time vehicle tracking
 io.on('connection', (socket) => {
     console.log(`[Socket] Yeni bağlantı: ${socket.id}`);
 
     socket.on('vehicle-location', (data) => {
+        // Konum hareketi kontrolü
+        if (data.vehicle_id && data.latitude && data.longitude) {
+            checkVehicleMovement(data.vehicle_id, data.latitude, data.longitude);
+        }
         // Broadcast vehicle location to all admin clients
         io.emit('vehicle-update', data);
     });
@@ -185,10 +240,31 @@ io.on('connection', (socket) => {
 
     socket.on('join-field-user', (userId) => {
         socket.join(`user-${userId}`);
+        socket.userId = userId;
+        userSocketMap.set(userId, socket.id);
     });
 
     socket.on('disconnect', () => {
         console.log(`[Socket] Bağlantı koptu: ${socket.id}`);
+        // Kullanıcı bağlantısı koptuğunda personeli pasif yap
+        if (socket.userId) {
+            userSocketMap.delete(socket.userId);
+            const db = getDb();
+            db.exec("SELECT id FROM personnel WHERE user_id = ?", [socket.userId]).then(result => {
+                const rows = result && result.length > 0 ? result[0].values : [];
+                if (rows.length > 0) {
+                    db.run("UPDATE personnel SET status = 'pasif' WHERE user_id = ?", [socket.userId]).then(() => {
+                        saveDatabase();
+                        console.log(`[Socket] Kullanıcı #${socket.userId} bağlantısı koptu → Personel PASİF`);
+                        io.to('admin').emit('personnel-status-changed', {
+                            user_id: socket.userId,
+                            personnel_id: rows[0][0],
+                            status: 'pasif'
+                        });
+                    }).catch(() => {});
+                }
+            }).catch(() => {});
+        }
     });
 });
 
@@ -206,6 +282,72 @@ function getNetworkIPs() {
     return ips;
 }
 
+// Helper: Convert SQLite raw result structure to object array
+function rowsToObjects(result) {
+    if (!result || result.length === 0 || !result[0].values) return [];
+    const cols = result[0].columns;
+    return result[0].values.map(row => {
+        const obj = {};
+        cols.forEach((c, i) => obj[c] = row[i]);
+        return obj;
+    });
+}
+
+// 5 dakikada bir aktif ilaçlama oturumlarını kontrol edip yöneticilere bildirim gönderen fonksiyon
+function startActiveSessionNotifier() {
+    setInterval(async () => {
+        try {
+            const db = getDb();
+            if (!db) return;
+
+            // Durumu 'active' olan (yani duraklatılmamış/devam eden) aktif ilaçlama oturumlarını çek
+            const result = await db.exec(`
+                SELECT s.id, v.plate, s.neighborhood
+                FROM spray_sessions s
+                LEFT JOIN vehicles v ON s.vehicle_id = v.id
+                WHERE s.status = 'active'
+            `);
+
+            const sessions = rowsToObjects(result);
+            if (sessions.length === 0) return;
+
+            // Bildirim içeriğini oluştur
+            let body = '';
+            if (sessions.length === 1) {
+                const s = sessions[0];
+                const vehiclePlate = s.plate || 'Araç';
+                const neighborhood = s.neighborhood || 'Bilinmeyen Mahalle';
+                body = `${vehiclePlate} plakalı araç ile ${neighborhood} mahallesinde ilaçlama devam ediyor.`;
+            } else {
+                const details = sessions.map(s => `${s.plate || 'Araç'} (${s.neighborhood || 'Bilinmeyen Mahalle'})`).join(', ');
+                body = `${sessions.length} araç ile ilaçlama devam ediyor. Aktif araçlar: ${details}`;
+            }
+
+            const title = '🔄 İlaçlama Devam Ediyor';
+            
+            // Tüm admin kullanıcılarını bul
+            const adminsResult = await db.exec("SELECT id FROM users WHERE role = 'admin'");
+            const admins = rowsToObjects(adminsResult);
+
+            // Her bir admine Web Push üzerinden bildirimi gönder
+            for (const admin of admins) {
+                await sendPushToUser(admin.id, title, body, '/admin/dashboard');
+            }
+
+            // Canlı paneli açık olan yöneticilere de socket üzerinden gönder
+            io.to('admin').emit('active-sessions-reminder', {
+                sessionsCount: sessions.length,
+                message: body,
+                sessions: sessions
+            });
+
+            console.log(`[Bildirim Hatırlatıcısı] ${sessions.length} adet aktif ilaçlama için yöneticilere 5 dk hatırlatması yapıldı.`);
+        } catch (err) {
+            console.error('[Bildirim Hatırlatıcısı] Hata:', err.message);
+        }
+    }, 5 * 60 * 1000); // 5 dakika (5 * 60 * 1000 ms)
+}
+
 // Start server
 const PORT = parseInt(process.env.PORT || '3000');
 const HOST = process.env.HOST || '0.0.0.0';
@@ -214,6 +356,9 @@ async function startServer() {
     try {
         await initDatabase();
         console.log('✅ Veritabanı başlatıldı');
+        
+        // Aktif ilaçlama bildirim hatırlatıcısını başlat
+        startActiveSessionNotifier();
 
         server.listen(PORT, HOST, () => {
             const networkIPs = getNetworkIPs();

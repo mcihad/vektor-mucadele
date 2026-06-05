@@ -13,11 +13,44 @@ function rowsToObjects(result) {
     });
 }
 
-// Get all vehicles
+// Get all vehicles (with online_status based on 30 second movement threshold)
 router.get('/', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
         const result = await db.exec("SELECT * FROM vehicles ORDER BY plate");
+        const vehicles = rowsToObjects(result);
+        // Her araç için çevrimiçi/çevrimdışı durumunu hesapla (30 sn eşik)
+        const now = Date.now();
+        const enriched = vehicles.map(v => ({
+            ...v,
+            online_status: v.last_location_time && (now - new Date(v.last_location_time).getTime()) < 30000 ? 'çevrimiçi' : 'çevrimdışı'
+        }));
+        res.json(enriched);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get current vehicle stock levels (tank remaining amounts)
+router.get('/stock/levels', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const query = `
+            SELECT v.id as vehicle_id, v.plate, v.machine_name, v.tank_capacity_lt, v.usage_type,
+                   s.id as session_id, s.status as session_status,
+                   s.intake_amount_lt, s.chemical_used_lt,
+                   c.name as chemical_name
+            FROM vehicles v
+            LEFT JOIN spray_sessions s ON s.id = (
+                SELECT id FROM spray_sessions
+                WHERE vehicle_id = v.id
+                ORDER BY start_time DESC, id DESC
+                LIMIT 1
+            )
+            LEFT JOIN chemicals c ON s.chemical_id = c.id
+            ORDER BY v.plate
+        `;
+        const result = await db.exec(query);
         res.json(rowsToObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });
