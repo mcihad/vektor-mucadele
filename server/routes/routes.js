@@ -440,14 +440,19 @@ router.post('/planned-routes/:id/assign', authMiddleware, async (req, res) => {
 router.get('/assigned/:userId', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
+        const todayStr = new Date().toLocaleDateString('en-CA'); // 'YYYY-MM-DD' format in local time
         const result = await db.exec(`
             SELECT pr.*, v.plate, v.machine_name, v.machine_type, v.tank_capacity_lt
             FROM planned_routes pr
             LEFT JOIN vehicles v ON pr.vehicle_id = v.id
-            WHERE pr.assigned_user_id = ? AND pr.status IN ('assigned', 'active')
+            WHERE pr.assigned_user_id = ? 
+              AND (
+                pr.status = 'active'
+                OR (pr.status = 'assigned' AND pr.planned_date >= ?)
+              )
             ORDER BY pr.planned_date DESC
             LIMIT 1
-        `, [parseInt(req.params.userId)]);
+        `, [parseInt(req.params.userId), todayStr]);
         const rows = rowsToObjects(result);
         if (rows.length === 0) return res.json(null);
         res.json(rows[0]);
