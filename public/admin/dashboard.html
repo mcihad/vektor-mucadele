@@ -422,13 +422,50 @@ socket.on('admin-speed-violation', data => {
     }
 });
 
+function getBearing(lat1, lon1, lat2, lon2) {
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const lat1Rad = lat1 * Math.PI / 180;
+    const lat2Rad = lat2 * Math.PI / 180;
+    const y = Math.sin(dLon) * Math.cos(lat2Rad);
+    const x = Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+    const brng = Math.atan2(y, x) * 180 / Math.PI;
+    return (brng + 360) % 360;
+}
+
 function updateVehicleOnMap(data){
     const{vehicle_id,plate,latitude,longitude}=data;
     if(!latitude||!longitude) return;
-    if(vehicleMarkers[vehicle_id]){vehicleMarkers[vehicle_id].setLatLng([latitude,longitude]);}
+    
+    let heading = 270; // Varsayılan: sol (0 derece döndürme)
+    if(vehicleMarkers[vehicle_id]){
+        const prevLatLng = vehicleMarkers[vehicle_id].getLatLng();
+        const dist = haversine(prevLatLng.lat, prevLatLng.lng, latitude, longitude);
+        if(dist > 2) {
+            heading = getBearing(prevLatLng.lat, prevLatLng.lng, latitude, longitude);
+            vehicleMarkers[vehicle_id]._currentHeading = heading;
+        } else if(vehicleMarkers[vehicle_id]._currentHeading !== undefined) {
+            heading = vehicleMarkers[vehicle_id]._currentHeading;
+        }
+        
+        vehicleMarkers[vehicle_id].setLatLng([latitude,longitude]);
+        
+        const rotation = (heading + 90) % 360;
+        const newIcon = L.divIcon({
+            className: 'vehicle-marker',
+            html: `<div class="vehicle-icon pulse" style="transform: rotate(${rotation}deg); transition: transform 0.3s ease-in-out; display: inline-block;">🚐</div>`,
+            iconSize: [28,28]
+        });
+        vehicleMarkers[vehicle_id].setIcon(newIcon);
+    }
     else{
-        const icon=L.divIcon({className:'vehicle-marker',html:`<div class="vehicle-icon pulse">🚐</div>`,iconSize:[28,28]});
-        vehicleMarkers[vehicle_id]=L.marker([latitude,longitude],{icon}).bindPopup(`<b>${plate}</b>`).addTo(map);
+        const rotation = (heading + 90) % 360;
+        const icon = L.divIcon({
+            className: 'vehicle-marker',
+            html: `<div class="vehicle-icon pulse" style="transform: rotate(${rotation}deg); transition: transform 0.3s ease-in-out; display: inline-block;">🚐</div>`,
+            iconSize: [28,28]
+        });
+        vehicleMarkers[vehicle_id] = L.marker([latitude,longitude],{icon}).bindPopup(`<b>${plate}</b>`).addTo(map);
+        vehicleMarkers[vehicle_id]._currentHeading = heading;
     }
 }
 
