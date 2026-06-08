@@ -48,8 +48,11 @@
         <!-- Daily Report -->
         <div id="tab-daily">
             <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
-                <div class="form-group" style="margin:0;"><label class="form-label">Tarih</label><input type="date" class="form-input" id="dailyDate" onchange="loadDaily()"></div>
-                <button class="btn btn-outline btn-sm" onclick="exportDailyExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Günlük Raporu Excel'e Aktar</button>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Başlangıç Tarihi</label><input type="date" class="form-input" id="dailyDateFrom" onchange="loadDaily()"></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="dailyDateTo" onchange="loadDaily()"></div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="exportDailyExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Raporu Excel'e Aktar</button>
             </div>
             <div class="stats-grid" id="dailyStats"></div>
             
@@ -172,14 +175,17 @@ function showTab(name, el) {
     el.classList.add('active');
 }
 
-document.getElementById('dailyDate').value = new Date().toISOString().split('T')[0];
+const todayStr = new Date().toISOString().split('T')[0];
+document.getElementById('dailyDateFrom').value = todayStr;
+document.getElementById('dailyDateTo').value = todayStr;
 
 let dailyVehicleChartInstance, dailyNeighborhoodChartInstance;
 let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
 
 async function loadDaily() {
-    const date = document.getElementById('dailyDate').value;
-    const data = await api(`/api/reports/daily?date=${date}`);
+    const from = document.getElementById('dailyDateFrom').value;
+    const to = document.getElementById('dailyDateTo').value;
+    const data = await api(`/api/reports/daily?date_from=${from}&date_to=${to}`);
     const s = data.summary || {};
     document.getElementById('dailyStats').innerHTML = `
         <div class="stat-card blue"><div class="stat-icon blue">📋</div><div><div class="stat-value">${s.total_sessions||0}</div><div class="stat-label">Oturum</div></div></div>
@@ -686,8 +692,9 @@ function exportDataToExcel(headers, rows, filename = 'rapor') {
 }
 
 function exportDailyExcel() {
-    const date = document.getElementById('dailyDate').value;
-    exportHtmlTableToExcel('combinedDailyTable', `Gunluk_Ilaclama_Raporu_${date}`);
+    const from = document.getElementById('dailyDateFrom').value;
+    const to = document.getElementById('dailyDateTo').value;
+    exportHtmlTableToExcel('combinedDailyTable', `Ilaclama_Raporu_${from}_${to}`);
 }
 
 function exportCoverageExcel() {

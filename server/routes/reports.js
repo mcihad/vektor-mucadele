@@ -224,10 +224,19 @@ router.get('/route-report/:routeId', authMiddleware, async (req, res) => {
     }
 });
 
-// Daily report
+// Daily/Range report
 router.get('/daily', authMiddleware, async (req, res) => {
-    const { date } = req.query;
-    const targetDate = date || new Date().toISOString().split('T')[0];
+    const { date, date_from, date_to } = req.query;
+    
+    let fromDate, toDate;
+    if (date_from && date_to) {
+        fromDate = date_from;
+        toDate = date_to;
+    } else {
+        const targetDate = date || new Date().toISOString().split('T')[0];
+        fromDate = targetDate;
+        toDate = targetDate;
+    }
     const db = getDb();
 
     try {
@@ -240,9 +249,9 @@ router.get('/daily', authMiddleware, async (req, res) => {
             LEFT JOIN personnel p1 ON s.driver_id = p1.id
             LEFT JOIN personnel p2 ON s.operator_id = p2.id
             LEFT JOIN chemicals c ON s.chemical_id = c.id
-            WHERE date(s.start_time) = ?
+            WHERE date(s.start_time) >= ? AND date(s.start_time) <= ?
             ORDER BY s.start_time
-        `, [targetDate]));
+        `, [fromDate, toDate]));
 
         const summary = rowsToObjects(await db.exec(`
             SELECT COUNT(*) as total_sessions,
@@ -250,10 +259,10 @@ router.get('/daily', authMiddleware, async (req, res) => {
                    COALESCE(SUM(chemical_used_lt),0) as total_chemical,
                    COALESCE(SUM(area_covered_m2),0) as total_area
             FROM spray_sessions
-            WHERE date(start_time) = ?
-        `, [targetDate]));
+            WHERE date(start_time) >= ? AND date(start_time) <= ?
+        `, [fromDate, toDate]));
 
-        res.json({ date: targetDate, summary: summary[0] || {}, sessions });
+        res.json({ date_from: fromDate, date_to: toDate, summary: summary[0] || {}, sessions });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
