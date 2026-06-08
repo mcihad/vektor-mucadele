@@ -434,7 +434,7 @@ function updateVehicleOnMap(data){
 
 async function loadActiveVehiclePaths() {
     try {
-        const activeSessions = await api('/api/sessions?status=active');
+        const activeSessions = await api('/api/sessions?status=active,beklemede');
         if (activeSessions) {
             for (const s of activeSessions) {
                 const vehicleId = s.vehicle_id;
@@ -472,7 +472,7 @@ async function loadActiveVehiclePaths() {
                     vehiclePathsData[vehicleId].points = points.map(p => ({
                         lat: p.latitude,
                         lng: p.longitude,
-                        is_spraying: p.is_spraying !== undefined ? p.is_spraying : 1
+                        is_spraying: (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) ? 1 : 0
                     }));
                     drawVehiclePath(vehicleId);
                 }
@@ -566,7 +566,7 @@ function drawVehiclePath(vehicleId) {
 
 function drawVehiclePathSegment(group, pts, isSprayingVal) {
     const latlngs = pts.map(p => [p.lat, p.lng]);
-    const style = isSprayingVal === 1
+    const style = (isSprayingVal === 1 || isSprayingVal === true || isSprayingVal == 1)
         ? { color: '#10b981', weight: 6, opacity: 0.9 }
         : { color: '#6b7280', weight: 4, opacity: 0.7, dashArray: '6 6' };
     L.polyline(latlngs, style).addTo(group);
@@ -1113,3 +1113,4 @@ requestWakeLock();
 </style>
 </body>
 </html>
+

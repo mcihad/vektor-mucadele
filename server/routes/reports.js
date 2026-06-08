@@ -22,7 +22,7 @@ router.get('/dashboard', authMiddleware, async (req, res) => {
             "SELECT COUNT(*) as count FROM spray_sessions WHERE date(start_time) = date('now')"
         ));
         const activeSessions = rowsToObjects(await db.exec(
-            "SELECT COUNT(*) as count FROM spray_sessions WHERE status = 'active'"
+            "SELECT COUNT(*) as count FROM spray_sessions WHERE status IN ('active', 'beklemede')"
         ));
         const totalKmToday = rowsToObjects(await db.exec(
             "SELECT COALESCE(SUM(total_km),0) as total FROM spray_sessions WHERE date(start_time) = date('now')"
@@ -363,3 +363,4 @@ router.get('/neighborhood-coverage', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+

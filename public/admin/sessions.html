@@ -55,6 +55,7 @@
                         <option value="">Tümü</option>
                         <option value="planned">Planlandı</option>
                         <option value="active">Aktif</option>
+                        <option value="beklemede">Beklemede (Duraklatıldı)</option>
                         <option value="completed">Tamamlandı</option>
                         <option value="sorunlu">Sorunlu</option>
                     </select>
@@ -426,7 +427,7 @@ async function viewSessionRoute(sessionId, plate) {
             const pathPoints = points.map(p => ({
                 lat: p.latitude,
                 lng: p.longitude,
-                is_spraying: p.is_spraying !== undefined ? p.is_spraying : 1
+                is_spraying: (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) ? 1 : 0
             }));
             
             // Segmentlere göre rotayı çiz
@@ -483,7 +484,7 @@ async function viewSessionRoute(sessionId, plate) {
 
 function drawHistoryPathSegment(pts, isSprayingVal) {
     const latlngs = pts.map(p => [p.lat, p.lng]);
-    const style = isSprayingVal === 1
+    const style = (isSprayingVal === 1 || isSprayingVal === true || isSprayingVal == 1)
         ? { color: '#10b981', weight: 6, opacity: 0.9 } // Aktif ilaçlama yeşil
         : { color: '#6b7280', weight: 4, opacity: 0.7, dashArray: '6 6' }; // Pasif/Duraklatılmış gri kesikli
     L.polyline(latlngs, style).addTo(routeSegmentsGroup);
@@ -613,3 +614,4 @@ loadSessions();
 </script>
 </body>
 </html>
+

@@ -115,7 +115,16 @@ module.exports = function(io) {
                    WHERE 1=1`;
         const params = [];
 
-        if (status) { sql += " AND s.status = ?"; params.push(status); }
+        if (status) {
+            if (status.includes(',')) {
+                const statuses = status.split(',');
+                sql += ` AND s.status IN (${statuses.map(() => '?').join(',')})`;
+                params.push(...statuses);
+            } else {
+                sql += " AND s.status = ?";
+                params.push(status);
+            }
+        }
         if (vehicle_id) { sql += " AND s.vehicle_id = ?"; params.push(vehicle_id); }
         if (date_from) { sql += " AND s.start_time >= ?"; params.push(date_from); }
         if (date_to) { sql += " AND s.start_time <= ?"; params.push(date_to); }
@@ -426,7 +435,7 @@ module.exports = function(io) {
                 let currentSegment = [];
 
                 for (const p of rawPoints) {
-                    if (p.is_spraying === 1) {
+                    if (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) {
                         currentSegment.push(p);
                     } else {
                         if (currentSegment.length >= 2) {
@@ -624,7 +633,7 @@ module.exports = function(io) {
                         const segments = [];
                         let currentSegment = [];
                         for (const p of rawPoints) {
-                            if (p.is_spraying === 1) {
+                            if (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) {
                                 currentSegment.push(p);
                             } else {
                                 if (currentSegment.length >= 2) segments.push(currentSegment);
