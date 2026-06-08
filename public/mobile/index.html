@@ -1031,7 +1031,11 @@ function initSocket(){
 function startGPS(){
     if(!navigator.geolocation){document.getElementById('gpsStatus').textContent='❌ GPS desteklenmiyor';return;}
     watchId=navigator.geolocation.watchPosition(
-        pos=>{
+        pos => {
+            if (window._gpsRetryTimeout) {
+                clearTimeout(window._gpsRetryTimeout);
+                window._gpsRetryTimeout = null;
+            }
             const{latitude,longitude,speed,accuracy}=pos.coords;
             document.getElementById('gpsStatus').textContent=`📡 GPS Aktif • Doğruluk: ${Math.round(accuracy)}m`;
             // Premium Navigation Arrow (Google Maps Style)
@@ -1145,7 +1149,15 @@ function startGPS(){
             }
             if(sessionId && isSpraying) map.panTo([latitude,longitude]);
         },
-        err=>{document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${err.message}`;},
+        err=>{
+            document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${err.message}`;
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            if (window._gpsRetryTimeout) clearTimeout(window._gpsRetryTimeout);
+            window._gpsRetryTimeout = setTimeout(startGPS, 5000);
+        },
         {enableHighAccuracy:true,maximumAge:3000,timeout:10000}
     );
 }
