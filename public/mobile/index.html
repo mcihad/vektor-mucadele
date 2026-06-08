@@ -156,6 +156,43 @@
             background: rgba(255,255,255,0.05);
             color: #fff;
         }
+        .drawer-logout-btn {
+            margin-top: auto;
+            margin-bottom: 8px;
+            background: rgba(239, 68, 68, 0.12) !important;
+            border: 1px solid rgba(239, 68, 68, 0.3) !important;
+            color: #f87171 !important;
+            font-weight: 700 !important;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.1);
+        }
+        .drawer-logout-btn:hover, .drawer-logout-btn:active {
+            background: #ef4444 !important;
+            color: #fff !important;
+            border-color: #ef4444 !important;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35) !important;
+        }
+        .mobile-header-logout-btn {
+            padding: 6px 10px;
+            border: none;
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: #fff;
+            border-radius: 6px;
+            font-weight: 800;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+            transition: all 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-header-logout-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 1px 4px rgba(239, 68, 68, 0.2);
+        }
         @keyframes slideRight {
             from { transform: translateX(-100%); }
             to { transform: translateX(0); }
@@ -207,6 +244,9 @@
         <div class="drawer-header">
             <div class="logo">🦟 Sivas VMS</div>
             <div class="sub">Yönetici Paneli</div>
+            <div id="drawerUser" style="font-size:12px;font-weight:600;color:var(--accent);margin-top:6px;display:flex;align-items:center;gap:6px;">
+                <span>👤</span> <span id="mUserNameDrawer"></span>
+            </div>
             <button class="drawer-close" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)">✕</button>
         </div>
         <nav class="drawer-nav">
@@ -226,7 +266,7 @@
             <a href="#" onclick="toggleDrawer(false); animateRoutePreview();" class="drawer-item" id="drawerPreviewBtn">▶️ Rota Önizle</a>
             <a href="#" onclick="toggleDrawer(false); navigateToRouteStart();" class="drawer-item" id="drawerNavStartBtn">📍 Başlangıca Navigasyon</a>
             <a href="#" onclick="toggleDrawer(false); openGoogleNavigation();" class="drawer-item" id="drawerNavBtn">🗺️ Google Navigasyon</a>
-            <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item" style="color:var(--danger)">🚪 Oturumu Kapat</a>
+            <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item drawer-logout-btn">🚪 Oturumu Kapat</a>
         </nav>
     </div>
 </div>
@@ -244,8 +284,8 @@
                 <option value="driver">🚗 Şoför</option>
                 <option value="operator">🔧 Operatör</option>
             </select>
-            <span id="mUserName" style="font-size:11px;opacity:0.9"></span>
-            <button class="btn btn-sm btn-outline" onclick="mobileLogout()" style="padding:4px 6px;border:none;background:transparent">🚪</button>
+            <span id="mUserName" style="font-size:11px;opacity:0.9;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;vertical-align:middle;"></span>
+            <button class="mobile-header-logout-btn" onclick="mobileLogout()">🚪 ÇIKIŞ</button>
         </div>
     </div>
     <div class="mobile-map"><div id="mobileMap"></div><button id="btnLocateMe" onclick="locateMe()" style="position:absolute;top:145px;right:10px;z-index:1000;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,0.15);background:rgba(15,23,42,0.9);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;">📍</button></div>
@@ -349,7 +389,7 @@ let reportMarkersLayer=null,allActiveReports=[],selectedReport=null;
 if (TOKEN && USER.id) {
     showApp();
 } else {
-    window.location.href = '/';
+    window.location.replace('/');
 }
 
 // Mobil cihazlarda drawer'ı kesin olarak kapatmak için global olay dinleyicileri
@@ -389,6 +429,8 @@ if (document.readyState === 'loading') {
 async function showApp(){
     document.getElementById('appScreen').style.display='flex';
     document.getElementById('mUserName').textContent=USER.full_name||'';
+    const mUserNameDrawer = document.getElementById('mUserNameDrawer');
+    if (mUserNameDrawer) mUserNameDrawer.textContent = USER.full_name || '';
     const hamburgerBtn = document.getElementById('hamburgerBtn');
     hamburgerBtn.style.display = 'flex';
     
@@ -870,26 +912,37 @@ async function loadAssignedRoute(){
                 }
             }
 
-            // Eğer oturum aktifse (sayfa yenilenmişse veya uygulama geri gelmişse) durumu restore et
-            if(session.status==='active'){
+            // Eğer oturum aktif veya beklemedeyse (sayfa yenilenmişse veya uygulama geri gelmişse) durumu restore et
+            if(session.status==='active' || session.status==='beklemede'){
                 sessionId=session.id;
                 startTime=session.start_time ? new Date(session.start_time).getTime() : Date.now();
                 
-                const storedSpraying = localStorage.getItem('vms_is_spraying');
-                isSpraying = storedSpraying !== 'false';
+                if (session.status === 'beklemede') {
+                    isSpraying = false;
+                    localStorage.setItem('vms_is_spraying', 'false');
+                    pauseTime = Date.now();
+                } else {
+                    const storedSpraying = localStorage.getItem('vms_is_spraying');
+                    isSpraying = storedSpraying !== 'false';
+                }
                 
                 updateControlButtons();
                 
-                // Aktif ilaçlama devam ediyorsa arka plan sesini de başlat
+                // Aktif ilaçlama devam ediyorsa arka plan sesini de başlat ve kronometreyi çalıştır
                 if (isSpraying) {
                     startBackgroundAudio();
+                    updateTimer();
+                } else {
+                    // Duraklatıldıysa ekran süresini statik olarak göster (başlatınca uyuşması için pauseTime set edildi)
+                    const elapsed = Math.max(0, Math.floor((pauseTime - startTime) / 1000));
+                    const min = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                    const sec = (elapsed % 60).toString().padStart(2, '0');
+                    const mTimeEl = document.getElementById('mTime');
+                    if (mTimeEl) mTimeEl.textContent = `${min}:${sec}`;
                 }
                 
                 // WebSocket durumunu bildir
-                if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:isSpraying ? 'İlaçlama devam ediyor (yenilendi)' : 'İlaçlama duraklatıldı (yenilendi)',status:'active'});
-                
-                // Kronometreyi başlat
-                updateTimer();
+                if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:isSpraying ? 'İlaçlama devam ediyor (yenilendi)' : 'İlaçlama duraklatıldı (yenilendi)',status:session.status});
 
                 // Kayıtlı rota koordinatlarını çekip çiz
                 try{
@@ -2064,12 +2117,38 @@ function openIntakeModal() {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     document.getElementById('intakeChemDate').value = now.toISOString().slice(0, 16);
     
-    // Set first chemical transaction name if available
-    document.getElementById('intakeChemName').value = "Deltamethrin ULV";
+    // İlaç listesini depodan (API) dinamik çek ve doldur
+    const selectEl = document.getElementById('intakeChemName');
+    selectEl.innerHTML = '<option value="">Yükleniyor...</option>';
+    
+    fetch('/api/chemicals', {
+        headers: { 'Authorization': 'Bearer ' + TOKEN }
+    })
+    .then(res => res.json())
+    .then(chemicals => {
+        selectEl.innerHTML = '<option value="">İlaç Seçin...</option>' + 
+            chemicals.map(c => `<option value="${c.name}" data-type="${c.type}">${c.name} (${Number(c.stock_amount).toFixed(1)} lt)</option>`).join('');
+    })
+    .catch(err => {
+        console.error("İlaçlar yüklenemedi:", err);
+        selectEl.innerHTML = '<option value="">İlaç listesi alınamadı</option>';
+    });
+
     document.getElementById('intakeChemFrom').value = "Merkez Ambarı";
     document.getElementById('intakeChemAmount').value = "10";
     
     document.getElementById('chemicalIntakeModal').style.display = 'flex';
+}
+
+function onIntakeChemNameChange() {
+    const selectEl = document.getElementById('intakeChemName');
+    const selectedOption = selectEl.options[selectEl.selectedIndex];
+    if (selectedOption) {
+        const type = selectedOption.getAttribute('data-type');
+        if (type) {
+            document.getElementById('intakeChemType').value = type;
+        }
+    }
 }
 
 function closeIntakeModal() {
@@ -2083,7 +2162,11 @@ function submitIntakeAndStart() {
     const from = document.getElementById('intakeChemFrom').value.trim();
     const date = document.getElementById('intakeChemDate').value;
     
-    if (!name || !amount || !from || !date) {
+    if (!name) {
+        alert("Lütfen listeden bir ilaç seçin!");
+        return;
+    }
+    if (!amount || !from || !date) {
         alert("Lütfen tüm alanları eksiksiz doldurun!");
         return;
     }
@@ -2535,19 +2618,20 @@ setupPushNotifications();
         
         <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
             <div>
-                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🧪 Alınan İlaç Adı</label>
-                <input type="text" id="intakeChemName" class="form-input" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px;" placeholder="Örn: Deltamethrin, Icon 10 CS" required>
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">🧪 Alınan İlaç Adı *</label>
+                <select id="intakeChemName" class="form-select" onchange="onIntakeChemNameChange()" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px; box-sizing:border-box; outline:none;" required>
+                    <option value="">İlaç Seçin...</option>
+                </select>
             </div>
             
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
                 <div>
                     <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">📦 İlaç Türü</label>
                     <select id="intakeChemType" class="form-select" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 8px;">
-                        <option value="ULV / Ergin">ULV / Ergin</option>
-                        <option value="Larvasit">Larvasit</option>
-                        <option value="Rezidüel / Uçkun">Rezidüel / Uçkun</option>
-                        <option value="Mistblower">Mistblower</option>
-                        <option value="Diğer">Diğer</option>
+                        <option value="adultisit">Ergin Mücadele (Adultisit)</option>
+                        <option value="larvisit">Larva Mücadele (Larvisit)</option>
+                        <option value="biyolojik_larvisit">Biyolojik Larvisit</option>
+                        <option value="diğer">Diğer</option>
                     </select>
                 </div>
                 <div>

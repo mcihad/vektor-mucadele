@@ -437,6 +437,36 @@ async function createPgTables() {
         await dbConnection.query(`ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'pasif'`);
         await dbConnection.query(`UPDATE personnel SET status = 'pasif'`);
     } catch(e) { /* column may already exist or error */ }
+
+    // Ensure vehicles has tank stock columns
+    try {
+        await dbConnection.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tank_chemical_id INTEGER REFERENCES chemicals(id) ON DELETE SET NULL`);
+        await dbConnection.query(`ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS tank_chemical_amount DOUBLE PRECISION DEFAULT 0`);
+    } catch(e) {
+        console.log('Error adding tank columns to vehicles table:', e.message);
+    }
+
+    // Create vehicle stock transactions table
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS vehicle_stock_transactions (
+            id SERIAL PRIMARY KEY,
+            vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE CASCADE,
+            chemical_id INTEGER REFERENCES chemicals(id) ON DELETE SET NULL,
+            transaction_type VARCHAR(50) NOT NULL, -- 'giris', 'cikis'
+            amount DOUBLE PRECISION NOT NULL,
+            description TEXT,
+            received_from VARCHAR(255),
+            session_id INTEGER REFERENCES spray_sessions(id) ON DELETE SET NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // Ensure vehicle_stock_transactions has received_from column
+    try {
+        await dbConnection.query(`ALTER TABLE vehicle_stock_transactions ADD COLUMN IF NOT EXISTS received_from VARCHAR(255)`);
+    } catch(e) {
+        console.log('Error adding received_from column to vehicle_stock_transactions:', e.message);
+    }
 }
 
 async function seedPgData() {

@@ -52,9 +52,10 @@ router.get('/stock/levels', authMiddleware, async (req, res) => {
     try {
         const query = `
             SELECT v.id as vehicle_id, v.plate, v.machine_name, v.tank_capacity_lt, v.usage_type,
+                   v.tank_chemical_id, COALESCE(v.tank_chemical_amount, 0) as tank_chemical_amount,
                    s.id as session_id, s.status as session_status,
                    s.intake_amount_lt, s.chemical_used_lt,
-                   c.name as chemical_name
+                   COALESCE(c2.name, c.name) as chemical_name
             FROM vehicles v
             LEFT JOIN spray_sessions s ON s.id = (
                 SELECT id FROM spray_sessions
@@ -63,9 +64,34 @@ router.get('/stock/levels', authMiddleware, async (req, res) => {
                 LIMIT 1
             )
             LEFT JOIN chemicals c ON s.chemical_id = c.id
+            LEFT JOIN chemicals c2 ON v.tank_chemical_id = c2.id
             ORDER BY v.plate
         `;
         const result = await db.exec(query);
+        res.json(rowsToObjects(result));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get vehicle stock transaction history
+router.get('/:id/transactions', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const result = await db.exec(`
+            SELECT vt.*, c.name as chemical_name, v.plate as vehicle_plate,
+                   s.id as session_id, s.application_type, s.intake_received_from as session_received_from,
+                   d.name as driver_name, op.name as operator_name
+            FROM vehicle_stock_transactions vt
+            LEFT JOIN chemicals c ON vt.chemical_id = c.id
+            LEFT JOIN vehicles v ON vt.vehicle_id = v.id
+            LEFT JOIN spray_sessions s ON vt.session_id = s.id
+            LEFT JOIN personnel d ON s.driver_id = d.id
+            LEFT JOIN personnel op ON s.operator_id = op.id
+            WHERE vt.vehicle_id = ?
+            ORDER BY vt.created_at DESC
+            LIMIT 50
+        `, [req.params.id]);
         res.json(rowsToObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });

@@ -233,9 +233,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         localStorage.setItem('vms_token', data.token);
         localStorage.setItem('vms_user', JSON.stringify(data.user));
         if (data.user.role === 'admin') {
-            window.location.href = '/admin/dashboard';
+            window.location.replace('/admin/dashboard');
         } else {
-            window.location.href = '/mobile/';
+            window.location.replace('/mobile/');
         }
     } catch (err) {
         let msg = err.message || 'Giriş hatası';
@@ -251,9 +251,18 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 if (localStorage.getItem('vms_token')) {
     const u = JSON.parse(localStorage.getItem('vms_user') || '{}');
-    if (u.role === 'admin') window.location.href = '/admin/dashboard';
-    else window.location.href = '/mobile/';
+    if (u.role === 'admin') window.location.replace('/admin/dashboard');
+    else window.location.replace('/mobile/');
 }
+
+// Tarayıcı geri tuşuna basıldığında butonun 'Giriş yapılıyor...' olarak takılı kalmasını önlemek için
+window.addEventListener('pageshow', (event) => {
+    const btn = document.getElementById('loginBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Giriş Yap';
+    }
+});
 </script>
 </body>
 </html>

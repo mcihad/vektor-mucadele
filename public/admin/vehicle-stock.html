@@ -28,7 +28,7 @@
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
     </nav>
-    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" class="sidebar-logout-btn">🚪 Çıkış</a></div>
 </aside>
 <div class="main-content">
     <header class="topbar">
@@ -75,20 +75,50 @@
                         <tr>
                             <th>Plaka</th>
                             <th>Araç / Makine</th>
-                            <th>Tank Kapasitesi</th>
-                            <th>Durum</th>
-                            <th>Yüklenen İlaç</th>
-                            <th>Depodan Alınan</th>
-                            <th>İlaçlama Tüketimi</th>
-                            <th>Tanktaki Kalan</th>
-                            <th>Doluluk Oranı</th>
+                            <th style="text-align: center;">Tank Kapasitesi</th>
+                            <th style="text-align: center;">Durum</th>
+                            <th style="text-align: center;">Yüklenen İlaç</th>
+                            <th style="text-align: center;">Tanktaki Kalan</th>
+                            <th style="text-align: center;">Doluluk Oranı</th>
+                            <th style="text-align: center;">İşlem</th>
                         </tr>
                     </thead>
                     <tbody id="vehicleStockTable">
-                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Yükleniyor...</td></tr>
+                        <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Yükleniyor...</td></tr>
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vehicle Transaction History Modal -->
+<div class="modal-overlay" id="vehicleHistoryModal">
+    <div class="modal" style="max-width:750px; width:95%;">
+        <div class="modal-header">
+            <div class="modal-title" id="vehicleHistoryModalTitle">📜 Araç Tankı Stok Geçmişi</div>
+            <button class="modal-close" onclick="document.getElementById('vehicleHistoryModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="table-container" style="max-height: 350px; overflow-y: auto; margin-top: 10px;">
+            <table id="vehicleHistoryExcelTable">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Tür</th>
+                        <th>İlaç</th>
+                        <th>Miktar</th>
+                        <th>Kimden Alındı</th>
+                        <th>Açıklama</th>
+                    </tr>
+                </thead>
+                <tbody id="vehicleHistoryTable">
+                    <!-- Dynamic history rows -->
+                </tbody>
+            </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+            <button type="button" class="btn btn-outline btn-sm" onclick="exportVehicleHistoryToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
+            <button type="button" class="btn btn-outline" onclick="document.getElementById('vehicleHistoryModal').classList.remove('active')">Kapat</button>
         </div>
     </div>
 </div>
@@ -133,10 +163,7 @@ async function load() {
             if (v.session_status === 'active') {
                 totalActiveTanks++;
             }
-            if (v.session_status === 'active' || v.session_status === 'completed' || v.session_status === 'sorunlu') {
-                const rem = Math.max(0, (v.intake_amount_lt || 0) - (v.chemical_used_lt || 0));
-                totalChemicalInTanks += rem;
-            }
+            totalChemicalInTanks += v.tank_chemical_amount || 0;
         });
         
         document.getElementById('totalActiveTanks').textContent = totalActiveTanks;
@@ -147,42 +174,37 @@ async function load() {
             const cap = v.tank_capacity_lt || 100;
             const status = v.session_status;
             let chemicalName = v.chemical_name || '-';
-            let intake = 0;
-            let used = 0;
-            let rem = 0;
-            let pct = 0;
+            
+            // Intake ve used değerleri aktif/son oturumdan gelir
+            let intake = v.intake_amount_lt || 0;
+            let used = v.chemical_used_lt || 0;
+            
+            // Kalan miktar persistent araç tankı verisidir
+            let rem = v.tank_chemical_amount !== undefined ? v.tank_chemical_amount : 0;
+            if (rem < 0) rem = 0;
+            
+            let pct = (rem / cap) * 100;
+            if (pct > 100) pct = 100;
+            
             let barColor = '#10b981'; // green
-            let showStock = false;
+            if (pct < 15) barColor = '#ef4444'; // red
+            else if (pct < 40) barColor = '#f59e0b'; // orange
             
             let statusBadge = '';
             if (status === 'active') {
                 statusBadge = '<span class="badge badge-success">🟢 Aktif</span>';
-                showStock = true;
             } else if (status === 'completed') {
                 statusBadge = '<span class="badge badge-info">⚪ Tamamlandı</span>';
-                showStock = true;
             } else if (status === 'sorunlu') {
                 statusBadge = '<span class="badge badge-danger">⚠️ Sorunlu</span>';
-                showStock = true;
             } else if (status === 'planned') {
                 statusBadge = '<span class="badge badge-warning">🟡 Planlandı</span>';
             } else {
                 statusBadge = '<span class="badge badge-secondary">🔴 Oturum Yok</span>';
             }
             
-            if (showStock) {
-                intake = v.intake_amount_lt || 0;
-                used = v.chemical_used_lt || 0;
-                rem = intake - used;
-                if (rem < 0) rem = 0;
-                pct = (rem / cap) * 100;
-                if (pct > 100) pct = 100;
-                if (pct < 15) barColor = '#ef4444'; // red
-                else if (pct < 40) barColor = '#f59e0b'; // orange
-            }
-            
-            const fillLevelHtml = showStock ? `
-                <div style="display: flex; flex-direction: column; align-items: flex-start; min-width: 140px;">
+            const fillLevelHtml = `
+                <div style="display: inline-flex; flex-direction: column; align-items: flex-start; min-width: 140px; text-align: left;">
                     <div style="background:var(--border); border-radius:4px; height:8px; width:100%; overflow:hidden; position:relative;">
                         <div style="background:${barColor}; height:100%; width:${pct}%;"></div>
                     </div>
@@ -190,26 +212,65 @@ async function load() {
                         %${pct.toFixed(0)} (${rem.toFixed(2)} / ${cap.toFixed(2)} lt)
                     </span>
                 </div>
-            ` : `
-                <div style="color:var(--text-muted); font-size:11px;">-</div>
             `;
+            
+            const safePlate = (v.plate || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
             
             return `<tr>
                 <td><strong>${v.plate}</strong></td>
                 <td>${v.machine_name} <span style="font-size:10px;color:var(--text-muted)">(${v.usage_type === 'sokak_ilacalama' ? 'Sokak' : 'Larva'})</span></td>
-                <td>${cap.toFixed(2)} lt</td>
-                <td>${statusBadge}</td>
-                <td><strong>${chemicalName}</strong></td>
-                <td>${intake > 0 ? intake.toFixed(2) + ' lt' : '-'}</td>
-                <td>${used > 0 ? used.toFixed(2) + ' lt' : '-'}</td>
-                <td style="font-weight:700; color:${rem > 0 ? 'var(--success)' : 'inherit'}">${rem > 0 ? rem.toFixed(2) + ' lt' : '-'}</td>
-                <td>${fillLevelHtml}</td>
+                <td style="text-align: center;">${cap.toFixed(2)} lt</td>
+                <td style="text-align: center;">${statusBadge}</td>
+                <td style="text-align: center;"><strong>${chemicalName}</strong></td>
+                <td style="text-align: center; font-weight:700; color:${rem > 0 ? 'var(--success)' : 'inherit'}">${rem > 0 ? rem.toFixed(2) + ' lt' : '-'}</td>
+                <td style="text-align: center;">${fillLevelHtml}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:rgba(245,158,11,0.3)" onclick="openVehicleHistoryModal(${v.vehicle_id},'${safePlate}')">📜 Geçmiş</button>
+                </td>
             </tr>`;
-        }).join('') || '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-muted)">Araç bulunamadı.</td></tr>';
+        }).join('') || '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Araç bulunamadı.</td></tr>';
         
     } catch(err) {
         toast('Araç stok verileri yüklenirken hata oluştu: ' + err.message, 'error');
     }
+}
+
+async function openVehicleHistoryModal(id, plate) {
+    document.getElementById('vehicleHistoryModalTitle').textContent = `📜 ${plate} - Araç Tankı Stok Geçmişi`;
+    const tbody = document.getElementById('vehicleHistoryTable');
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Yükleniyor...</td></tr>';
+    document.getElementById('vehicleHistoryModal').classList.add('active');
+    
+    try {
+        const txs = await api(`/api/vehicles/${id}/transactions`);
+        tbody.innerHTML = txs.map(tx => {
+            const isGiris = tx.transaction_type === 'giris';
+            const badgeClass = isGiris ? 'badge-success' : 'badge-danger';
+            const label = isGiris ? '📥 Giriş' : '📤 Tüketim';
+            const dateStr = new Date(tx.created_at).toLocaleString('tr-TR');
+            const amountPrefix = isGiris ? '+' : '-';
+            const amountColor = isGiris ? 'var(--success)' : 'var(--danger)';
+            const chemicalName = tx.chemical_name || '-';
+            const receivedFrom = tx.received_from || tx.session_received_from || '-';
+            
+            return `<tr>
+                <td style="font-size:11px;">${dateStr}</td>
+                <td><span class="badge ${badgeClass}">${label}</span></td>
+                <td><strong>${chemicalName}</strong></td>
+                <td style="font-weight:700; color:${amountColor}">${amountPrefix}${Number(tx.amount).toFixed(2)} lt</td>
+                <td style="font-weight:600; color:#3b82f6;">${receivedFrom}</td>
+                <td style="font-size:11px; text-align: left;">${tx.description || '-'}</td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Bu araca ait hareket kaydı bulunamadı.</td></tr>';
+    } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--danger)">Hata: ${err.message}</td></tr>`;
+    }
+}
+
+function exportVehicleHistoryToExcel() {
+    const title = document.getElementById('vehicleHistoryModalTitle').textContent || 'Arac_Stok_Gecmisi';
+    const cleanTitle = title.replace(/[^a-zA-Z0-9_ğüşöçİĞÜŞÖÇ -]/g, '').trim().replace(/\s+/g, '_');
+    exportHtmlTableToExcel('vehicleHistoryExcelTable', cleanTitle);
 }
 
 function exportToExcel() {
@@ -221,6 +282,26 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
     if (!table) return;
     
     const clone = table.cloneNode(true);
+    
+    // Excel dışa aktarımında "İşlem" sütununu sil
+    let hasActionColumn = false;
+    const headersList = clone.querySelectorAll('thead tr');
+    headersList.forEach(tr => {
+        const lastTh = tr.querySelector('th:last-child');
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler'))) {
+            lastTh.remove();
+            hasActionColumn = true;
+        }
+    });
+    
+    if (hasActionColumn) {
+        const bodyRows = clone.querySelectorAll('tbody tr');
+        bodyRows.forEach(tr => {
+            const lastTd = tr.querySelector('td:last-child');
+            if (lastTd) lastTd.remove();
+        });
+    }
+
     clone.setAttribute('border', '1');
     clone.style.borderCollapse = 'collapse';
     clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';

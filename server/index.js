@@ -109,8 +109,15 @@ async function sendPushToUser(userId, title, body, url) {
     }
     if (!subscription) return false;
     try {
-        await webpush.sendNotification(subscription, JSON.stringify({ title, body, url: url || '/mobile/' }));
-        console.log(`[Push] Kullanıcı #${userId}'ye bildirim gönderildi: ${title}`);
+        await webpush.sendNotification(
+            subscription, 
+            JSON.stringify({ title, body, url: url || '/mobile/' }),
+            {
+                TTL: 86400, // 24 saat (cihaz kapalıysa bağlantı geldiğinde teslim edilmesi için)
+                urgency: 'high' // Pil tasarrufu/uyku modunu aşarak anında teslim et
+            }
+        );
+        console.log(`[Push] Kullanıcı #${userId}'ye yüksek öncelikli bildirim gönderildi: ${title}`);
         return true;
     } catch(err) {
         console.error(`[Push] Kullanıcı #${userId} push hatası:`, err.message);

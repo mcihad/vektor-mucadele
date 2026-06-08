@@ -28,7 +28,7 @@
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
     </nav>
-    <div class="sidebar-footer"><a href="#" onclick="logout()" style="color:var(--danger);text-decoration:none;font-size:11px;">🚪 Çıkış</a></div>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" class="sidebar-logout-btn">🚪 Çıkış</a></div>
 </aside>
 <div class="main-content">
     <header class="topbar">
@@ -48,7 +48,7 @@
             <div class="card-header"><span class="card-title">İlaç Envanteri</span></div>
             <div class="table-container">
                 <table id="chemicalsExcelTable">
-                    <thead><tr><th>İlaç Adı</th><th>Tür</th><th>Stok</th><th>Min Uyarı</th><th>Durum</th><th>İşlem</th></tr></thead>
+                    <thead><tr><th>İlaç Adı</th><th style="text-align: center;">Tür</th><th style="text-align: center;">Stok</th><th style="text-align: center;">Min Uyarı</th><th style="text-align: center;">Durum</th><th style="text-align: center;">İşlem</th></tr></thead>
                     <tbody id="chemTable"></tbody>
                 </table>
             </div>
@@ -205,12 +205,12 @@ async function load() {
         const safeName = (c.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
         return `<tr>
             <td><strong>${c.name}</strong></td>
-            <td><span class="badge badge-info">${c.type}</span></td>
-            <td style="font-weight:600;${low?'color:var(--danger)':''}">${Number(c.stock_amount).toFixed(2)} lt</td>
-            <td>${Number(c.min_stock_alert).toFixed(2)} lt</td>
-            <td><span class="badge ${low?'badge-danger':'badge-success'}">${low?'⚠ Düşük':'✓ Yeterli'}</span></td>
-            <td>
-                <div style="display:flex;gap:4px;align-items:center;">
+            <td style="text-align: center;"><span class="badge badge-info">${c.type}</span></td>
+            <td style="text-align: center; font-weight:600;${low?'color:var(--danger)':''}">${Number(c.stock_amount).toFixed(2)} lt</td>
+            <td style="text-align: center;">${Number(c.min_stock_alert).toFixed(2)} lt</td>
+            <td style="text-align: center;"><span class="badge ${low?'badge-danger':'badge-success'}">${low?'⚠ Düşük':'✓ Yeterli'}</span></td>
+            <td style="text-align: center;">
+                <div style="display:inline-flex;gap:4px;align-items:center;justify-content:center;">
                     <button class="btn btn-sm btn-outline" onclick="addStockFor(${c.id},'${safeName}')">+ Ekle</button>
                     <button class="btn btn-sm btn-outline" style="color:var(--warning);border-color:rgba(245,158,11,0.3)" onclick="openHistoryModal(${c.id},'${safeName}')">📜 Geçmiş</button>
                     <button class="btn btn-sm btn-outline" style="color:var(--accent);border-color:rgba(59,130,246,0.3)" onclick="openEditChemical(${c.id},'${safeName}','${c.type}',${c.stock_amount},${c.min_stock_alert})">✏️ Düzenle</button>

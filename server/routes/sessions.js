@@ -171,8 +171,8 @@ module.exports = function(io) {
                     FROM spray_sessions s
                     LEFT JOIN vehicles v ON s.vehicle_id = v.id
                     LEFT JOIN chemicals c ON s.chemical_id = c.id
-                    WHERE (s.driver_id = ? OR s.operator_id = ?) AND s.status IN ('active', 'planned')
-                    ORDER BY CASE WHEN s.status = 'active' THEN 1 ELSE 2 END, s.created_at DESC LIMIT 1`, [personnelId, personnelId]);
+                    WHERE (s.driver_id = ? OR s.operator_id = ?) AND s.status IN ('active', 'planned', 'beklemede')
+                    ORDER BY CASE WHEN s.status = 'active' THEN 1 WHEN s.status = 'beklemede' THEN 2 ELSE 3 END, s.created_at DESC LIMIT 1`, [personnelId, personnelId]);
             const rows = rowsToObjects(result);
             res.json(rows.length > 0 ? rows[0] : null);
         } catch (err) {
@@ -282,7 +282,35 @@ module.exports = function(io) {
                     [chemicalId, req.params.id]
                 );
 
-                console.log(`[Sessions] Oturum #${req.params.id} başlatıldı: ${intakeAmountFloat} lt ${intake_chemical_name || 'ilaç'} (ID: ${chemicalId}) araca alındı (depo stoğu henüz düşülmedi).`);
+                // ─── İlaç Stokundan Düş (Depodan) ve Araca Yükle ───
+                if (chemicalId && intakeAmountFloat > 0) {
+                    // Depo (ana stok) miktarını düşür
+                    await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
+                        [intakeAmountFloat, intakeAmountFloat, chemicalId]);
+                    
+                    const userName = req.user ? (req.user.full_name || req.user.username) : 'Saha Operatörü';
+                    const mainStockDesc = `Depodan Araç Deposuna Yükleme - Oturum #${req.params.id} (Operatör: ${userName})`;
+                    
+                    // İlaç stok hareket kaydı (cıkıs/kullanim)
+                    await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
+                        VALUES (?, 'kullanim', ?, ?, ?)`,
+                        [chemicalId, intakeAmountFloat, mainStockDesc, req.params.id]);
+
+                    // Araç deposu (tank) stok miktarını arttır ve ilacı güncelle
+                    if (sess.vehicle_id) {
+                        await db.run("UPDATE vehicles SET tank_chemical_id = ?, tank_chemical_amount = COALESCE(tank_chemical_amount, 0) + ? WHERE id = ?",
+                            [chemicalId, intakeAmountFloat, sess.vehicle_id]);
+                        
+                        const vehicleStockDesc = `Depodan Araç Deposuna Alınan İlaç - Oturum #${req.params.id}`;
+                        // Araç stok hareket logu (giris)
+                        await db.run(`INSERT INTO vehicle_stock_transactions (vehicle_id, chemical_id, transaction_type, amount, description, received_from, session_id)
+                            VALUES (?, ?, 'giris', ?, ?, ?, ?)`,
+                            [sess.vehicle_id, chemicalId, intakeAmountFloat, vehicleStockDesc, intake_received_from || null, req.params.id]);
+                    }
+                    console.log(`[Sessions] Oturum #${req.params.id} başlatıldı: ${intakeAmountFloat} lt ${intake_chemical_name || 'ilaç'} (ID: ${chemicalId}) depodan düşüldü ve araca yüklendi.`);
+                } else {
+                    console.log(`[Sessions] Oturum #${req.params.id} başlatıldı: Alınan ilaç miktarı 0 veya ilaç tanımsız (stok hareketi yapılmadı).`);
+                }
 
 
                 // Send push notification to all admin users
@@ -356,22 +384,20 @@ module.exports = function(io) {
                     WHERE id = ?`,
                 [Math.round(chemical_used_lt * 10) / 10, finalKm, area_covered_m2, notes, req.params.id]);
 
-            // ─── İlaç Stokundan Düş (Yalnızca forma yazılan kalan miktar kadar depodan düşüp, araca aktarıyoruz) ───
+            // ─── İlaçlama Tamamlandığında Araç Deposundan Düş (İlaçlama Tüketimi) ───
             const chemicalId = sess.chemical_id;
-            if (chemicalId && remaining_chemical_lt > 0) {
-                // Depo stoğundan düş
-                await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
-                    [remaining_chemical_lt, remaining_chemical_lt, chemicalId]);
+            if (sess.vehicle_id && chemical_used_lt > 0) {
+                // Araç deposu (tank) miktarını kullanılan ilaç miktarı kadar düşür
+                await db.run("UPDATE vehicles SET tank_chemical_amount = CASE WHEN tank_chemical_amount - ? > 0 THEN tank_chemical_amount - ? ELSE 0 END WHERE id = ?",
+                    [chemical_used_lt, chemical_used_lt, sess.vehicle_id]);
                 
-                const userName = req.user ? (req.user.full_name || req.user.username) : 'Saha Operatörü';
+                // Araç stok hareket logu (cikis)
+                const vehicleStockDesc = `İlaçlama Tüketimi - Oturum #${req.params.id}`;
+                await db.run(`INSERT INTO vehicle_stock_transactions (vehicle_id, chemical_id, transaction_type, amount, description, session_id)
+                        VALUES (?, ?, 'cikis', ?, ?, ?)`,
+                    [sess.vehicle_id, chemicalId, chemical_used_lt, vehicleStockDesc, req.params.id]);
 
-                // Yalnızca araca aktarılan kalan miktar için stok hareketi
-                const transferDesc = `Araç Deposuna Aktarılan Stok - Oturum #${req.params.id} (Operatör: ${userName})`;
-                await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
-                        VALUES (?, 'kullanim', ?, ?, ?)`,
-                    [chemicalId, remaining_chemical_lt, transferDesc, req.params.id]);
-
-                console.log(`[Sessions] Oturum #${req.params.id} sonlandırıldı. Toplam depo stoğundan ${remaining_chemical_lt} lt (kalan miktar) düşüldü.`);
+                console.log(`[Sessions] Oturum #${req.params.id} sonlandırıldı. Araç tankı stoğundan ${chemical_used_lt} lt düşürüldü.`);
             }
 
             // Eğer rotaya bağlıysa, rotanın durumunu güncelle
@@ -566,21 +592,20 @@ module.exports = function(io) {
                             await db.run("UPDATE spray_sessions SET chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
                                 [Math.round(chemical_used_lt * 10) / 10, req.params.id]);
 
-                            // Depo stoğundan düşüm (Yalnızca forma yazılan kalan miktar kadar)
+                            // ─── İlaçlama Tamamlandığında Araç Deposundan Düş (Sorun Bildirildi) ───
                             const chemicalId = sess.chemical_id;
-                            if (chemicalId && remaining_chemical_lt > 0) {
-                                await db.run("UPDATE chemicals SET stock_amount = CASE WHEN stock_amount - ? > 0 THEN stock_amount - ? ELSE 0 END WHERE id = ?",
-                                    [remaining_chemical_lt, remaining_chemical_lt, chemicalId]);
+                            if (sess.vehicle_id && chemical_used_lt > 0) {
+                                // Araç deposu (tank) miktarını kullanılan ilaç miktarı kadar düşür
+                                await db.run("UPDATE vehicles SET tank_chemical_amount = CASE WHEN tank_chemical_amount - ? > 0 THEN tank_chemical_amount - ? ELSE 0 END WHERE id = ?",
+                                    [chemical_used_lt, chemical_used_lt, sess.vehicle_id]);
                                 
-                                const userName = req.user ? (req.user.full_name || req.user.username) : 'Saha Operatörü';
+                                // Araç stok hareket logu (cikis)
+                                const vehicleStockDesc = `İlaçlama Tüketimi (Sorun Bildirildi) - Oturum #${req.params.id}`;
+                                await db.run(`INSERT INTO vehicle_stock_transactions (vehicle_id, chemical_id, transaction_type, amount, description, session_id)
+                                        VALUES (?, ?, 'cikis', ?, ?, ?)`,
+                                    [sess.vehicle_id, chemicalId, chemical_used_lt, vehicleStockDesc, req.params.id]);
 
-                                // Yalnızca araca aktarılan kalan miktar için stok hareketi
-                                const transferDesc = `Araç Deposuna Aktarılan Stok (Sorun Bildirildi) - Oturum #${req.params.id} (Operatör: ${userName})`;
-                                await db.run(`INSERT INTO chemical_transactions (chemical_id, transaction_type, amount, description, session_id)
-                                        VALUES (?, 'kullanim', ?, ?, ?)`,
-                                    [chemicalId, remaining_chemical_lt, transferDesc, req.params.id]);
-
-                                console.log(`[Sessions] Oturum #${req.params.id} sorunlu sonlandırıldı. Toplam depo stoğundan ${remaining_chemical_lt} lt (kalan miktar) düşüldü.`);
+                                console.log(`[Sessions] Oturum #${req.params.id} sorunlu sonlandırıldı. Araç tankı stoğundan ${chemical_used_lt} lt (kullanılan miktar) düşüldü.`);
                             }
                         } catch (chemErr) {
                             console.error(`[Sessions] Sorunlu oturum #${req.params.id} end_time/stok güncelleme hatası:`, chemErr.message);
