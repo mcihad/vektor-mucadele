@@ -144,7 +144,10 @@
 <!-- Drawing Instruction Banner -->
 <div class="drawing-banner" id="drawingBanner">
     <span id="drawingInstructionText">Harita üzerinde tıklayarak çizim yapın.</span>
-    <button class="btn btn-sm btn-danger" style="padding:4px 12px; font-size:11px; border-radius:15px; margin-left:10px; color:#fff;" onclick="cancelDrawing()">Vazgeç</button>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+        <button id="drawingUndoBtn" class="btn btn-sm" style="padding:4px 12px; font-size:11px; border-radius:15px; background:var(--warning); color:#fff; border:none; display:none;" onclick="undoLastDrawPoint()">Geri Al</button>
+        <button class="btn btn-sm btn-danger" style="padding:4px 12px; font-size:11px; border-radius:15px; color:#fff; border:none;" onclick="cancelDrawing()">Vazgeç</button>
+    </div>
 </div>
 
 <!-- Detail Side Panel -->
@@ -163,6 +166,16 @@
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
+// Override Leaflet.Draw touch handlers to allow map panning/dragging on touch screens (tablets) without adding vertices
+if (typeof L !== 'undefined' && L.Draw) {
+    if (L.Draw.Polyline) {
+        L.Draw.Polyline.prototype._onTouch = L.Util.falseFn;
+    }
+    if (L.Draw.SimpleShape) {
+        L.Draw.SimpleShape.prototype._onTouch = L.Util.falseFn;
+    }
+}
+
 const TOKEN = localStorage.getItem('vms_token');
 const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
 if (!TOKEN || USER.role !== 'admin') { localStorage.clear(); window.location.href = '/'; }
@@ -776,17 +789,22 @@ function startDrawing(reportId, type) {
     // Show floating banner with instruction
     const banner = document.getElementById('drawingBanner');
     const bannerText = document.getElementById('drawingInstructionText');
+    const undoBtn = document.getElementById('drawingUndoBtn');
     banner.style.display = 'flex';
+
+    if (undoBtn) {
+        undoBtn.style.display = (type === 'polygon' || type === 'polyline') ? 'inline-block' : 'none';
+    }
 
     let handler;
     if (type === 'polygon') {
-        bannerText.innerHTML = `🔷 <b>Alan Çizimi Aktif:</b> Haritada köşeleri tıklayarak belirleyin. Bitirmek için ilk noktaya veya son noktaya çift tıklayın.`;
+        bannerText.innerHTML = `🔷 <b>Alan Çizimi Aktif:</b> Haritayı tek parmakla kaydırabilir, noktalara dokunarak köşeleri belirleyebilirsiniz. Çift tıklama/dokunma çizimi bitirir.`;
         handler = new L.Draw.Polygon(rMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
     } else if (type === 'circle') {
-        bannerText.innerHTML = `⭕ <b>Daire Çizimi Aktif:</b> Haritada merkez noktaya tıklayıp basılı tutarak dışarı doğru sürükleyin.`;
+        bannerText.innerHTML = `⭕ <b>Daire Çizimi Aktif:</b> Haritayı tek parmakla kaydırabilir, merkez noktayı seçmek için dokunup basılı sürükleyebilirsiniz.`;
         handler = new L.Draw.Circle(rMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
     } else if (type === 'polyline') {
-        bannerText.innerHTML = `📏 <b>Rota Çizimi Aktif:</b> Haritada rota noktalarına sırayla tıklayın. Bitirmek için son noktaya çift tıklayın.`;
+        bannerText.innerHTML = `📏 <b>Rota Çizimi Aktif:</b> Haritayı tek parmakla kaydırabilir, noktalara dokunarak sırayla çizgiyi çizebilirsiniz. Çift tıklama/dokunma çizimi bitirir.`;
         handler = new L.Draw.Polyline(rMap, { shapeOptions: { color: '#f97316', weight: 4 } });
     }
 
@@ -846,6 +864,12 @@ function cancelDrawing() {
     stopDrawing();
     if (reportId) {
         openDetailPanel(reportId);
+    }
+}
+
+function undoLastDrawPoint() {
+    if (drawer && typeof drawer.deleteLastVertex === 'function') {
+        drawer.deleteLastVertex();
     }
 }
 

@@ -162,6 +162,16 @@
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
 <script>
+// Override Leaflet.Draw touch handlers to allow map panning/dragging on touch screens (tablets) without adding vertices
+if (typeof L !== 'undefined' && L.Draw) {
+    if (L.Draw.Polyline) {
+        L.Draw.Polyline.prototype._onTouch = L.Util.falseFn;
+    }
+    if (L.Draw.SimpleShape) {
+        L.Draw.SimpleShape.prototype._onTouch = L.Util.falseFn;
+    }
+}
+
 const TOKEN = localStorage.getItem('vms_token');
 const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
 if (!TOKEN || USER.role !== 'admin') {
