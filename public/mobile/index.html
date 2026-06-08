@@ -1718,12 +1718,69 @@ async function startSessionClick() {
     }
 }
 
+async function getSessionDetails(id) {
+    if (!id) return null;
+    const res = await fetch(`/api/sessions/${id}`, {
+        headers: { 'Authorization': 'Bearer ' + TOKEN }
+    });
+    if (res.ok) {
+        return await res.json();
+    }
+    return null;
+}
+
+function openPauseReasonModal() {
+    document.getElementById('pauseReasonSelect').value = '';
+    document.getElementById('pauseCustomReasonText').value = '';
+    document.getElementById('pauseCustomReasonWrapper').style.display = 'none';
+    document.getElementById('pauseReasonModal').style.display = 'flex';
+}
+
+function closePauseReasonModal() {
+    document.getElementById('pauseReasonModal').style.display = 'none';
+}
+
+function onPauseReasonChange() {
+    const select = document.getElementById('pauseReasonSelect');
+    const customWrapper = document.getElementById('pauseCustomReasonWrapper');
+    if (select.value === 'Diğer') {
+        customWrapper.style.display = 'block';
+        document.getElementById('pauseCustomReasonText').setAttribute('required', 'true');
+    } else {
+        customWrapper.style.display = 'none';
+        document.getElementById('pauseCustomReasonText').removeAttribute('required');
+    }
+}
+
 function pauseSessionClick() {
+    openPauseReasonModal();
+}
+
+async function submitPauseAndStop() {
+    const select = document.getElementById('pauseReasonSelect');
+    const customText = document.getElementById('pauseCustomReasonText');
+    let reason = select.value;
+    
+    if (!reason) {
+        alert("Lütfen duraklatma nedenini seçiniz.");
+        return;
+    }
+    
+    if (reason === 'Diğer') {
+        const textVal = customText.value.trim();
+        if (!textVal) {
+            alert("Lütfen açıklama giriniz.");
+            return;
+        }
+        reason = `Diğer: ${textVal}`;
+    }
+    
+    closePauseReasonModal();
+    
     isSpraying = false;
     localStorage.setItem('vms_is_spraying', 'false');
     updateControlButtons();
     
-    // Arka plan uyanıklık sesini duraklat
     stopBackgroundAudio();
     
     pauseTime = Date.now();
@@ -1731,6 +1788,21 @@ function pauseSessionClick() {
         clearTimeout(timerTimeout);
         timerTimeout = null;
     }
+    
+    const timestampStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const logEntry = `[${timestampStr}] ⏸️ DURAKLATILDI: ${reason}`;
+    
+    let currentNotes = '';
+    try {
+        const sessionDetails = await getSessionDetails(sessionId);
+        if (sessionDetails && sessionDetails.notes) {
+            currentNotes = sessionDetails.notes;
+        }
+    } catch(e) {
+        console.error("Current session notes could not be fetched:", e);
+    }
+    
+    const updatedNotes = currentNotes ? `${currentNotes}\n${logEntry}` : logEntry;
     
     if (lastPos) {
         sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 0 });
@@ -1754,22 +1826,24 @@ function pauseSessionClick() {
         }
     }
     
-    if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlama duraklatıldı (dolum/geçiş)',status:'active'});
+    if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:`İlaçlama duraklatıldı (${reason})`,status:'active'});
 
-    // Notify server that session is paused (beklemede)
     fetch(`/api/sessions/${sessionId}`, {
         method: 'PUT',
         headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'beklemede' })
+        body: JSON.stringify({ status: 'beklemede', notes: updatedNotes })
+    }).then(() => {
+        if(socket) {
+            socket.emit('spray-status', { plate: vehiclePlate, message: `İlaçlama duraklatıldı (${reason})` });
+        }
     }).catch(() => {});
 }
 
-function resumeSessionClick() {
+async function resumeSessionClick() {
     isSpraying = true;
     localStorage.setItem('vms_is_spraying', 'true');
     updateControlButtons();
     
-    // Arka plan ses uyanıklık takibini yeniden başlat
     startBackgroundAudio();
     
     if (pauseTime) {
@@ -1777,6 +1851,21 @@ function resumeSessionClick() {
         pauseTime = null;
     }
     updateTimer();
+    
+    const timestampStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const logEntry = `[${timestampStr}] ▶️ DEVAM EDİLDİ`;
+    
+    let currentNotes = '';
+    try {
+        const sessionDetails = await getSessionDetails(sessionId);
+        if (sessionDetails && sessionDetails.notes) {
+            currentNotes = sessionDetails.notes;
+        }
+    } catch(e) {
+        console.error("Current session notes could not be fetched:", e);
+    }
+    
+    const updatedNotes = currentNotes ? `${currentNotes}\n${logEntry}` : logEntry;
     
     if (lastPos) {
         sessionPathPoints.push({ lat: lastPos.lat, lng: lastPos.lng, is_spraying: 1 });
@@ -1802,11 +1891,14 @@ function resumeSessionClick() {
     
     if(socket) socket.emit('spray-status',{plate:vehiclePlate,message:'İlaçlamaya devam ediliyor',status:'active'});
 
-    // Notify server that session is resumed
     fetch(`/api/sessions/${sessionId}`, {
         method: 'PUT',
         headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'active' })
+        body: JSON.stringify({ status: 'active', notes: updatedNotes })
+    }).then(() => {
+        if(socket) {
+            socket.emit('spray-status', { plate: vehiclePlate, message: 'İlaçlamaya devam ediliyor' });
+        }
     }).catch(() => {});
 }
 
@@ -2670,6 +2762,41 @@ setupPushNotifications();
     <div style="font-size:18px; margin-bottom:6px; font-weight:800;">🚨 YÜKSEK HIZ UYARISI!</div>
     <div style="font-size:14px; font-weight:700; margin-bottom:4px;">Hızınız: <span id="warnSpeedVal">0</span> km/s</div>
     <div style="font-size:11px; opacity:0.9;">İlaçlama esnasında hızınız <b>25 km/s</b>'i aşmamalıdır! Lütfen hemen yavaşlayın!</div>
+</div>
+
+<!-- Pause Reason Modal -->
+<div id="pauseReasonModal" style="display:none; position:fixed; inset:0; z-index:100000; background:rgba(10,14,26,0.92); backdrop-filter:blur(8px); align-items:center; justify-content:center; padding:20px;">
+    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:16px; width:100%; max-width:440px; box-shadow:0 20px 50px rgba(0,0,0,0.6); padding:24px; animation: slide-up-premium 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);">
+        <div style="font-size:16px; font-weight:800; color:#f59e0b; display:flex; align-items:center; gap:8px; margin-bottom:12px; border-bottom:1px solid var(--border); padding-bottom:10px;">
+            <span>⏸️ İLAÇLAMA DURAKLATMA SEBEBİ</span>
+        </div>
+        <p style="font-size:11px; color:var(--text-muted); margin-bottom:16px; line-height:1.4;">İlaçlamayı duraklatmak için lütfen geçerli bir sebep seçiniz. Bu bilgi yönetici paneline canlı olarak raporlanacaktır.</p>
+        
+        <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">
+            <div>
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">⏸️ Duraklatma Nedeni *</label>
+                <select id="pauseReasonSelect" class="form-select" onchange="onPauseReasonChange()" style="width:100%; height:40px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:0 12px; box-sizing:border-box; outline:none;" required>
+                    <option value="">Neden Seçin...</option>
+                    <option value="Su/İlaç İkmali (Dolum)">Su/İlaç İkmali (Dolum)</option>
+                    <option value="Yol Geçişi (İlaçlama Dışı Hat)">Yol Geçişi (İlaçlama Dışı Hat)</option>
+                    <option value="Donanım/Makine Arızası">Donanım/Makine Arızası</option>
+                    <option value="Trafik/Yol Kapalı">Trafik/Yol Kapalı</option>
+                    <option value="Mola/Dinlenme">Mola/Dinlenme</option>
+                    <option value="Diğer">Diğer (Açıklama Yazınız)</option>
+                </select>
+            </div>
+            
+            <div id="pauseCustomReasonWrapper" style="display:none;">
+                <label style="display:block; font-size:11px; color:var(--text-secondary); margin-bottom:4px; font-weight:600;">📝 Açıklama *</label>
+                <textarea id="pauseCustomReasonText" class="form-textarea" style="width:100%; height:60px; background:var(--bg-secondary); border:1px solid var(--border); border-radius:8px; color:var(--text-primary); padding:8px 12px; box-sizing:border-box; outline:none; font-family:inherit; font-size:12px; resize:none;" placeholder="Duraklatma nedenini detaylandırın..."></textarea>
+            </div>
+        </div>
+        
+        <div style="display:flex; gap:10px;">
+            <button class="btn" style="flex:1; background:rgba(255,255,255,0.05); border:1px solid var(--border); color:var(--text-primary); cursor:pointer; height:40px; border-radius:8px;" onclick="closePauseReasonModal()">Vazgeç</button>
+            <button class="btn" style="flex:1.5; background:#f59e0b; color:#fff; font-weight:700; cursor:pointer; height:40px; border-radius:8px; border:none;" onclick="submitPauseAndStop()">⏸️ Kaydet ve Duraklat</button>
+        </div>
+    </div>
 </div>
 
 <!-- Chemical Intake Form Modal -->

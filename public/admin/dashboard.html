@@ -432,6 +432,35 @@ function getBearing(lat1, lon1, lat2, lon2) {
     return (brng + 360) % 360;
 }
 
+function getRichVehiclePopup(vehicle_id, plate) {
+    const sessionInfo = window._activeSessionsByVehicle ? window._activeSessionsByVehicle[vehicle_id] : null;
+    let popupHtml = `<b>🚐 Araç Plakası: ${plate}</b>`;
+    if (sessionInfo) {
+        let statusText = sessionInfo.status === 'active' 
+            ? '<span style="color:#10b981;font-weight:bold;">⚡ Aktif (İlaçlama Yapıyor)</span>'
+            : '<span style="color:#f59e0b;font-weight:bold;">⏸️ Beklemede (Duraklatıldı)</span>';
+            
+        let notesText = '';
+        if (sessionInfo.notes) {
+            const lines = sessionInfo.notes.trim().split('\n');
+            const lastLines = lines.slice(-3).join('\n'); // Son 3 log satırı
+            notesText = `<div style="margin-top:6px; font-size:10px; color:#94a3b8; background:rgba(255,255,255,0.03); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.08); white-space:pre-line; max-height:80px; overflow-y:auto;">📝 <b>Oturum Günlüğü:</b>\n${lastLines}</div>`;
+        }
+        
+        popupHtml = `
+            <div style="font-family: inherit; font-size:12px; min-width:200px; line-height:1.4; color:var(--text-primary);">
+                <div style="font-weight:bold; font-size:13px; border-bottom:1px solid var(--border); padding-bottom:4px; margin-bottom:6px; color:#fff;">🚐 Araç: ${plate}</div>
+                <div>📋 <b>Durum:</b> ${statusText}</div>
+                <div>👤 <b>Ekip:</b> ${sessionInfo.driver_name || '-'} (Ş) / ${sessionInfo.operator_name || '-'} (O)</div>
+                <div>🧪 <b>İlaç:</b> ${sessionInfo.chemical_name || '-'}</div>
+                <div>📍 <b>Mahalle:</b> ${sessionInfo.neighborhood || '-'}</div>
+                ${notesText}
+            </div>
+        `;
+    }
+    return popupHtml;
+}
+
 function updateVehicleOnMap(data){
     const{vehicle_id,plate,latitude,longitude}=data;
     if(!latitude||!longitude) return;
@@ -456,6 +485,9 @@ function updateVehicleOnMap(data){
             iconSize: [28,28]
         });
         vehicleMarkers[vehicle_id].setIcon(newIcon);
+        
+        const popupContent = getRichVehiclePopup(vehicle_id, plate);
+        vehicleMarkers[vehicle_id].bindPopup(popupContent);
     }
     else{
         const rotation = (heading + 90) % 360;
@@ -464,7 +496,8 @@ function updateVehicleOnMap(data){
             html: `<div class="vehicle-icon pulse" style="transform: rotate(${rotation}deg); transition: transform 0.3s ease-in-out; display: inline-block;">🚐</div>`,
             iconSize: [28,28]
         });
-        vehicleMarkers[vehicle_id] = L.marker([latitude,longitude],{icon}).bindPopup(`<b>${plate}</b>`).addTo(map);
+        const popupContent = getRichVehiclePopup(vehicle_id, plate);
+        vehicleMarkers[vehicle_id] = L.marker([latitude,longitude],{icon}).bindPopup(popupContent).addTo(map);
         vehicleMarkers[vehicle_id]._currentHeading = heading;
     }
 }
@@ -472,8 +505,10 @@ function updateVehicleOnMap(data){
 async function loadActiveVehiclePaths() {
     try {
         const activeSessions = await api('/api/sessions?status=active,beklemede');
+        window._activeSessionsByVehicle = {};
         if (activeSessions) {
             for (const s of activeSessions) {
+                window._activeSessionsByVehicle[s.vehicle_id] = s;
                 const vehicleId = s.vehicle_id;
                 if (!vehiclePathsData[vehicleId]) {
                     vehiclePathsData[vehicleId] = {
