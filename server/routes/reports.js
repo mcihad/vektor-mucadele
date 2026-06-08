@@ -268,11 +268,22 @@ router.get('/daily', authMiddleware, async (req, res) => {
     }
 });
 
-// Monthly report
+// Monthly/Range report
 router.get('/monthly', authMiddleware, async (req, res) => {
-    const { month, year } = req.query;
-    const m = month || (new Date().getMonth() + 1);
-    const y = year || new Date().getFullYear();
+    const { month, year, date_from, date_to } = req.query;
+    
+    let fromDate, toDate;
+    if (date_from && date_to) {
+        fromDate = date_from;
+        toDate = date_to;
+    } else {
+        const m = month || (new Date().getMonth() + 1);
+        const y = year || new Date().getFullYear();
+        const mStr = String(m).padStart(2, '0');
+        fromDate = `${y}-${mStr}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        toDate = `${y}-${mStr}-${String(lastDay).padStart(2, '0')}`;
+    }
     const db = getDb();
 
     try {
@@ -283,10 +294,10 @@ router.get('/monthly', authMiddleware, async (req, res) => {
                    COALESCE(SUM(chemical_used_lt),0) as chemical,
                    COALESCE(SUM(area_covered_m2),0) as area
             FROM spray_sessions
-            WHERE strftime('%m', start_time) = ? AND strftime('%Y', start_time) = ?
+            WHERE date(start_time) >= ? AND date(start_time) <= ?
             GROUP BY date(start_time)
             ORDER BY day
-        `, [String(m).padStart(2, '0'), String(y)]));
+        `, [fromDate, toDate]));
 
         const byVehicle = rowsToObjects(await db.exec(`
             SELECT v.plate, COUNT(*) as sessions,
@@ -294,20 +305,20 @@ router.get('/monthly', authMiddleware, async (req, res) => {
                    COALESCE(SUM(s.chemical_used_lt),0) as chemical
             FROM spray_sessions s
             JOIN vehicles v ON s.vehicle_id = v.id
-            WHERE strftime('%m', s.start_time) = ? AND strftime('%Y', s.start_time) = ?
+            WHERE date(s.start_time) >= ? AND date(s.start_time) <= ?
             GROUP BY v.plate
-        `, [String(m).padStart(2, '0'), String(y)]));
+        `, [fromDate, toDate]));
 
         const byPersonnel = rowsToObjects(await db.exec(`
             SELECT p.name, COUNT(*) as sessions,
                    COALESCE(SUM(s.total_km),0) as km
             FROM spray_sessions s
             JOIN personnel p ON s.driver_id = p.id OR s.operator_id = p.id
-            WHERE strftime('%m', s.start_time) = ? AND strftime('%Y', s.start_time) = ?
+            WHERE date(s.start_time) >= ? AND date(s.start_time) <= ?
             GROUP BY p.name
-        `, [String(m).padStart(2, '0'), String(y)]));
+        `, [fromDate, toDate]));
 
-        res.json({ month: m, year: y, daily, by_vehicle: byVehicle, by_personnel: byPersonnel });
+        res.json({ date_from: fromDate, date_to: toDate, daily, by_vehicle: byVehicle, by_personnel: byPersonnel });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -351,9 +362,10 @@ router.get('/schedule', authMiddleware, async (req, res) => {
 
 // Neighborhood coverage
 router.get('/neighborhood-coverage', authMiddleware, async (req, res) => {
+    const { date_from, date_to } = req.query;
     const db = getDb();
     try {
-        const result = await db.exec(`
+        let query = `
             SELECT s.neighborhood,
                    COUNT(DISTINCT ss.id) as streets_sprayed,
                    MAX(ss.sprayed_at) as last_sprayed,
@@ -361,10 +373,17 @@ router.get('/neighborhood-coverage', authMiddleware, async (req, res) => {
                    CAST(MIN(julianday(ss.expires_at) - julianday('now')) AS INTEGER) as min_days_remaining
             FROM sprayed_streets ss
             JOIN spray_sessions s ON ss.session_id = s.id
-            WHERE ss.sprayed_at >= datetime('now', '-35 days')
-            GROUP BY s.neighborhood
-            ORDER BY min_days_remaining ASC
-        `);
+        `;
+        let params = [];
+        if (date_from && date_to) {
+            query += ` WHERE date(ss.sprayed_at) >= ? AND date(ss.sprayed_at) <= ? `;
+            params.push(date_from, date_to);
+        } else {
+            query += ` WHERE ss.sprayed_at >= datetime('now', '-35 days') `;
+        }
+        query += ` GROUP BY s.neighborhood ORDER BY min_days_remaining ASC `;
+
+        const result = await db.exec(query, params);
         res.json(rowsToObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });

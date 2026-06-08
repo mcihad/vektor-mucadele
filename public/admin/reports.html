@@ -92,13 +92,9 @@
         <!-- Monthly Report -->
         <div id="tab-monthly" style="display:none;">
             <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
-                <div style="display:flex;gap:12px;">
-                    <div class="form-group" style="margin:0;"><label class="form-label">Ay</label><select class="form-select" id="monthSelect" onchange="loadMonthly()">
-                        <option value="1">Ocak</option><option value="2">Şubat</option><option value="3">Mart</option><option value="4">Nisan</option>
-                        <option value="5" selected>Mayıs</option><option value="6">Haziran</option><option value="7">Temmuz</option><option value="8">Ağustos</option>
-                        <option value="9">Eylül</option><option value="10">Ekim</option><option value="11">Kasım</option><option value="12">Aralık</option>
-                    </select></div>
-                    <div class="form-group" style="margin:0;"><label class="form-label">Yıl</label><input type="number" class="form-input" id="yearSelect" value="2026" onchange="loadMonthly()"></div>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Başlangıç Tarihi</label><input type="date" class="form-input" id="monthlyDateFrom" onchange="loadMonthly()"></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="monthlyDateTo" onchange="loadMonthly()"></div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
                     <button class="btn btn-outline btn-sm" onclick="exportMonthlyVehiclesExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🚐 Araç Raporu Excel</button>
@@ -124,10 +120,16 @@
 
         <!-- Coverage -->
         <div id="tab-coverage" style="display:none;">
+            <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Başlangıç Tarihi</label><input type="date" class="form-input" id="coverageDateFrom" onchange="loadCoverage()"></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="coverageDateTo" onchange="loadCoverage()"></div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="exportCoverageExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🟢 Excel'e Aktar</button>
+            </div>
             <div class="card">
                 <div class="card-title" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
                     <span>Mahalle Kapsam Durumu</span>
-                    <button class="btn btn-outline btn-sm" onclick="exportCoverageExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🟢 Excel'e Aktar</button>
                 </div>
                 <div class="table-container">
                     <table id="coverageExcelTable">
@@ -178,6 +180,17 @@ function showTab(name, el) {
 const todayStr = new Date().toISOString().split('T')[0];
 document.getElementById('dailyDateFrom').value = todayStr;
 document.getElementById('dailyDateTo').value = todayStr;
+
+const now = new Date();
+const firstDayOfMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+document.getElementById('monthlyDateFrom').value = firstDayOfMonthStr;
+document.getElementById('monthlyDateTo').value = todayStr;
+
+const thirtyFiveDaysAgo = new Date();
+thirtyFiveDaysAgo.setDate(now.getDate() - 35);
+const thirtyFiveDaysAgoStr = thirtyFiveDaysAgo.toISOString().split('T')[0];
+document.getElementById('coverageDateFrom').value = thirtyFiveDaysAgoStr;
+document.getElementById('coverageDateTo').value = todayStr;
 
 let dailyVehicleChartInstance, dailyNeighborhoodChartInstance;
 let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
@@ -378,9 +391,9 @@ async function loadDaily() {
 }
 
 async function loadMonthly() {
-    const month = document.getElementById('monthSelect').value;
-    const year = document.getElementById('yearSelect').value;
-    const data = await api(`/api/reports/monthly?month=${month}&year=${year}`);
+    const from = document.getElementById('monthlyDateFrom').value;
+    const to = document.getElementById('monthlyDateTo').value;
+    const data = await api(`/api/reports/monthly?date_from=${from}&date_to=${to}`);
 
     currentMonthlyData = data; // Save loaded monthly data for Excel export
 
@@ -513,7 +526,9 @@ async function loadMonthly() {
 }
 
 async function loadCoverage() {
-    const data = await api('/api/reports/neighborhood-coverage');
+    const from = document.getElementById('coverageDateFrom').value;
+    const to = document.getElementById('coverageDateTo').value;
+    const data = await api(`/api/reports/neighborhood-coverage?date_from=${from}&date_to=${to}`);
     let html = (data || []).map(n => {
         const days = n.earliest_expiry ? Math.round((new Date(n.earliest_expiry) - Date.now()) / 86400000) : 99;
         const badge = days <= 3 ? 'badge-danger' : days <= 10 ? 'badge-warning' : 'badge-success';
@@ -698,7 +713,9 @@ function exportDailyExcel() {
 }
 
 function exportCoverageExcel() {
-    exportHtmlTableToExcel('coverageExcelTable', 'Mahalle_Kapsam_Raporu');
+    const from = document.getElementById('coverageDateFrom').value;
+    const to = document.getElementById('coverageDateTo').value;
+    exportHtmlTableToExcel('coverageExcelTable', `Mahalle_Kapsam_Raporu_${from}_${to}`);
 }
 
 function exportMonthlyVehiclesExcel() {
@@ -725,9 +742,9 @@ function exportMonthlyVehiclesExcel() {
         totalChemical.toFixed(1)
     ]);
     
-    const month = document.getElementById('monthSelect').value;
-    const year = document.getElementById('yearSelect').value;
-    exportDataToExcel(headers, rows, `Aylik_Arac_Raporu_${year}_${month}`);
+    const from = document.getElementById('monthlyDateFrom').value;
+    const to = document.getElementById('monthlyDateTo').value;
+    exportDataToExcel(headers, rows, `Performans_Arac_Raporu_${from}_${to}`);
 }
 
 function exportMonthlyPersonnelExcel() {
@@ -751,9 +768,9 @@ function exportMonthlyPersonnelExcel() {
         totalKm.toFixed(1)
     ]);
     
-    const month = document.getElementById('monthSelect').value;
-    const year = document.getElementById('yearSelect').value;
-    exportDataToExcel(headers, rows, `Aylik_Personel_Raporu_${year}_${month}`);
+    const from = document.getElementById('monthlyDateFrom').value;
+    const to = document.getElementById('monthlyDateTo').value;
+    exportDataToExcel(headers, rows, `Performans_Personel_Raporu_${from}_${to}`);
 }
 
 function exportMonthlyTrendExcel() {
@@ -783,9 +800,9 @@ function exportMonthlyTrendExcel() {
         totalArea.toFixed(0)
     ]);
     
-    const month = document.getElementById('monthSelect').value;
-    const year = document.getElementById('yearSelect').value;
-    exportDataToExcel(headers, rows, `Aylik_Gunluk_Trend_Raporu_${year}_${month}`);
+    const from = document.getElementById('monthlyDateFrom').value;
+    const to = document.getElementById('monthlyDateTo').value;
+    exportDataToExcel(headers, rows, `Performans_Trend_Raporu_${from}_${to}`);
 }
 
 loadDaily();
