@@ -28,7 +28,9 @@
         .spray-btn.resume{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
         .spray-btn.finish{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
         .spray-btn:disabled{opacity:0.5;cursor:not-allowed}
-        .gps-status{font-size:9px;text-align:center;margin-top:4px;color:var(--text-muted)}
+        .gps-status{font-size:10px;text-align:center;margin-top:4px;color:var(--text-muted);cursor:pointer;padding:4px;user-select:none;transition:all 0.2s;text-decoration:underline;text-underline-offset:2px;opacity:0.8;}
+        .gps-status:hover{color:#fff;opacity:1;}
+        .gps-status:active{transform:scale(0.98);}
 
         /* Mobile Drawer Styles */
         .mobile-drawer {
@@ -353,7 +355,7 @@
             <button class="spray-btn finish" id="btnFinish" onclick="finishSessionClick()" style="display:none;flex:1">⏹️ BİTİR</button>
             <button class="spray-btn" id="btnSessionIssue" onclick="reportSessionIssueClick()" style="display:none;flex:1;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:12px;font-weight:700;">⚠️ SORUN BİLDİR</button>
         </div>
-        <div class="gps-status" id="gpsStatus">📡 GPS bekleniyor...</div>
+        <div class="gps-status" id="gpsStatus" onclick="manualGPSRetry()" title="Yeniden başlatmak için tıklayın">📡 GPS bekleniyor...</div>
         </div>
     </div>
 </div>
@@ -1029,8 +1031,26 @@ function initSocket(){
 }
 
 function startGPS(){
-    if(!navigator.geolocation){document.getElementById('gpsStatus').textContent='❌ GPS desteklenmiyor';return;}
-    watchId=navigator.geolocation.watchPosition(
+    if(!navigator.geolocation){
+        document.getElementById('gpsStatus').textContent='❌ GPS desteklenmiyor';
+        return;
+    }
+    
+    // Clear any existing timeout
+    if (window._gpsRetryTimeout) {
+        clearTimeout(window._gpsRetryTimeout);
+        window._gpsRetryTimeout = null;
+    }
+    
+    // Prevent starting duplicate watchPosition loops if one is already active.
+    if (watchId) {
+        console.log("GPS is already active with watchId:", watchId);
+        return;
+    }
+    
+    document.getElementById('gpsStatus').textContent='📡 GPS başlatılıyor...';
+    
+    watchId = navigator.geolocation.watchPosition(
         pos => {
             if (window._gpsRetryTimeout) {
                 clearTimeout(window._gpsRetryTimeout);
@@ -1150,16 +1170,48 @@ function startGPS(){
             if(sessionId && isSpraying) map.panTo([latitude,longitude]);
         },
         err=>{
-            document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${err.message}`;
-            if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
+            console.error("GPS Error callback:", err);
+            let errorMsg = err.message;
+            if (err.code === err.PERMISSION_DENIED) {
+                errorMsg = "Konum izni reddedildi.";
+            } else if (err.code === err.POSITION_UNAVAILABLE) {
+                errorMsg = "Konum servisleri kapalı veya GPS sinyali yok.";
+            } else if (err.code === err.TIMEOUT) {
+                errorMsg = "Konum isteği zaman aşımına uğradı.";
             }
-            if (window._gpsRetryTimeout) clearTimeout(window._gpsRetryTimeout);
-            window._gpsRetryTimeout = setTimeout(startGPS, 5000);
+            document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${errorMsg} (Yeniden denemek için dokunun)`;
+            
+            // If we haven't received any successful position yet, schedule a slow, safe retry (every 15s)
+            // to re-establish the watch process in case some buggy WebViews got stuck.
+            if (!lastPos && !window._gpsRetryTimeout) {
+                window._gpsRetryTimeout = setTimeout(() => {
+                    console.log("GPS not receiving data. Re-initializing watchPosition...");
+                    if (watchId) {
+                        navigator.geolocation.clearWatch(watchId);
+                        watchId = null;
+                    }
+                    window._gpsRetryTimeout = null;
+                    startGPS();
+                }, 15000);
+            }
         },
-        {enableHighAccuracy:true,maximumAge:3000,timeout:10000}
+        {enableHighAccuracy:true,maximumAge:0,timeout:10000}
     );
+}
+
+function manualGPSRetry() {
+    console.log("Manuel GPS yeniden başlatma tetiklendi.");
+    document.getElementById('gpsStatus').textContent = '📡 GPS yeniden başlatılıyor...';
+    if (watchId) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+    }
+    if (window._gpsRetryTimeout) {
+        clearTimeout(window._gpsRetryTimeout);
+        window._gpsRetryTimeout = null;
+    }
+    lastPos = null;
+    startGPS();
 }
 
 function checkRouteDeviation(lat,lng){
