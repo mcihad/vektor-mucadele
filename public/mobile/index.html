@@ -800,6 +800,7 @@ async function loadSprayedStreets(){
                 const rem=s.days_remaining||0;
                 const style=getSprayStyle(rem);
                 const layer=L.geoJSON(geom,{style:()=>style}).addTo(sprayedStreetsLayer);
+                layer.days_remaining=rem;
                 
                 const daysText=rem<=0?'<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>':`<b>${Math.round(rem)} gün</b> kaldı`;
                 const sprayedDate=new Date(s.sprayed_at);
@@ -1325,6 +1326,48 @@ function getCurrentStreetOneway(lat, lng) {
     return false;
 }
 
+function getDistanceToSegment(pLat, pLng, lat1, lng1, lat2, lng2) {
+    const latMid = (lat1 + lat2) * 0.5 * Math.PI / 180.0;
+    const cosMid = Math.cos(latMid);
+    
+    const x2 = (lng2 - lng1) * 111320 * cosMid;
+    const y2 = (lat2 - lat1) * 111300;
+    const px = (pLng - lng1) * 111320 * cosMid;
+    const py = (pLat - lat1) * 111300;
+    
+    const dx = x2;
+    const dy = y2;
+    const lenSq = dx * dx + dy * dy;
+    
+    let t;
+    if (lenSq === 0) {
+        t = 0;
+    } else {
+        t = (px * dx + py * dy) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+    }
+    
+    const closestX = t * dx;
+    const closestY = t * dy;
+    
+    const distX = px - closestX;
+    const distY = py - closestY;
+    
+    return Math.sqrt(distX * distX + distY * distY);
+}
+
+function getLinesFromLatLngs(latlngs) {
+    if (!Array.isArray(latlngs) || latlngs.length === 0) return [];
+    if (latlngs[0] instanceof L.LatLng || (latlngs[0] && typeof latlngs[0].lat === 'number')) {
+        return [latlngs];
+    }
+    let result = [];
+    for (let i = 0; i < latlngs.length; i++) {
+        result = result.concat(getLinesFromLatLngs(latlngs[i]));
+    }
+    return result;
+}
+
 function checkAlreadySprayed(lat,lng){
     // Calculate current bearing if we have a previous position with sufficient distance
     let currentBearing = null;
@@ -1335,84 +1378,94 @@ function checkAlreadySprayed(lat,lng){
     const currentIsOneway = getCurrentStreetOneway(lat, lng);
     let isOnSprayed=false;
     
-    // Helper to check if a point is duplicate based on distance, bearing and oneway status
-    function isDuplicatePoint(hLat, hLng, histBearing, oneway = false) {
-        const dist = haversine(lat, lng, hLat, hLng);
-        if (dist < 5) {
-            // If the street is geliş-gidiş (oneway is false), check bearing difference
-            if (!oneway) {
-                // If we have bearing info for both, check if they are in the same direction
-                if (currentBearing !== null && histBearing !== null) {
-                    let diff = Math.abs(currentBearing - histBearing);
-                    if (diff > 180) {
-                        diff = 360 - diff;
-                    }
-                    // If diff >= 120, they are in opposite directions (gidiş-geliş) -> not a duplicate!
-                    if (diff >= 120) {
-                        return false; 
-                    }
-                }
-            }
-            // If it is a one-way street, or if bearing difference is < 120 on a two-way street, it is a duplicate!
-            return true;
-        }
-        return false;
-    }
-
     // Check against sprayed streets layer
     if(sprayedStreetsLayer){
         sprayedStreetsLayer.eachLayer(layer=>{
+            // Skip expired layers
+            if (layer.days_remaining !== undefined && layer.days_remaining <= 0) {
+                return;
+            }
             if(layer.getBounds){
                 try{
                     const bounds=layer.getBounds();
-                    if(bounds.contains([lat,lng])){
-                        // Check precise distance to line segments
+                    // Expand bounds slightly (~50 meters) to handle GPS accuracy and street width safely
+                    const extendedBounds = L.latLngBounds(
+                        [bounds.getSouth() - 0.0005, bounds.getWest() - 0.0005],
+                        [bounds.getNorth() + 0.0005, bounds.getEast() + 0.0005]
+                    );
+                    if(extendedBounds.contains([lat,lng])){
                         layer.eachLayer(subLayer=>{
                             if(subLayer.getLatLngs){
                                 const latlngs=subLayer.getLatLngs();
-                                if(Array.isArray(latlngs)){
-                                    latlngs.forEach((ll, idx)=>{
-                                        if(Array.isArray(ll)){
-                                            ll.forEach((p, pIdx)=>{
-                                                let histBearing = null;
-                                                const nextP = ll[pIdx + 1];
-                                                if (nextP) {
-                                                    histBearing = getBearing(p.lat, p.lng, nextP.lat, nextP.lng);
+                                const lines = getLinesFromLatLngs(latlngs);
+                                lines.forEach(line => {
+                                    for (let i = 0; i < line.length - 1; i++) {
+                                        const pt1 = line[i];
+                                        const pt2 = line[i+1];
+                                        
+                                        const dist = getDistanceToSegment(lat, lng, pt1.lat, pt1.lng, pt2.lat, pt2.lng);
+                                        if (dist < 15) { // 15 meters proximity threshold
+                                            let histBearing = getBearing(pt1.lat, pt1.lng, pt2.lat, pt2.lng);
+                                            let match = true;
+                                            if (!currentIsOneway) {
+                                                if (currentBearing !== null && histBearing !== null) {
+                                                    let diff = Math.abs(currentBearing - histBearing);
+                                                    if (diff > 180) {
+                                                        diff = 360 - diff;
+                                                    }
+                                                    // If diff >= 120, opposite direction on a two-way street -> not duplicate
+                                                    if (diff >= 120) {
+                                                        match = false; 
+                                                    }
                                                 }
-                                                if (isDuplicatePoint(p.lat, p.lng, histBearing, currentIsOneway)) {
-                                                    isOnSprayed = true;
-                                                }
-                                            });
-                                        }else{
-                                            let histBearing = null;
-                                            const nextP = latlngs[idx + 1];
-                                            if (nextP && !Array.isArray(nextP)) {
-                                                histBearing = getBearing(ll.lat, ll.lng, nextP.lat, nextP.lng);
                                             }
-                                            if (isDuplicatePoint(ll.lat, ll.lng, histBearing, currentIsOneway)) {
+                                            if (match) {
                                                 isOnSprayed = true;
                                             }
                                         }
-                                    });
-                                }
+                                    }
+                                });
                             }
                         });
                     }
-                }catch(e){}
+                }catch(e){
+                    console.error("Error checking layer in checkAlreadySprayed:", e);
+                }
             }
         });
     }
 
-    // Also check own route (same road twice)
-    if(routeCoords.length>20){
-        for(let i=0;i<routeCoords.length-20;i++){
-            let histBearing = null;
-            if (routeCoords[i+1]) {
-                histBearing = getBearing(routeCoords[i][0], routeCoords[i][1], routeCoords[i+1][0], routeCoords[i+1][1]);
+    // Also check own route (same road twice in this session)
+    // Exclude the last 15 recorded points of the active trail to avoid false warning
+    if(sessionPathPoints && sessionPathPoints.length > 20){
+        for(let i=0; i < sessionPathPoints.length - 16; i++){
+            const pt1 = sessionPathPoints[i];
+            const pt2 = sessionPathPoints[i+1];
+            
+            // Only check segment if spraying was active
+            if (!pt1.is_spraying && !pt2.is_spraying) {
+                continue;
             }
-            if (isDuplicatePoint(routeCoords[i][0], routeCoords[i][1], histBearing, currentIsOneway)){
-                isOnSprayed=true;
-                break;
+            
+            const dist = getDistanceToSegment(lat, lng, pt1.lat, pt1.lng, pt2.lat, pt2.lng);
+            if (dist < 15) { // 15 meters proximity threshold
+                let histBearing = getBearing(pt1.lat, pt1.lng, pt2.lat, pt2.lng);
+                let match = true;
+                if (!currentIsOneway) {
+                    if (currentBearing !== null && histBearing !== null) {
+                        let diff = Math.abs(currentBearing - histBearing);
+                        if (diff > 180) {
+                            diff = 360 - diff;
+                        }
+                        if (diff >= 120) {
+                            match = false;
+                        }
+                    }
+                }
+                if (match) {
+                    isOnSprayed = true;
+                    break;
+                }
             }
         }
     }
