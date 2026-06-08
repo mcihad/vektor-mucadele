@@ -323,7 +323,9 @@ module.exports = function(io) {
 
 
                 // Send push notification to all admin users
-                await sendStartNotification(db, req, req.params.id);
+                sendStartNotification(db, req, req.params.id).catch(err => {
+                    console.error('[Push] Async start notification error:', err.message);
+                });
             }
             
             saveDatabase();
@@ -684,12 +686,16 @@ module.exports = function(io) {
                         if (operator_id) await db.run("UPDATE personnel SET status = 'aktif' WHERE id = ?", [operator_id]);
                         if (vehicle_id) await db.run("UPDATE vehicles SET last_location_time = datetime('now') WHERE id = ?", [vehicle_id]);
                         // Send push notification when resuming
-                        await sendStartNotification(db, req, req.params.id);
+                        sendStartNotification(db, req, req.params.id).catch(err => {
+                            console.error('[Push] Async start notification error:', err.message);
+                        });
                     } else if (status === 'beklemede' || status === 'sorunlu') {
                         if (driver_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [driver_id]);
                         if (operator_id) await db.run("UPDATE personnel SET status = 'pasif' WHERE id = ?", [operator_id]);
                         if (status === 'sorunlu') {
-                            await sendIssueNotification(db, req, req.params.id, notes);
+                            sendIssueNotification(db, req, req.params.id, notes).catch(err => {
+                                console.error('[Push] Async issue notification error:', err.message);
+                            });
                         }
                     }
                 }
