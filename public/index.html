@@ -109,11 +109,76 @@
                 -webkit-backdrop-filter: none !important;
             }
         }
+        
+        /* --- GÜNEŞ MODU / YÜKSEK KONTRAST (SUNLIGHT HIGH CONTRAST) --- */
+        body.sunlight-mode {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.82)), url('/icons/sivas_bg.jpg') !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode h1 {
+            color: #000000 !important;
+        }
+        body.sunlight-mode .subtitle {
+            color: #334155 !important;
+        }
+        body.sunlight-mode .login-card {
+            background: #ffffff !important;
+            border: 2px solid #475569 !important;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15) !important;
+        }
+        body.sunlight-mode .form-label {
+            color: #1e293b !important;
+        }
+        body.sunlight-mode .form-input {
+            background: #f8fafc !important;
+            border: 2px solid #cbd5e1 !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode .form-input:focus {
+            border-color: #3b82f6 !important;
+        }
+        body.sunlight-mode .role-selector {
+            background: #f1f5f9 !important;
+            border: 2px solid #cbd5e1 !important;
+        }
+        body.sunlight-mode .role-btn {
+            color: #475569 !important;
+        }
+        body.sunlight-mode .role-btn.active {
+            background: #3b82f6 !important;
+            color: #ffffff !important;
+        }
+        body.sunlight-mode .credentials-hint {
+            background: #f1f5f9 !important;
+            border: 2px solid #cbd5e1 !important;
+            color: #475569 !important;
+        }
+        body.sunlight-mode .credentials-hint b {
+            color: #0f172a !important;
+        }
+        body.sunlight-mode .signature-dept,
+        body.sunlight-mode .signature-by {
+            color: #0f172a !important;
+            text-shadow: none !important;
+        }
+        body.sunlight-mode .signature-title {
+            text-shadow: none !important;
+        }
+        #sunlightToggleBtn:hover {
+            transform: scale(1.08);
+            background: rgba(255,255,255,0.2);
+        }
+        body.sunlight-mode #sunlightToggleBtn:hover {
+            background: rgba(0,0,0,0.06);
+        }
     </style>
 </head>
 <body>
 <div class="login-container">
     <div class="login-card" style="position:relative; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08);">
+        <!-- Sunlight Toggle Button at top-right of the card -->
+        <button id="sunlightToggleBtn" onclick="toggleSunlightMode()" style="position:absolute; top:16px; right:16px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:50%; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:16px; transition: all 0.2s ease; z-index: 10; outline: none; -webkit-tap-highlight-color: transparent;" title="Güneş/Kontrast Modu">☀️</button>
+        
         <!-- Sivas Belediyesi Circular Logo -->
         <div style="text-align:center;margin-bottom:20px;">
             <img src="/icons/sivas_logo.jpg" alt="Sivas Belediyesi" style="width:110px;height:110px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:2.5px solid #1e3a8a;object-fit:contain;">
@@ -249,6 +314,39 @@ if (localStorage.getItem('vms_token')) {
     if (u.role === 'admin') window.location.replace('/admin/dashboard');
     else window.location.replace('/mobile/');
 }
+
+// --- Sunlight Mode Logic ---
+function toggleSunlightMode() {
+    const isSunlight = document.body.classList.toggle('sunlight-mode');
+    localStorage.setItem('vms_sunlight_mode', isSunlight ? '1' : '0');
+    updateSunlightButton(isSunlight);
+}
+
+function updateSunlightButton(isSunlight) {
+    const btn = document.getElementById('sunlightToggleBtn');
+    if (btn) {
+        btn.textContent = isSunlight ? '🌙' : '☀️';
+        if (isSunlight) {
+            btn.style.background = '#e2e8f0';
+            btn.style.color = '#0f172a';
+            btn.style.borderColor = '#cbd5e1';
+        } else {
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        }
+    }
+}
+
+// Initialize Sunlight Mode from storage
+(function initSunlightMode() {
+    const saved = localStorage.getItem('vms_sunlight_mode');
+    const isSunlight = saved === '1';
+    if (isSunlight) {
+        document.body.classList.add('sunlight-mode');
+    }
+    updateSunlightButton(isSunlight);
+})();
 
 // Tarayıcı geri tuşuna basıldığında butonun 'Giriş yapılıyor...' olarak takılı kalmasını önlemek için
 window.addEventListener('pageshow', (event) => {
