@@ -439,6 +439,11 @@ module.exports = function(io) {
             if (sess.route_id) {
                 await db.run("UPDATE planned_routes SET status = 'completed' WHERE id = ?", [sess.route_id]);
             }
+            // Ayrıca, aynı araç ve mahalle için atanmış/aktif olan planlı rotaları da tamamlandı olarak işaretle (link olmama durumuna karşı koruma)
+            if (sess.vehicle_id && sess.neighborhood) {
+                await db.run("UPDATE planned_routes SET status = 'completed' WHERE vehicle_id = ? AND neighborhood = ? AND status IN ('assigned', 'active')", 
+                    [sess.vehicle_id, sess.neighborhood]);
+            }
 
             // Set personnel status to 'pasif'
             if (sess.driver_id) {
@@ -707,6 +712,20 @@ module.exports = function(io) {
 
             // Güncellenen duruma göre personel durumunu ve araç durumunu ayarla
             if (status !== undefined) {
+                if (status === 'completed') {
+                    const sessionResult = await db.exec("SELECT route_id, vehicle_id, neighborhood FROM spray_sessions WHERE id = ?", [req.params.id]);
+                    const sessionRows = rowsToObjects(sessionResult);
+                    if (sessionRows.length > 0) {
+                        const sess = sessionRows[0];
+                        if (sess.route_id) {
+                            await db.run("UPDATE planned_routes SET status = 'completed' WHERE id = ?", [sess.route_id]);
+                        }
+                        if (sess.vehicle_id && sess.neighborhood) {
+                            await db.run("UPDATE planned_routes SET status = 'completed' WHERE vehicle_id = ? AND neighborhood = ? AND status IN ('assigned', 'active')", 
+                                [sess.vehicle_id, sess.neighborhood]);
+                        }
+                    }
+                }
                 const sessRes = await db.exec("SELECT driver_id, operator_id, vehicle_id FROM spray_sessions WHERE id = ?", [req.params.id]);
                 const sessRows = rowsToObjects(sessRes);
                 if (sessRows.length > 0) {
