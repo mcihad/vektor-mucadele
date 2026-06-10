@@ -505,7 +505,6 @@
 
 <!-- Mobile Drawer -->
 <div id="mobileDrawer" class="mobile-drawer" style="display:none">
-    <div class="drawer-overlay" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)"></div>
     <div class="drawer-content">
         <!-- Close tab on the right edge -->
         <div class="drawer-close-tab" ontouchend="event.stopPropagation(); toggleDrawer(false)" onclick="toggleDrawer(false)" title="Menüyü Kapat">
@@ -539,6 +538,7 @@
             <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item drawer-logout-btn">🚪 Oturumu Kapat</a>
         </nav>
     </div>
+    <div class="drawer-overlay" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)"></div>
 </div>
 
 <!-- Main App -->
