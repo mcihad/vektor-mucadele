@@ -67,7 +67,7 @@ router.get('/public/expiry-map', async (req, res) => {
     const db = getDb();
     try {
         const result = await db.exec(`
-            SELECT ss.id, ss.street_name, ss.osm_way_id, ss.sprayed_at, ss.expires_at,
+            SELECT ss.id, ss.session_id, ss.street_name, ss.osm_way_id, ss.sprayed_at, ss.expires_at,
                    ss.geometry_geojson, ss.width_mt, ss.length_mt,
                    s.neighborhood, s.vehicle_id, v.plate, c.name as chemical_name,
                    CAST(julianday(ss.expires_at) - julianday('now') AS REAL) as days_remaining,

@@ -1103,6 +1103,24 @@
             };
         }
 
+        function getHullStyle(daysRemaining) {
+            let color = '#10b981';
+            if (daysRemaining <= 0) color = '#6b7280';
+            else if (daysRemaining <= 10) color = '#ef4444';
+            else if (daysRemaining <= 15) color = '#f97316';
+            else if (daysRemaining <= 20) color = '#f59e0b';
+            else if (daysRemaining <= 25) color = '#84cc16';
+            
+            return {
+                color: color,
+                weight: 1,
+                opacity: 0.25,
+                fillColor: color,
+                fillOpacity: 0.15,
+                interactive: false
+            };
+        }
+
         async function loadSprayedData() {
             try {
                 const res = await fetch('/api/reports/public/expiry-map');
@@ -1113,70 +1131,210 @@
                 const heatPoints = [];
                 sprayedLinesGroup.clearLayers();
 
+                // Group streets by session_id
+                const sessionsMap = new Map();
                 data.streets.forEach(s => {
+                    const sessionId = s.session_id;
+                    if (!sessionsMap.has(sessionId)) {
+                        sessionsMap.set(sessionId, []);
+                    }
+                    sessionsMap.get(sessionId).push(s);
+                });
+
+                // Helper to check distance in meters
+                function getDistanceMeters(p1, p2) {
+                    const lon1 = p1[0], lat1 = p1[1];
+                    const lon2 = p2[0], lat2 = p2[1];
+                    const R = 6371000;
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a = 
+                        Math.sin(dLat/2) * Math.sin(dLat/2) +
+                        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                        Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    return R * c;
+                }
+
+                // Helper to check if two street node coordinate lists are connected
+                function areStreetsConnected(coordsA, coordsB, maxDist = 50) {
+                    if (coordsA.length === 0 || coordsB.length === 0) return false;
+                    for (let i = 0; i < coordsA.length; i++) {
+                        const pA = coordsA[i];
+                        for (let j = 0; j < coordsB.length; j++) {
+                            const pB = coordsB[j];
+                            if (getDistanceMeters(pA, pB) <= maxDist) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                // Helper to extract coordinates from geometry
+                function getStreetCoords(s) {
+                    let coords = [];
                     if (s.geometry_geojson) {
                         try {
                             const geom = JSON.parse(s.geometry_geojson);
-                            const remaining = s.days_remaining || 0;
-                            const style = getSprayStyle(remaining);
-                            
-                            // 1a. Buffer Area Layer (17m left & 17m right)
-                            if (remaining > 0 && typeof turf !== 'undefined') {
-                                try {
-                                    const buffered = turf.buffer(geom, 17, { units: 'meters' });
-                                    const bufferStyle = getBufferStyle(remaining);
-                                    const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
-                                    bufferLayer.originalDaysRemaining = remaining;
-                                    bufferLayer.isBuffer = true;
-                                    sprayedLinesGroup.addLayer(bufferLayer);
-                                } catch (bufErr) {
-                                    console.error("Turf buffer error:", bufErr);
-                                }
-                            }
-                            
-                            // 1b. Central Line Layer
-                            const layer = L.geoJSON(geom, { style: () => style });
-                            layer.originalDaysRemaining = remaining;
-                            layer.isBuffer = false;
-                            const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
-                            const sprayedDate = new Date(s.sprayed_at);
-                            const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                            const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
-                            
-                            layer.bindPopup(`
-                                <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #fff;">
-                                    <b style="font-size: 13px; color: #38bdf8;">📍 ${s.street_name || 'İlaçlama Hattı'}</b><br>
-                                    🏘️ <b>Mahalle:</b> ${s.neighborhood || '-'}<br>
-                                    🕐 <b>İlaçlama Saati:</b> ${sprayedStr}<br>
-                                    📅 <b>Bitiş Tarihi:</b> ${expiresStr}<br>
-                                    ⏳ <b>Etki Durumu:</b> ${daysText}<br>
-                                    🧪 <b>Uygulanan İlaç:</b> ${s.chemical_name || '-'}
-                                </div>
-                            `);
-                            sprayedLinesGroup.addLayer(layer);
-
-                            // 2. Heatmap points
-                            if (remaining > 0) {
-                                const intensity = remaining / 30;
-                                const geometry = geom.type === 'Feature' ? geom.geometry : geom;
-                                if (geometry) {
-                                    if (geometry.type === 'LineString') {
-                                        geometry.coordinates.forEach(c => {
-                                            heatPoints.push([c[1], c[0], intensity]);
-                                        });
-                                    } else if (geometry.type === 'MultiLineString') {
-                                        geometry.coordinates.forEach(line => {
-                                            line.forEach(c => {
-                                                heatPoints.push([c[1], c[0], intensity]);
-                                            });
-                                        });
-                                    }
+                            const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                            if (geometry && geometry.coordinates) {
+                                if (geometry.type === 'LineString') {
+                                    coords = geometry.coordinates;
+                                } else if (geometry.type === 'MultiLineString') {
+                                    geometry.coordinates.forEach(line => {
+                                        coords = coords.concat(line);
+                                    });
                                 }
                             }
                         } catch (e) {
-                            console.error("GeoJSON parsing error:", e);
+                            console.error("Error parsing GeoJSON coordinates:", e);
                         }
                     }
+                    return coords;
+                }
+
+                // Process each session
+                sessionsMap.forEach((streets, sessionId) => {
+                    const remaining = streets[0].days_remaining || 0;
+
+                    // Cluster streets within this session by spatial proximity (connected components)
+                    if (remaining > 0 && streets.length >= 2 && typeof turf !== 'undefined') {
+                        try {
+                            const streetNodes = streets.map((s, idx) => ({
+                                index: idx,
+                                street: s,
+                                coords: getStreetCoords(s)
+                            }));
+
+                            // Union-Find / DSU initialization
+                            const parent = Array.from({ length: streets.length }, (_, i) => i);
+                            function find(i) {
+                                if (parent[i] === i) return i;
+                                parent[i] = find(parent[i]);
+                                return parent[i];
+                            }
+                            function union(i, j) {
+                                const rootI = find(i);
+                                const rootJ = find(j);
+                                if (rootI !== rootJ) {
+                                    parent[rootI] = rootJ;
+                                }
+                            }
+
+                            // Perform union on adjacent streets (within 50 meters)
+                            for (let i = 0; i < streetNodes.length; i++) {
+                                for (let j = i + 1; j < streetNodes.length; j++) {
+                                    if (areStreetsConnected(streetNodes[i].coords, streetNodes[j].coords, 50)) {
+                                        union(i, j);
+                                    }
+                                }
+                            }
+
+                            // Group street nodes by their clusters
+                            const clusters = new Map();
+                            for (let i = 0; i < streets.length; i++) {
+                                const root = find(i);
+                                if (!clusters.has(root)) {
+                                    clusters.set(root, []);
+                                }
+                                clusters.get(root).push(streetNodes[i]);
+                            }
+
+                            // Draw Convex Hull for each cluster with at least 2 streets
+                            clusters.forEach(cluster => {
+                                if (cluster.length >= 2) {
+                                    const points = [];
+                                    cluster.forEach(node => {
+                                        node.coords.forEach(c => {
+                                            points.push(turf.point(c));
+                                        });
+                                    });
+
+                                    if (points.length >= 3) {
+                                        const pointFC = turf.featureCollection(points);
+                                        const hull = turf.convex(pointFC);
+                                        if (hull) {
+                                            const hullStyle = getHullStyle(remaining);
+                                            const hullLayer = L.geoJSON(hull, { style: () => hullStyle });
+                                            hullLayer.originalDaysRemaining = remaining;
+                                            hullLayer.isHull = true;
+                                            sprayedLinesGroup.addLayer(hullLayer);
+                                        }
+                                    }
+                                }
+                            });
+
+                        } catch (hullErr) {
+                            console.error("Convex hull error:", hullErr);
+                        }
+                    }
+
+                    // Draw individual streets
+                    streets.forEach(s => {
+                        if (s.geometry_geojson) {
+                            try {
+                                const geom = JSON.parse(s.geometry_geojson);
+                                const style = getSprayStyle(remaining);
+                                
+                                // 1a. Buffer Area Layer (17m left & 17m right)
+                                if (remaining > 0 && typeof turf !== 'undefined') {
+                                    try {
+                                        const buffered = turf.buffer(geom, 17, { units: 'meters' });
+                                        const bufferStyle = getBufferStyle(remaining);
+                                        const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
+                                        bufferLayer.originalDaysRemaining = remaining;
+                                        bufferLayer.isBuffer = true;
+                                        sprayedLinesGroup.addLayer(bufferLayer);
+                                    } catch (bufErr) {
+                                        console.error("Turf buffer error:", bufErr);
+                                    }
+                                }
+                                
+                                // 1b. Central Line Layer
+                                const layer = L.geoJSON(geom, { style: () => style });
+                                layer.originalDaysRemaining = remaining;
+                                layer.isBuffer = false;
+                                const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
+                                const sprayedDate = new Date(s.sprayed_at);
+                                const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                                const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
+                                
+                                layer.bindPopup(`
+                                    <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #fff;">
+                                        <b style="font-size: 13px; color: #38bdf8;">📍 ${s.street_name || 'İlaçlama Hattı'}</b><br>
+                                        🏘️ <b>Mahalle:</b> ${s.neighborhood || '-'}<br>
+                                        🕐 <b>İlaçlama Saati:</b> ${sprayedStr}<br>
+                                        📅 <b>Bitiş Tarihi:</b> ${expiresStr}<br>
+                                        ⏳ <b>Etki Durumu:</b> ${daysText}<br>
+                                        🧪 <b>Uygulanan İlaç:</b> ${s.chemical_name || '-'}
+                                    </div>
+                                `);
+                                sprayedLinesGroup.addLayer(layer);
+
+                                // 2. Heatmap points
+                                if (remaining > 0) {
+                                    const intensity = remaining / 30;
+                                    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                                    if (geometry) {
+                                        if (geometry.type === 'LineString') {
+                                            geometry.coordinates.forEach(c => {
+                                                heatPoints.push([c[1], c[0], intensity]);
+                                            });
+                                        } else if (geometry.type === 'MultiLineString') {
+                                            geometry.coordinates.forEach(line => {
+                                                line.forEach(c => {
+                                                    heatPoints.push([c[1], c[0], intensity]);
+                                                });
+                                            });
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("GeoJSON parsing error:", e);
+                            }
+                        }
+                    });
                 });
 
                 // 3. Setup Heatmap Layer
@@ -1255,7 +1413,9 @@
             sprayedLinesGroup.eachLayer(layer => {
                 if (typeof layer.originalDaysRemaining !== 'undefined') {
                     const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
-                    if (layer.isBuffer) {
+                    if (layer.isHull) {
+                        layer.setStyle(getHullStyle(simulatedRemaining));
+                    } else if (layer.isBuffer) {
                         layer.setStyle(getBufferStyle(simulatedRemaining));
                     } else {
                         layer.setStyle(getSprayStyle(simulatedRemaining));
