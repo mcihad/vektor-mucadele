@@ -636,6 +636,14 @@ async function queryReportStatus() {
         resultsDiv.innerHTML = '<p style="text-align:center; color:#f87171; font-size:11px; margin-top:20px;">❌ Sorgulama esnasında bir hata oluştu.</p>';
     }
 }
+
+// URL tab parameter check
+document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('tab') === 'query') {
+        switchTab('query');
+    }
+});
 </script>
 
 <!-- Department Signature and Logo in Bottom-Right Corner -->
