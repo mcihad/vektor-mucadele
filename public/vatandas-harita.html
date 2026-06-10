@@ -799,51 +799,28 @@
             }
         }
 
-        /* Flowing Ant-Path Animations */
-        @keyframes flow-fresh {
-            to { stroke-dashoffset: -24; }
-        }
+        /* Solid Route Lines (Flowing Ant-Path Animations Removed) */
         .flow-line-fresh {
-            stroke-dasharray: 8 4;
-            animation: flow-fresh 0.8s linear infinite !important;
+            animation: none !important;
         }
 
-        @keyframes flow-active {
-            to { stroke-dashoffset: -24; }
-        }
         .flow-line-active {
-            stroke-dasharray: 8 4;
-            animation: flow-active 1.2s linear infinite !important;
+            animation: none !important;
         }
 
-        @keyframes flow-moderate {
-            to { stroke-dashoffset: -20; }
-        }
         .flow-line-moderate {
-            stroke-dasharray: 6 5;
-            animation: flow-moderate 2s linear infinite !important;
+            animation: none !important;
         }
 
-        @keyframes flow-slowing {
-            to { stroke-dashoffset: -20; }
-        }
         .flow-line-slowing {
-            stroke-dasharray: 4 6;
-            animation: flow-slowing 3.5s linear infinite !important;
+            animation: none !important;
         }
 
-        @keyframes pulse-expiring {
-            0% { opacity: 0.4; }
-            50% { opacity: 0.9; }
-            100% { opacity: 0.4; }
-        }
         .flow-line-expiring {
-            stroke-dasharray: 2 6;
-            animation: pulse-expiring 2s ease-in-out infinite !important;
+            animation: none !important;
         }
         
         .flow-line-expired {
-            stroke-dasharray: 4 4;
             animation: none !important;
             opacity: 0.45 !important;
         }
