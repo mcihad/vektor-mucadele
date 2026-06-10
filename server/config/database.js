@@ -491,6 +491,22 @@ async function createPgTables() {
     } catch(e) {
         console.log('Error adding received_from column to vehicle_stock_transactions:', e.message);
     }
+
+    // Create vehicle fuel tracking table
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS vehicle_fuel_logs (
+            id SERIAL PRIMARY KEY,
+            vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE CASCADE,
+            driver_id INTEGER REFERENCES personnel(id) ON DELETE SET NULL,
+            fill_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            odometer DOUBLE PRECISION NOT NULL,
+            fuel_liters DOUBLE PRECISION NOT NULL,
+            price_per_liter DOUBLE PRECISION NOT NULL,
+            total_cost DOUBLE PRECISION NOT NULL,
+            station_name VARCHAR(255),
+            description TEXT
+        )
+    `);
 }
 
 async function seedPgData() {

@@ -74,6 +74,72 @@ router.get('/stock/levels', authMiddleware, async (req, res) => {
     }
 });
 
+// Get all fuel logs
+router.get('/fuel/logs', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const query = `
+            SELECT fl.*, v.plate as vehicle_plate, v.machine_name, p.name as driver_name
+            FROM vehicle_fuel_logs fl
+            JOIN vehicles v ON fl.vehicle_id = v.id
+            LEFT JOIN personnel p ON fl.driver_id = p.id
+            ORDER BY fl.fill_date DESC
+        `;
+        const result = await db.exec(query);
+        res.json(rowsToObjects(result));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get fuel logs summary stats
+router.get('/fuel/stats', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const query = `
+            SELECT 
+                COALESCE(SUM(fuel_liters), 0) as total_liters,
+                COALESCE(SUM(total_cost), 0) as total_cost,
+                COUNT(*) as total_records,
+                COALESCE(AVG(price_per_liter), 0) as avg_price
+            FROM vehicle_fuel_logs
+        `;
+        const result = await db.exec(query);
+        const stats = rowsToObjects(result);
+        res.json(stats[0] || { total_liters: 0, total_cost: 0, total_records: 0, avg_price: 0 });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Save a new fuel log
+router.post('/fuel/logs', authMiddleware, async (req, res) => {
+    const { vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description } = req.body;
+    const db = getDb();
+    try {
+        await db.run(`
+            INSERT INTO vehicle_fuel_logs (vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description, fill_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, [vehicle_id, driver_id ? parseInt(driver_id) : null, parseFloat(odometer), parseFloat(fuel_liters), parseFloat(price_per_liter), parseFloat(total_cost), station_name || null, description || null]);
+        saveDatabase();
+        res.json({ message: 'Yakıt kaydı başarıyla eklendi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete a fuel log
+router.delete('/fuel/logs/:id', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        await db.run("DELETE FROM vehicle_fuel_logs WHERE id = ?", [req.params.id]);
+        saveDatabase();
+        res.json({ message: 'Yakıt kaydı silindi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get vehicle stock transaction history
 router.get('/:id/transactions', authMiddleware, async (req, res) => {
     const db = getDb();

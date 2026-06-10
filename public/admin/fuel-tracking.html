@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VMS - Araç Yakıt Takip Sistemi</title>
+    <link rel="stylesheet" href="/css/main.css">
+</head>
+<body>
+<aside class="sidebar">
+    <button class="sidebar-close-btn" onclick="document.querySelector('.sidebar').classList.remove('open')">✕</button>
+    <div class="sidebar-header">
+        <div class="logo">🦟 Sivas Belediyesi</div>
+        <div style="font-size:11px;font-weight:700;color:var(--accent);margin-top:2px;">Veteriner İşleri Müdürlüğü</div>
+        <div class="sub" style="margin-top:4px;">Vektörle Mücadele Yönetim Sistemi</div>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Ana Menü</div>
+        <a href="/admin/dashboard" class="nav-item"><span class="icon">📊</span> Ana Ekran</a>
+        <a href="/admin/sessions" class="nav-item"><span class="icon">💉</span> İlaçlama Kayıtları</a>
+        <a href="/admin/planning" class="nav-item"><span class="icon">🗺️</span> Rota Planlama</a>
+        <div class="nav-section">Yönetim</div>
+        <a href="/admin/vehicles" class="nav-item"><span class="icon">🚐</span> Araçlar</a>
+        <a href="/admin/personnel" class="nav-item"><span class="icon">👥</span> Personel</a>
+        <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
+        <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
+        <a href="/admin/fuel-tracking" class="nav-item"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/fuel-tracking" class="nav-item active"><span class="icon">⛽</span> Yakıt Takip</a>
+        <div class="nav-section">İzleme</div>
+        <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
+        <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
+    </nav>
+    <div class="sidebar-footer"><a href="#" onclick="logout()" class="sidebar-logout-btn">🚪 Çıkış</a></div>
+</aside>
+<div class="main-content">
+    <header class="topbar">
+        <div class="topbar-title">
+            <button class="mobile-nav-toggle" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</button>
+            ⛽ Araç Yakıt Takibi
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" onclick="openAddFuelModal()" style="display:flex;align-items:center;gap:6px;margin:0;">➕ Yeni Yakıt Girişi</button>
+            <button class="btn btn-outline btn-sm" onclick="exportToExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Excel'e Aktar</button>
+        </div>
+    </header>
+    <div class="page-content">
+        <!-- Summary Cards -->
+        <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card blue">
+                <div class="stat-icon blue">⛽</div>
+                <div>
+                    <div class="stat-value" id="totalFuelLiters">0.00 lt</div>
+                    <div class="stat-label">Toplam Yakıt Tüketimi</div>
+                </div>
+            </div>
+            <div class="stat-card green">
+                <div class="stat-icon green">💵</div>
+                <div>
+                    <div class="stat-value" id="totalFuelCost">0.00 TL</div>
+                    <div class="stat-label">Toplam Yakıt Tutarı</div>
+                </div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon orange">📊</div>
+                <div>
+                    <div class="stat-value" id="avgFuelPrice">0.00 TL</div>
+                    <div class="stat-label">Ortalama Birim Fiyat (lt)</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fuel Logs Table -->
+        <div class="card">
+            <div class="card-header"><span class="card-title">Yakıt Alım Kayıtları</span></div>
+            <div class="table-container">
+                <table id="fuelLogsExcelTable">
+                    <thead>
+                        <tr>
+                            <th>Plaka</th>
+                            <th>Araç / Makine</th>
+                            <th>Tarih</th>
+                            <th style="text-align: right;">Kilometre (Odo)</th>
+                            <th style="text-align: right;">Miktar (lt)</th>
+                            <th style="text-align: right;">Birim Fiyat</th>
+                            <th style="text-align: right;">Toplam Tutar</th>
+                            <th>Personel</th>
+                            <th>İstasyon</th>
+                            <th>Açıklama</th>
+                            <th style="text-align: center;">İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fuelLogsTable">
+                        <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted)">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Fuel Record Modal -->
+<div class="modal-overlay" id="addFuelModal">
+    <div class="modal" style="max-width:550px; width:95%;">
+        <div class="modal-header">
+            <div class="modal-title">⛽ Yeni Yakıt Kaydı Girişi</div>
+            <button class="modal-close" onclick="closeAddFuelModal()">&times;</button>
+        </div>
+        <form id="addFuelForm" onsubmit="saveFuelRecord(event)" style="margin-top: 15px;">
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Araç Plakası *</label>
+                    <select id="fVehicle" required style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                        <option value="">Seçiniz...</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Şoför / Personel</label>
+                    <select id="fDriver" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                        <option value="">Seçiniz...</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Kilometre (Odometer) *</label>
+                    <input type="number" id="fOdo" required min="0" placeholder="Örn: 42150" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">İstasyon / Tedarikçi</label>
+                    <input type="text" id="fStation" placeholder="Örn: Opet / Belediye Garaj" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom: 12px;">
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Litre (lt) *</label>
+                    <input type="number" id="fLiters" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateTotalCost()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Birim Fiyat *</label>
+                    <input type="number" id="fPricePerLiter" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateTotalCost()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                </div>
+                <div>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Toplam Tutar (TL) *</label>
+                    <input type="number" id="fTotalCost" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateUnitPrice()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); font-weight:700;">
+                </div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Açıklama</label>
+                <textarea id="fDesc" placeholder="Varsa notlar..." rows="2" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); font-family:inherit; resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:8px; border-top:1px solid var(--border); padding-top:12px;">
+                <button type="button" class="btn btn-outline" onclick="closeAddFuelModal()">Kapat</button>
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const TOKEN = localStorage.getItem('vms_token');
+const USER = JSON.parse(localStorage.getItem('vms_user') || '{}');
+if (!TOKEN || USER.role !== 'admin') {
+    localStorage.clear();
+    window.location.href = '/';
+}
+
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' }
+        });
+    } catch(e) {}
+    localStorage.clear();
+    window.location.href = '/';
+}
+
+async function api(url, opts={}) {
+    const res = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json', ...opts.headers } });
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || errData.message || 'Sunucu hatası: ' + res.status);
+    }
+    return res.json();
+}
+
+function toast(msg, type='info') {
+    const c = document.getElementById('toastContainer');
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(() => t.remove(), 4000);
+}
+
+function calculateTotalCost() {
+    const liters = parseFloat(document.getElementById('fLiters').value) || 0;
+    const price = parseFloat(document.getElementById('fPricePerLiter').value) || 0;
+    if (liters > 0 && price > 0) {
+        document.getElementById('fTotalCost').value = (liters * price).toFixed(2);
+    }
+}
+
+function calculateUnitPrice() {
+    const liters = parseFloat(document.getElementById('fLiters').value) || 0;
+    const total = parseFloat(document.getElementById('fTotalCost').value) || 0;
+    if (liters > 0 && total > 0) {
+        document.getElementById('fPricePerLiter').value = (total / liters).toFixed(2);
+    }
+}
+
+async function load() {
+    try {
+        // Load stats & table logs in parallel
+        const [stats, logs] = await Promise.all([
+            api('/api/vehicles/fuel/stats'),
+            api('/api/vehicles/fuel/logs')
+        ]);
+
+        document.getElementById('totalFuelLiters').textContent = Number(stats.total_liters).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lt';
+        document.getElementById('totalFuelCost').textContent = Number(stats.total_cost).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+        document.getElementById('avgFuelPrice').textContent = Number(stats.avg_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+
+        document.getElementById('fuelLogsTable').innerHTML = logs.map(l => {
+            const dateStr = new Date(l.fill_date).toLocaleString('tr-TR');
+            const total = Number(l.total_cost).toFixed(2);
+            const liters = Number(l.fuel_liters).toFixed(2);
+            const price = Number(l.price_per_liter).toFixed(2);
+            
+            return `<tr>
+                <td><strong>${l.vehicle_plate}</strong></td>
+                <td>${l.machine_name}</td>
+                <td style="font-size:11px;">${dateStr}</td>
+                <td style="text-align: right;">${Number(l.odometer).toLocaleString('tr-TR')} km</td>
+                <td style="text-align: right; font-weight: 600;">${liters} lt</td>
+                <td style="text-align: right;">${price} TL</td>
+                <td style="text-align: right; font-weight: 700; color: var(--success);">${total} TL</td>
+                <td>${l.driver_name || '-'}</td>
+                <td>${l.station_name || '-'}</td>
+                <td style="font-size:11px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${l.description || ''}">${l.description || '-'}</td>
+                <td style="text-align: center;">
+                    <button class="btn btn-sm btn-outline" style="color:var(--danger); border-color:rgba(239,68,68,0.3)" onclick="deleteFuelRecord(${l.id})">🗑️ Sil</button>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted)">Yakıt kayıt geçmişi bulunmuyor.</td></tr>';
+        
+    } catch(err) {
+        toast('Yakıt verileri yüklenirken hata oluştu: ' + err.message, 'error');
+    }
+}
+
+async function openAddFuelModal() {
+    document.getElementById('addFuelForm').reset();
+    document.getElementById('addFuelModal').classList.add('active');
+    
+    // Populate vehicles & drivers dropdowns
+    try {
+        const [vehicles, personnel] = await Promise.all([
+            api('/api/vehicles'),
+            api('/api/personnel')
+        ]);
+        
+        document.getElementById('fVehicle').innerHTML = '<option value="">Seçiniz...</option>' + 
+            vehicles.map(v => `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`).join('');
+            
+        document.getElementById('fDriver').innerHTML = '<option value="">Seçiniz...</option>' + 
+            personnel.filter(p => p.role === 'şoför' || p.role === 'driver' || p.role === 'operator' || p.role === 'aktif').map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            
+    } catch(err) {
+        toast('Form seçenekleri yüklenemedi: ' + err.message, 'error');
+    }
+}
+
+function closeAddFuelModal() {
+    document.getElementById('addFuelModal').classList.remove('active');
+}
+
+async function saveFuelRecord(e) {
+    e.preventDefault();
+    const vehicle_id = parseInt(document.getElementById('fVehicle').value);
+    const driver_id = document.getElementById('fDriver').value ? parseInt(document.getElementById('fDriver').value) : null;
+    const odometer = parseFloat(document.getElementById('fOdo').value);
+    const fuel_liters = parseFloat(document.getElementById('fLiters').value);
+    const price_per_liter = parseFloat(document.getElementById('fPricePerLiter').value);
+    const total_cost = parseFloat(document.getElementById('fTotalCost').value);
+    const station_name = document.getElementById('fStation').value;
+    const description = document.getElementById('fDesc').value;
+
+    try {
+        await api('/api/vehicles/fuel/logs', {
+            method: 'POST',
+            body: JSON.stringify({ vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description })
+        });
+        toast('Yakıt alım kaydı başarıyla eklendi', 'success');
+        closeAddFuelModal();
+        load();
+    } catch (err) {
+        toast('Yakıt kaydı eklenemedi: ' + err.message, 'error');
+    }
+}
+
+async function deleteFuelRecord(id) {
+    if (!confirm('Bu yakıt kaydını silmek istediğinizden emin misiniz?')) return;
+    try {
+        await api(`/api/vehicles/fuel/logs/${id}`, {
+            method: 'DELETE'
+        });
+        toast('Kayıt başarıyla silindi', 'success');
+        load();
+    } catch(err) {
+        toast('Kayıt silinemedi: ' + err.message, 'error');
+    }
+}
+
+function exportToExcel() {
+    const table = document.getElementById('fuelLogsExcelTable');
+    if (!table) return;
+    
+    const clone = table.cloneNode(true);
+    
+    // Remove Action Column
+    clone.querySelectorAll('thead tr').forEach(tr => {
+        const lastTh = tr.querySelector('th:last-child');
+        if (lastTh && lastTh.textContent.includes('İşlem')) lastTh.remove();
+    });
+    
+    clone.querySelectorAll('tbody tr').forEach(tr => {
+        const lastTd = tr.querySelector('td:last-child');
+        if (lastTd) lastTd.remove();
+    });
+
+    clone.setAttribute('border', '1');
+    clone.style.borderCollapse = 'collapse';
+    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+    clone.style.background = '#ffffff';
+    
+    clone.querySelectorAll('th').forEach(th => {
+        th.style.backgroundColor = '#1e3a8a';
+        th.style.color = '#ffffff';
+        th.style.fontWeight = 'bold';
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+    });
+    
+    clone.querySelectorAll('tr').forEach(tr => {
+        tr.removeAttribute('class');
+        tr.removeAttribute('style');
+        tr.style.backgroundColor = '#ffffff';
+        
+        tr.querySelectorAll('td').forEach(td => {
+            td.removeAttribute('class');
+            const originalColor = td.style.color;
+            td.removeAttribute('style');
+            td.style.border = '1px solid #cbd5e1';
+            td.style.padding = '6px 8px';
+            if (originalColor) td.style.color = originalColor;
+        });
+    });
+    
+    const BOM = '\uFEFF';
+    const html = BOM + clone.outerHTML;
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Arac_Yakit_Alim_Raporu.xls';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+load();
+</script>
+<script src="/admin/admin-notifications.js"></script>
+</body>
+</html>
