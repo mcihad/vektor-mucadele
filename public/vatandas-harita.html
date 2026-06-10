@@ -830,6 +830,143 @@
             50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.65); }
             100% { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
         }
+
+        /* Premium Schedule Modal Styles */
+        .schedule-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .schedule-modal-overlay.active {
+            display: flex;
+            animation: fadeIn 0.25s ease;
+        }
+        .schedule-modal {
+            background: rgba(15, 23, 42, 0.98);
+            border: 1px solid rgba(16, 185, 129, 0.25);
+            border-top: 4px solid #10b981;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 950px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            color: #fff;
+            animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            font-family: inherit;
+        }
+        .schedule-modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .schedule-modal-title {
+            font-size: 15px;
+            font-weight: 800;
+            color: #10b981;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: 0.3px;
+        }
+        .schedule-modal-close {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            font-size: 16px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            outline: none;
+        }
+        .schedule-modal-close:hover {
+            color: #fff;
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .schedule-modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .schedule-day-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.25s ease;
+        }
+        .schedule-day-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(16, 185, 129, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+        .schedule-day-header {
+            font-weight: 800;
+            font-size: 13.5px;
+            color: #10b981;
+            border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            letter-spacing: 0.5px;
+        }
+        .schedule-day-icon {
+            font-size: 13px;
+            opacity: 0.8;
+        }
+        .schedule-neighborhoods {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+        }
+        .schedule-neighborhood-item {
+            font-size: 11px;
+            color: #cbd5e1;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.01);
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            border-radius: 6px;
+            border-left: 3px solid #10b981;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .schedule-neighborhood-item:hover {
+            background: rgba(16, 185, 129, 0.05);
+            color: #fff;
+        }
     </style>
 </head>
 <body>
@@ -869,6 +1006,9 @@
         </div>
         <button class="header-info-btn" id="btnToggleInfoDesktop" onclick="toggleInfoCard()" title="Bilgi & Lejant">
             <span>ℹ️</span> <span style="font-size: 11px; font-weight: 700; font-family: inherit;">Bilgi / Lejant</span>
+        </button>
+        <button class="header-info-btn" id="btnToggleScheduleDesktop" onclick="toggleScheduleModal()" title="Haftalık İlaçlama Programı" style="margin-left: 6px; background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #10b981;">
+            <span>📅</span> <span style="font-size: 11px; font-weight: 700; font-family: inherit;">Haftalık Program</span>
         </button>
     </div>
 
@@ -1003,6 +1143,7 @@
                 <span>🔍</span> <span>İhbar Sorgula</span>
             </a>
         </div>
+        <button class="dock-circle-btn" id="btnToggleSchedule" onclick="toggleScheduleModal()" title="Haftalık Program" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.35); color: #10b981;">📅</button>
         <button class="dock-circle-btn" id="btnToggleInfo" onclick="toggleInfoCard()" title="Bilgi & Lejant">ℹ️</button>
     </div>
 
@@ -1646,8 +1787,175 @@
             );
         }
 
+        function toggleScheduleModal(show) {
+            const modal = document.getElementById('scheduleModal');
+            if (!modal) return;
+            if (show === undefined) {
+                show = !modal.classList.contains('active');
+            }
+            if (show) {
+                modal.classList.add('active');
+            } else {
+                modal.classList.remove('active');
+            }
+        }
+
         initMap();
         setInterval(loadSprayedData, 120000);
     </script>
+
+    <!-- Weekly Spraying Schedule Modal -->
+    <div class="schedule-modal-overlay" id="scheduleModal" onclick="if(event.target === this) toggleScheduleModal(false)">
+        <div class="schedule-modal">
+            <div class="schedule-modal-header">
+                <div class="schedule-modal-title">📅 Haftalık İlaçlama Programı</div>
+                <button class="schedule-modal-close" onclick="toggleScheduleModal(false)">✕</button>
+            </div>
+            <div class="schedule-modal-body">
+                <div class="schedule-grid">
+                    <!-- Pazartesi -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Pazartesi</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">Çayboyu Mah.</li>
+                            <li class="schedule-neighborhood-item">Mevlana Mah.</li>
+                            <li class="schedule-neighborhood-item">Çayyurt Mah.</li>
+                            <li class="schedule-neighborhood-item">Orhangazi Mah.</li>
+                            <li class="schedule-neighborhood-item">Abdulvahabigazi Mah.</li>
+                            <li class="schedule-neighborhood-item">Paşabahçe Mesire Alanı</li>
+                            <li class="schedule-neighborhood-item">SCÜ Kampüsü</li>
+                            <li class="schedule-neighborhood-item">Alibaba Mah.</li>
+                            <li class="schedule-neighborhood-item">Seyrantepe Mah.</li>
+                            <li class="schedule-neighborhood-item">Akdeğirmen Mah.</li>
+                            <li class="schedule-neighborhood-item">Gökçebostan Mah.</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Salı -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Salı</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">İnönü Mah.</li>
+                            <li class="schedule-neighborhood-item">Mısmılırmak Mah.</li>
+                            <li class="schedule-neighborhood-item">Dedebalı Mah.</li>
+                            <li class="schedule-neighborhood-item">Gülyurt Mah.</li>
+                            <li class="schedule-neighborhood-item">Bahtiyarbostan Mah.</li>
+                            <li class="schedule-neighborhood-item">Danışmentgazi Mah.</li>
+                            <li class="schedule-neighborhood-item">Esentepe Mah.</li>
+                            <li class="schedule-neighborhood-item">Gültepe Mah.</li>
+                            <li class="schedule-neighborhood-item">Altuntabak Mah.</li>
+                            <li class="schedule-neighborhood-item">Yeni Mahalle Mah.</li>
+                            <li class="schedule-neighborhood-item">Yiğitler Mah.</li>
+                            <li class="schedule-neighborhood-item">Ferhatbostan Mah.</li>
+                            <li class="schedule-neighborhood-item">Demircilerardı Mah.</li>
+                            <li class="schedule-neighborhood-item">Küçükminare Mah.</li>
+                            <li class="schedule-neighborhood-item">Çarşıbaşı Mah.</li>
+                            <li class="schedule-neighborhood-item">Sularbaşı Mah.</li>
+                            <li class="schedule-neighborhood-item">Kümbet Mah.</li>
+                            <li class="schedule-neighborhood-item">Paşabey Mah.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Çarşamba -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Çarşamba</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">Mehmet Paşa Mah.</li>
+                            <li class="schedule-neighborhood-item">Yüceyurt Mah.</li>
+                            <li class="schedule-neighborhood-item">Aydoğan Mah.</li>
+                            <li class="schedule-neighborhood-item">Ece Mah.</li>
+                            <li class="schedule-neighborhood-item">Çiçekli Mah.</li>
+                            <li class="schedule-neighborhood-item">Kadıburhanettin Mah.</li>
+                            <li class="schedule-neighborhood-item">Dört Eylül Mah.</li>
+                            <li class="schedule-neighborhood-item">Yenidoğan Mah.</li>
+                            <li class="schedule-neighborhood-item">Yunus Emre Mah.</li>
+                            <li class="schedule-neighborhood-item">Fatih Mah.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Perşembe -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Perşembe</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">Uzuntepe Mah.</li>
+                            <li class="schedule-neighborhood-item">Ahmet Turan Gazi Mah.</li>
+                            <li class="schedule-neighborhood-item">Şeyh Şamil Mah.</li>
+                            <li class="schedule-neighborhood-item">Osman Seçilmiş Mesire Alanı</li>
+                            <li class="schedule-neighborhood-item">OSB 1. ve 2. Kısım</li>
+                            <li class="schedule-neighborhood-item">Eğriköprü Mah.</li>
+                            <li class="schedule-neighborhood-item">Huzur Mah.</li>
+                            <li class="schedule-neighborhood-item">Mehmet Akif Ersoy Mah.</li>
+                            <li class="schedule-neighborhood-item">Yeşilyurt Mah.</li>
+                            <li class="schedule-neighborhood-item">Kılavuz Mah.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Cuma -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Cuma</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">Yenişehir Mah.</li>
+                            <li class="schedule-neighborhood-item">Kızılırmak Mah.</li>
+                            <li class="schedule-neighborhood-item">Halil Rıfat Paşa Mah.</li>
+                            <li class="schedule-neighborhood-item">Örtülüpınar Mah.</li>
+                            <li class="schedule-neighborhood-item">Eski Kale Mah.</li>
+                            <li class="schedule-neighborhood-item">Kaleardı Mah.</li>
+                            <li class="schedule-neighborhood-item">Camii Kebir Mah.</li>
+                            <li class="schedule-neighborhood-item">Gökmedrese Mah.</li>
+                            <li class="schedule-neighborhood-item">Pulur Mah.</li>
+                            <li class="schedule-neighborhood-item">Yahyabey Mah.</li>
+                            <li class="schedule-neighborhood-item">Üçlerbey Mah.</li>
+                            <li class="schedule-neighborhood-item">Karşıyaka Mah.</li>
+                            <li class="schedule-neighborhood-item">Esenyurt Mah.</li>
+                            <li class="schedule-neighborhood-item">Karşıyaka Mesire Alanı</li>
+                        </ul>
+                    </div>
+
+                    <!-- Cumartesi -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Cumartesi</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">İstiklal Mah.</li>
+                            <li class="schedule-neighborhood-item">Meraküm Mah.</li>
+                            <li class="schedule-neighborhood-item">Kardeşler Mah.</li>
+                            <li class="schedule-neighborhood-item">Tuzlugöl Mah.</li>
+                        </ul>
+                    </div>
+
+                    <!-- Pazar -->
+                    <div class="schedule-day-card">
+                        <div class="schedule-day-header">
+                            <span>Pazar</span>
+                            <span class="schedule-day-icon">📅</span>
+                        </div>
+                        <ul class="schedule-neighborhoods">
+                            <li class="schedule-neighborhood-item">Emek Mah.</li>
+                            <li class="schedule-neighborhood-item">Selçuklu Mah.</li>
+                            <li class="schedule-neighborhood-item">Diriliş Mah.</li>
+                            <li class="schedule-neighborhood-item">Mimar Sinan Mah.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
