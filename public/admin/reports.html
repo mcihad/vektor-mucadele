@@ -44,6 +44,7 @@
             <button class="tab active" onclick="showTab('daily',this)">Günlük</button>
             <button class="tab" onclick="showTab('monthly',this)">Aylık</button>
             <button class="tab" onclick="showTab('personnel',this)">Personel Raporu</button>
+            <button class="tab" onclick="showTab('vehicle',this)">Araç Raporu</button>
             <button class="tab" onclick="showTab('coverage',this)">Mahalle Kapsam</button>
         </div>
 
@@ -148,6 +149,34 @@
             </div>
         </div>
 
+        <!-- Vehicle Report -->
+        <div id="tab-vehicle" style="display:none;">
+            <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Başlangıç Tarihi</label><input type="date" class="form-input" id="vehDateFrom" onchange="loadVehicleReport()"></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="vehDateTo" onchange="loadVehicleReport()"></div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Araç Plakası</label>
+                        <select class="form-input" id="vehSelect" onchange="loadVehicleReport()" style="min-width:180px;"></select>
+                    </div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="exportVehicleExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Raporu Excel'e Aktar</button>
+            </div>
+            <div class="stats-grid" id="vehStats"></div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title" id="vehTableTitle" style="margin-bottom:12px;">🚐 Araç İlaçlama Raporu</div>
+                <div class="table-container">
+                    <table id="vehExcelTable">
+                        <thead>
+                            <tr id="vehTableHead"></tr>
+                        </thead>
+                        <tbody id="vehTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Coverage -->
         <div id="tab-coverage" style="display:none;">
             <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
@@ -224,6 +253,9 @@ document.getElementById('coverageDateTo').value = todayStr;
 
 document.getElementById('persDateFrom').value = thirtyFiveDaysAgoStr;
 document.getElementById('persDateTo').value = todayStr;
+
+document.getElementById('vehDateFrom').value = thirtyFiveDaysAgoStr;
+document.getElementById('vehDateTo').value = todayStr;
 
 let dailyVehicleChartInstance, dailyNeighborhoodChartInstance;
 let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
@@ -1120,10 +1152,237 @@ function exportPersonnelExcel() {
     exportHtmlTableToExcel('persExcelTable', filename);
 }
 
+async function initVehicleDropdown() {
+    try {
+        const vehicleList = await api('/api/vehicles');
+        const select = document.getElementById('vehSelect');
+        select.innerHTML = '<option value="all">-- Tüm Araçlar --</option>';
+        vehicleList.forEach(v => {
+            select.innerHTML += `<option value="${v.id}" data-plate="${v.plate}" data-machine="${v.machine_name || '-'}">${v.plate} (${v.machine_name || '-'})</option>`;
+        });
+    } catch (e) {
+        console.error("Araç listesi yüklenemedi:", e);
+    }
+}
+
+async function loadVehicleReport() {
+    const from = document.getElementById('vehDateFrom').value;
+    const to = document.getElementById('vehDateTo').value;
+    const selectedVehId = document.getElementById('vehSelect').value;
+    
+    const data = await api(`/api/reports/daily?date_from=${from}&date_to=${to}`);
+    const sessions = data.sessions || [];
+    
+    const statsContainer = document.getElementById('vehStats');
+    const tableTitle = document.getElementById('vehTableTitle');
+    const tableHead = document.getElementById('vehTableHead');
+    const tableBody = document.getElementById('vehTableBody');
+    
+    if (selectedVehId === 'all') {
+        tableTitle.textContent = '🚐 Tüm Araçların İlaçlama Performansı (Toplu)';
+        tableHead.innerHTML = `
+            <th>Araç Plakası</th>
+            <th>Cihaz/Makine Adı</th>
+            <th>Toplam Oturum</th>
+            <th>Toplam Mesafe (km)</th>
+            <th>Kullanılan İlaç (lt)</th>
+            <th>Süre (dk)</th>
+        `;
+        
+        const aggMap = {};
+        
+        const selectOptions = document.getElementById('vehSelect').options;
+        for (let i = 0; i < selectOptions.length; i++) {
+            const option = selectOptions[i];
+            const id = option.value;
+            if (id === 'all') continue;
+            aggMap[id] = {
+                id: id,
+                plate: option.getAttribute('data-plate'),
+                machine_name: option.getAttribute('data-machine') || '-',
+                total_sessions: 0,
+                total_km: 0,
+                chemical_used: 0,
+                duration: 0
+            };
+        }
+        
+        let uniqueSessionsCount = 0;
+        let totalUniqueKm = 0;
+        let totalUniqueChem = 0;
+        let totalUniqueDuration = 0;
+        
+        sessions.forEach(s => {
+            const duration = s.start_time && s.end_time 
+                ? Math.round((new Date(s.end_time) - new Date(s.start_time)) / 60000) 
+                : 0;
+                
+            if (s.vehicle_id) {
+                if (!aggMap[s.vehicle_id]) {
+                    aggMap[s.vehicle_id] = {
+                        id: s.vehicle_id,
+                        plate: s.plate || 'Bilinmeyen Plaka',
+                        machine_name: s.machine_name || '-',
+                        total_sessions: 0,
+                        total_km: 0,
+                        chemical_used: 0,
+                        duration: 0
+                    };
+                }
+                aggMap[s.vehicle_id].total_sessions++;
+                aggMap[s.vehicle_id].total_km += Number(s.total_km || 0);
+                aggMap[s.vehicle_id].chemical_used += Number(s.chemical_used_lt || 0);
+                aggMap[s.vehicle_id].duration += duration;
+                
+                uniqueSessionsCount++;
+                totalUniqueKm += Number(s.total_km || 0);
+                totalUniqueChem += Number(s.chemical_used_lt || 0);
+                totalUniqueDuration += duration;
+            }
+        });
+        
+        const vehicleCount = Object.keys(aggMap).length;
+        statsContainer.innerHTML = `
+            <div class="stat-card blue"><div class="stat-icon blue">🚐</div><div><div class="stat-value">${vehicleCount}</div><div class="stat-label">Toplam Araç</div></div></div>
+            <div class="stat-card green"><div class="stat-icon green">📋</div><div><div class="stat-value">${uniqueSessionsCount}</div><div class="stat-label">Toplam Oturum</div></div></div>
+            <div class="stat-card orange"><div class="stat-icon orange">📏</div><div><div class="stat-value">${Number(totalUniqueKm).toFixed(1)}</div><div class="stat-label">Toplam km</div></div></div>
+            <div class="stat-card purple"><div class="stat-icon purple">🧪</div><div><div class="stat-value">${Number(totalUniqueChem).toFixed(1)}</div><div class="stat-label">Toplam lt İlaç</div></div></div>
+        `;
+        
+        let html = '';
+        const list = Object.values(aggMap).sort((a,b) => b.total_sessions - a.total_sessions);
+        
+        if (list.length > 0) {
+            let grandTotal = 0;
+            let grandKm = 0;
+            let grandChem = 0;
+            let grandDuration = 0;
+            
+            list.forEach(v => {
+                grandTotal += v.total_sessions;
+                grandKm += v.total_km;
+                grandChem += v.chemical_used;
+                grandDuration += v.duration;
+                
+                html += `
+                    <tr>
+                        <td><strong>🚐 ${v.plate}</strong></td>
+                        <td>${v.machine_name}</td>
+                        <td style="color:#3b82f6; font-weight:bold;">${v.total_sessions}</td>
+                        <td style="color:#10b981;">${v.total_km.toFixed(1)} km</td>
+                        <td style="color:#f59e0b;">${v.chemical_used.toFixed(1)} lt</td>
+                        <td>${v.duration} dk</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                    <td>📈 GENEL TOPLAM</td>
+                    <td>-</td>
+                    <td style="color:#3b82f6;">${grandTotal}</td>
+                    <td style="color:#10b981;">${grandKm.toFixed(1)} km</td>
+                    <td style="color:#f59e0b;">${grandChem.toFixed(1)} lt</td>
+                    <td>${grandDuration} dk</td>
+                </tr>
+            `;
+        } else {
+            html = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Araç kaydı bulunmamaktadır</td></tr>';
+        }
+        tableBody.innerHTML = html;
+        
+    } else {
+        const selectedOption = document.getElementById('vehSelect').querySelector(`option[value="${selectedVehId}"]`);
+        const plate = selectedOption ? selectedOption.getAttribute('data-plate') : 'Araç';
+        
+        tableTitle.textContent = `🚐 ${plate} - İlaçlama Oturum Detayları`;
+        tableHead.innerHTML = `
+            <th>Oturum ID / Tarih</th>
+            <th>Ekip (Şoför / Operatör)</th>
+            <th>İlaçlanan Mahalle</th>
+            <th>İlaçlama Mesafesi</th>
+            <th>Kullanılan İlaç</th>
+            <th>Süre</th>
+        `;
+        
+        const filteredSessions = sessions.filter(s => Number(s.vehicle_id) === Number(selectedVehId));
+        
+        let totalKm = 0;
+        let totalChem = 0;
+        let totalDuration = 0;
+        let totalSessions = filteredSessions.length;
+        
+        let html = '';
+        if (totalSessions > 0) {
+            filteredSessions.forEach(s => {
+                const duration = s.start_time && s.end_time 
+                    ? Math.round((new Date(s.end_time) - new Date(s.start_time)) / 60000) 
+                    : 0;
+                totalKm += Number(s.total_km || 0);
+                totalChem += Number(s.chemical_used_lt || 0);
+                totalDuration += duration;
+                
+                const dateText = s.start_time 
+                    ? new Date(s.start_time).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : '-';
+                
+                html += `
+                    <tr>
+                        <td><strong>Oturum #${s.id}</strong> <span style="font-size:11px;color:var(--text-muted)">(${dateText})</span></td>
+                        <td>👤 ${s.driver_name || '-'} & ${s.operator_name || '-'}</td>
+                        <td>📍 ${s.neighborhood || '-'}</td>
+                        <td style="color:#10b981;">${Number(s.total_km || 0).toFixed(1)} km</td>
+                        <td style="color:#f59e0b;">${Number(s.chemical_used_lt || 0).toFixed(1)} lt</td>
+                        <td>${duration} dk</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                    <td>📈 TOPLAM</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="color:#10b981;">${totalKm.toFixed(1)} km</td>
+                    <td style="color:#f59e0b;">${totalChem.toFixed(1)} lt</td>
+                    <td>${totalDuration} dk</td>
+                </tr>
+            `;
+        } else {
+            html = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted)">Bu araç için belirtilen tarihlerde kayıt bulunmamaktadır</td></tr>';
+        }
+        tableBody.innerHTML = html;
+        
+        statsContainer.innerHTML = `
+            <div class="stat-card blue"><div class="stat-icon blue">📋</div><div><div class="stat-value">${totalSessions}</div><div class="stat-label">Toplam Oturum</div></div></div>
+            <div class="stat-card green"><div class="stat-icon green">📏</div><div><div class="stat-value">${Number(totalKm).toFixed(1)}</div><div class="stat-label">Toplam km</div></div></div>
+            <div class="stat-card orange"><div class="stat-icon orange">🧪</div><div><div class="stat-value">${Number(totalChem).toFixed(1)}</div><div class="stat-label">lt İlaç</div></div></div>
+            <div class="stat-card purple"><div class="stat-icon purple">⏱️</div><div><div class="stat-value">${totalDuration}</div><div class="stat-label">Toplam Süre (dk)</div></div></div>
+        `;
+    }
+}
+
+function exportVehicleExcel() {
+    const from = document.getElementById('vehDateFrom').value;
+    const to = document.getElementById('vehDateTo').value;
+    const selectedVehId = document.getElementById('vehSelect').value;
+    
+    let filename = `Arac_Ilaclama_Raporu_${from}_${to}`;
+    if (selectedVehId !== 'all') {
+        const selectedOption = document.getElementById('vehSelect').querySelector(`option[value="${selectedVehId}"]`);
+        const plate = selectedOption ? selectedOption.getAttribute('data-plate') : '';
+        if (plate) {
+            filename = `${plate.replace(/\s+/g, '_')}_Ilaclama_Raporu_${from}_${to}`;
+        }
+    }
+    exportHtmlTableToExcel('vehExcelTable', filename);
+}
+
 loadDaily();
 loadMonthly();
 loadCoverage();
 initPersonnelDropdown().then(() => loadPersonnelReport());
+initVehicleDropdown().then(() => loadVehicleReport());
 </script>
 <script src="/admin/admin-notifications.js"></script>
 </body>
