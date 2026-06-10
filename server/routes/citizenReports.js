@@ -93,9 +93,29 @@ module.exports = function(io) {
         }
     });
 
+    // Public endpoint for citizens to query report status by phone number
+    router.get('/public/query', async (req, res) => {
+        const { phone } = req.query;
+        if (!phone) {
+            return res.status(400).json({ error: 'Telefon numarası gereklidir' });
+        }
+        const db = getDb();
+        try {
+            const result = await db.exec(`
+                SELECT id, reporter_name, report_type, status, neighborhood, address, created_at, resolved_at, feedback_message
+                FROM citizen_reports
+                WHERE reporter_phone = ?
+                ORDER BY created_at DESC
+            `, [phone.trim()]);
+            res.json(rowsToObjects(result));
+        } catch (err) {
+            res.status(500).json({ error: err.message });
+        }
+    });
+
     // Update report status / assignment / work area
     router.put('/:id', authMiddleware, async (req, res) => {
-        const { status, assigned_session_id, priority, assigned_user_id, work_area_geojson, admin_notes, planned_date } = req.body;
+        const { status, assigned_session_id, priority, assigned_user_id, work_area_geojson, admin_notes, planned_date, feedback_message } = req.body;
         const db = getDb();
         let sql = "UPDATE citizen_reports SET";
         const sets = [];
@@ -109,6 +129,13 @@ module.exports = function(io) {
                 sets.push(" work_area_geojson = NULL");
             } else {
                 sets.push(" work_area_geojson = ?"); params.push(work_area_geojson);
+            }
+        }
+        if (feedback_message !== undefined) {
+            if (feedback_message === null || feedback_message === '') {
+                sets.push(" feedback_message = NULL");
+            } else {
+                sets.push(" feedback_message = ?"); params.push(feedback_message);
             }
         }
         if (admin_notes !== undefined) {

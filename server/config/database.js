@@ -363,6 +363,10 @@ async function createPgTables() {
     `).catch(err => console.log('planned_date column already exists in citizen_reports or error:', err.message));
 
     await dbConnection.query(`
+        ALTER TABLE citizen_reports ADD COLUMN IF NOT EXISTS feedback_message TEXT
+    `).catch(err => console.log('feedback_message column already exists in citizen_reports or error:', err.message));
+
+    await dbConnection.query(`
         ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS intake_chemical_name VARCHAR(255)
     `).catch(err => console.log('intake_chemical_name already exists or error:', err.message));
 

@@ -193,61 +193,84 @@
         <h2 style="font-size:13.5px; font-weight:700; color:var(--accent); margin-bottom:6px; letter-spacing:0.2px; text-align:center;">Veteriner İşleri Müdürlüğü</h2>
         <p class="subtitle" style="font-size:11.5px; color:var(--text-muted); margin-bottom:20px; font-weight:500; text-align:center;">Vektörle Mücadele Yönetim Sistemi - Haşere İhbar Formu</p>
 
-        <form id="reportForm">
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Adınız Soyadınız *</label>
-                    <input type="text" class="form-input" id="rName" placeholder="Adınız Soyadınız" required pattern="[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+" title="Lütfen sadece harf ve boşluk giriniz">
+        <!-- Tab Navigation -->
+        <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:1px solid rgba(255,255,255,0.08); padding-bottom:12px;">
+            <button type="button" id="tabSubmit" class="btn" style="flex:1; justify-content:center; padding:8px 12px; font-size:11.5px; font-weight:700; background:#1e3a8a; color:#fff;" onclick="switchTab('submit')">📨 İhbar Bildir</button>
+            <button type="button" id="tabQuery" class="btn btn-outline" style="flex:1; justify-content:center; padding:8px 12px; font-size:11.5px; font-weight:700;" onclick="switchTab('query')">🔍 İhbar Sorgula</button>
+        </div>
+
+        <div id="submitSection">
+            <form id="reportForm">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Adınız Soyadınız *</label>
+                        <input type="text" class="form-input" id="rName" placeholder="Adınız Soyadınız" required pattern="[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+" title="Lütfen sadece harf ve boşluk giriniz">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Telefon Numaranız *</label>
+                        <input type="tel" class="form-input" id="rPhone" placeholder="05XXXXXXXXX" required pattern="\d{11}" minlength="11" maxlength="11" title="Lütfen 11 haneli telefon numaranızı giriniz (Örn: 05XXXXXXXXX)">
+                    </div>
                 </div>
+                
                 <div class="form-group">
-                    <label class="form-label">Telefon Numaranız *</label>
-                    <input type="tel" class="form-input" id="rPhone" placeholder="05XXXXXXXXX" required pattern="\d{11}" minlength="11" maxlength="11" title="Lütfen 11 haneli telefon numaranızı giriniz (Örn: 05XXXXXXXXX)">
+                    <label class="form-label">İhbar Türü</label>
+                    <select class="form-select" id="rType">
+                        <option value="sivrisinek">🦟 Sivrisinek</option>
+                        <option value="karasinek">🪰 Karasinek</option>
+                        <option value="kemirgen">🐀 Kemirgen</option>
+                        <option value="haşere">🐛 Diğer Haşere</option>
+                        <option value="larva">💧 Su Birikintisi/Larva</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Mahalle *</label>
+                    <select class="form-select" id="rNeighborhood" required>
+                        <option value="">Yükleniyor...</option>
+                    </select>
+                </div>
+
+                <!-- Draggable Map Selector -->
+                <div class="form-group">
+                    <label class="form-label">Haritadan Konum Seçin / Doğrulayın *</label>
+                    <div id="citizenMap" class="map-container"></div>
+                    <div style="display:flex; gap:8px; margin-bottom:8px;">
+                        <button type="button" class="btn btn-outline" style="flex:1; justify-content:center; font-size:11px;" onclick="getLocation()">📍 GPS Konumumu Bul</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Adres *</label>
+                    <textarea class="form-textarea" id="rAddress" rows="2" placeholder="Lütfen açık adresinizi yazın veya haritadan konum seçerek otomatik doldurulmasını sağlayın..." required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Açıklama / Şikayet Detayı *</label>
+                    <textarea class="form-textarea" id="rDesc" rows="2" placeholder="Lütfen şikayet detaylarını açıklayınız (örn: su birikintisinde sineklenme var)..." required></textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%;justify-content:center;" disabled>📨 İhbar Gönder</button>
+
+                <div class="gps-alert" id="gpsAlert" style="margin-top: 12px; margin-bottom: 0;">
+                    ⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**
+                </div>
+            </form>
+        </div>
+
+        <!-- Query Section -->
+        <div id="querySection" style="display:none;">
+            <div class="form-group">
+                <label class="form-label">Telefon Numaranız *</label>
+                <div style="display:flex; gap:8px;">
+                    <input type="tel" class="form-input" id="qPhone" placeholder="05XXXXXXXXX" pattern="\d{11}" minlength="11" maxlength="11" style="flex:1;">
+                    <button type="button" class="btn btn-primary" onclick="queryReportStatus()" style="padding:0 16px; font-size:12px; font-weight:bold;">Sorgula</button>
                 </div>
             </div>
             
-            <div class="form-group">
-                <label class="form-label">İhbar Türü</label>
-                <select class="form-select" id="rType">
-                    <option value="sivrisinek">🦟 Sivrisinek</option>
-                    <option value="karasinek">🪰 Karasinek</option>
-                    <option value="kemirgen">🐀 Kemirgen</option>
-                    <option value="haşere">🐛 Diğer Haşere</option>
-                    <option value="larva">💧 Su Birikintisi/Larva</option>
-                </select>
+            <div id="queryResults" style="margin-top:16px; max-height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; padding-right:4px;">
+                <p style="text-align:center; color:var(--text-muted); font-size:11px; margin-top:20px;">Lütfen telefon numaranızı girip "Sorgula" butonuna basın.</p>
             </div>
-
-            <div class="form-group">
-                <label class="form-label">Mahalle *</label>
-                <select class="form-select" id="rNeighborhood" required>
-                    <option value="">Yükleniyor...</option>
-                </select>
-            </div>
-
-            <!-- Draggable Map Selector -->
-            <div class="form-group">
-                <label class="form-label">Haritadan Konum Seçin / Doğrulayın *</label>
-                <div id="citizenMap" class="map-container"></div>
-                <div style="display:flex; gap:8px; margin-bottom:8px;">
-                    <button type="button" class="btn btn-outline" style="flex:1; justify-content:center; font-size:11px;" onclick="getLocation()">📍 GPS Konumumu Bul</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Adres *</label>
-                <textarea class="form-textarea" id="rAddress" rows="2" placeholder="Lütfen açık adresinizi yazın veya haritadan konum seçerek otomatik doldurulmasını sağlayın..." required></textarea>
-            </div>
-
-            <div class="form-group">
-                <label class="form-label">Açıklama / Şikayet Detayı *</label>
-                <textarea class="form-textarea" id="rDesc" rows="2" placeholder="Lütfen şikayet detaylarını açıklayınız (örn: su birikintisinde sineklenme var)..." required></textarea>
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%;justify-content:center;" disabled>📨 İhbar Gönder</button>
-
-            <div class="gps-alert" id="gpsAlert" style="margin-top: 12px; margin-bottom: 0;">
-                ⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**
-            </div>
-        </form>
+        </div>
     </div>
 
     <div class="citizen-card" id="successCard" style="display:none;">
@@ -279,6 +302,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const rPhoneInput = document.getElementById('rPhone');
     if (rPhoneInput) {
         rPhoneInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 11) {
+                this.value = this.value.slice(0, 11);
+            }
+        });
+    }
+
+    // Only allow digits and max 11 digits for query phone
+    const qPhoneInput = document.getElementById('qPhone');
+    if (qPhoneInput) {
+        qPhoneInput.addEventListener('input', function() {
             this.value = this.value.replace(/\D/g, '');
             if (this.value.length > 11) {
                 this.value = this.value.slice(0, 11);
@@ -500,6 +534,107 @@ function resetForm() {
     document.getElementById('submitBtn').textContent = '📨 İhbar Gönder';
     marker.setLatLng([39.7477, 37.0179]);
     map.setView([39.7477, 37.0179], 13);
+}
+
+function switchTab(tab) {
+    const submitBtn = document.getElementById('tabSubmit');
+    const queryBtn = document.getElementById('tabQuery');
+    const submitSec = document.getElementById('submitSection');
+    const querySec = document.getElementById('querySection');
+    
+    if (tab === 'submit') {
+        submitBtn.style.background = '#1e3a8a';
+        submitBtn.style.color = '#fff';
+        submitBtn.classList.remove('btn-outline');
+        
+        queryBtn.style.background = 'transparent';
+        queryBtn.style.color = 'var(--text-primary)';
+        queryBtn.classList.add('btn-outline');
+        
+        submitSec.style.display = 'block';
+        querySec.style.display = 'none';
+        
+        setTimeout(() => {
+            if (map) map.invalidateSize();
+        }, 100);
+    } else {
+        queryBtn.style.background = '#1e3a8a';
+        queryBtn.style.color = '#fff';
+        queryBtn.classList.remove('btn-outline');
+        
+        submitBtn.style.background = 'transparent';
+        submitBtn.style.color = 'var(--text-primary)';
+        submitBtn.classList.add('btn-outline');
+        
+        submitSec.style.display = 'none';
+        querySec.style.display = 'block';
+    }
+}
+
+async function queryReportStatus() {
+    const phoneInput = document.getElementById('qPhone');
+    const phone = phoneInput.value.trim();
+    if (!phone || phone.length !== 11) {
+        alert('Lütfen 11 haneli telefon numaranızı girin (Örn: 05XXXXXXXXX)');
+        return;
+    }
+    
+    const resultsDiv = document.getElementById('queryResults');
+    resultsDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:11px; margin-top:20px;">🔎 İhbarlar sorgulanıyor...</p>';
+    
+    try {
+        const res = await fetch(`/api/citizen-reports/public/query?phone=${phone}`);
+        if (!res.ok) throw new Error('Sorgulama başarısız oldu.');
+        
+        const reports = await res.json();
+        if (reports.length === 0) {
+            resultsDiv.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:11px; margin-top:20px;">❌ Bu telefon numarasına ait bir ihbar bulunamadı.</p>';
+            return;
+        }
+        
+        resultsDiv.innerHTML = reports.map(r => {
+            let badgeClass = 'badge-info';
+            let statusText = 'Beklemede';
+            if (r.status === 'çözüldü') {
+                badgeClass = 'badge-success';
+                statusText = 'Çözüldü';
+            } else if (r.status === 'sorunlu') {
+                badgeClass = 'badge-danger';
+                statusText = '⚠️ Sorunlu';
+            } else if (r.status === 'işlemde') {
+                badgeClass = 'badge-purple';
+                statusText = 'İşlemde';
+            }
+            
+            const typeEmojis = {
+                sivrisinek: '🦟',
+                karasinek: '🪰',
+                kemirgen: '🐀',
+                haşere: '🐛',
+                larva: '💧'
+            };
+            const emoji = typeEmojis[r.report_type] || '📋';
+            
+            return `
+                <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:12px; font-size:12px; text-align: left;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 6px;">
+                        <span style="font-weight:700; color:#fff; display:flex; align-items:center; gap:6px;">${emoji} İhbar #${r.id}</span>
+                        <span class="badge ${badgeClass}" style="font-size:10px; padding:2px 6px;">${statusText}</span>
+                    </div>
+                    <div style="color:rgba(255,255,255,0.7); margin-bottom:4px;"><b>📍 Mahalle:</b> ${r.neighborhood || '-'}</div>
+                    <div style="color:rgba(255,255,255,0.7); margin-bottom:6px; max-height: 80px; overflow-y: auto;"><b>📝 Detay:</b> ${r.description}</div>
+                    <div style="font-size:10.5px; color:var(--text-muted); margin-bottom:4px;">📅 İhbar Tarihi: ${new Date(r.created_at).toLocaleString('tr-TR')}</div>
+                    ${r.feedback_message ? `
+                    <div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.25); border-radius:6px; padding:8px 10px; color:#93c5fd; margin-top:8px; line-height:1.4;">
+                        <b>📢 Belediye Yanıtı:</b><br>${r.feedback_message}
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    } catch(err) {
+        resultsDiv.innerHTML = '<p style="text-align:center; color:#f87171; font-size:11px; margin-top:20px;">❌ Sorgulama esnasında bir hata oluştu.</p>';
+    }
 }
 </script>
 

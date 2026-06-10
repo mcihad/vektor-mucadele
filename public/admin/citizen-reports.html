@@ -722,6 +722,13 @@ function openDetailPanel(reportId) {
                     <button class="btn btn-sm btn-danger" style="background:#ef4444; color:#fff; border:none; padding:6px 12px; font-weight:600; border-radius:4px; cursor:pointer;" onclick="deleteReport(${r.id})">🗑️ İhbarı Sil</button>
                 </div>
             </div>
+            <div class="detail-field" style="margin-top:14px; border-top:1px dashed var(--border); padding-top:14px;">
+                <div class="detail-label" style="color:#60a5fa; font-weight:700;">📢 Vatandaşa Geri Bildirim Mesajı</div>
+                <textarea class="form-textarea" id="citizenFeedbackInput" style="font-size:12px;min-height:60px;border-color:rgba(96,165,250,0.3);" placeholder="İhbarı yapan vatandaşa gönderilecek mesajı yazın...">${r.feedback_message || ''}</textarea>
+                <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                    <button class="btn btn-sm btn-primary" style="background:#2563eb; color:#fff; border:none;" onclick="saveCitizenFeedback(${r.id})">✉️ Mesajı Vatandaşa Gönder</button>
+                </div>
+            </div>
         </div>
         <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
 
@@ -921,6 +928,16 @@ async function saveAdminNote(reportId) {
         body: JSON.stringify({ admin_notes: note || null })
     });
     toast('📝 Yönetici notu kaydedildi', 'success');
+    loadReports().then(() => openDetailPanel(reportId));
+}
+
+async function saveCitizenFeedback(reportId) {
+    const feedback = document.getElementById('citizenFeedbackInput').value;
+    await api(`/api/citizen-reports/${reportId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ feedback_message: feedback || null })
+    });
+    toast('✉️ Vatandaşa iletilecek mesaj kaydedildi ve gönderildi', 'success');
     loadReports().then(() => openDetailPanel(reportId));
 }
 
