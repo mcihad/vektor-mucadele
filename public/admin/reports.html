@@ -259,9 +259,12 @@ async function loadDaily() {
             `;
             // Render sub-rows for each session
             v.sessions.forEach(s => {
+                const dateText = s.start_time 
+                    ? new Date(s.start_time).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : '-';
                 html += `
                     <tr style="font-size: 11.5px; opacity: 0.95;">
-                        <td style="padding-left: 28px; color: var(--text-muted);">└─ Oturum #${s.id}</td>
+                        <td style="padding-left: 28px; color: var(--text-muted);">└─ Oturum #${s.id} (${dateText})</td>
                         <td>👤 ${s.driver_name || '-'} & ${s.operator_name || '-'}</td>
                         <td>📍 ${s.neighborhood || '-'}</td>
                         <td>${Number(s.total_km || 0).toFixed(1)} km</td>
