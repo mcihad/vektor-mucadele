@@ -163,7 +163,8 @@ app.get('/mobile/*', (req, res) => {
     });
 });
 app.get('/ihbar', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'citizen.html')));
-app.get('/vatandas-veri', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'vatandas-veri.html')));
+app.get('/vatandas-harita', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'vatandas-harita.html')));
+app.get('/vatandas_harita', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'vatandas-harita.html')));
 
 // ─── Araç Konum Hareketi Takip Sistemi ───
 // Her aracın son konum bilgisini ve hareket zamanlayıcısını tutan yapı
