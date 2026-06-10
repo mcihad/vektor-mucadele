@@ -342,13 +342,15 @@
         body.sunlight-mode #issueModal, 
         body.sunlight-mode #chemicalEndModal, 
         body.sunlight-mode #chemicalIntakeModal, 
-        body.sunlight-mode #pauseReasonModal {
+        body.sunlight-mode #pauseReasonModal,
+        body.sunlight-mode #mobileFuelModal {
             background: rgba(0, 0, 0, 0.6) !important;
         }
         body.sunlight-mode #issueModal > div, 
         body.sunlight-mode #chemicalEndModal > div, 
         body.sunlight-mode #chemicalIntakeModal > div, 
-        body.sunlight-mode #pauseReasonModal > div {
+        body.sunlight-mode #pauseReasonModal > div,
+        body.sunlight-mode #mobileFuelModal > div {
             background: #ffffff !important;
             border: 3px solid #000000 !important;
             color: #000000 !important;
@@ -356,21 +358,24 @@
         body.sunlight-mode #issueModal h3,
         body.sunlight-mode #chemicalEndModal span,
         body.sunlight-mode #chemicalIntakeModal span,
-        body.sunlight-mode #pauseReasonModal span {
+        body.sunlight-mode #pauseReasonModal span,
+        body.sunlight-mode #mobileFuelModal h3 {
             color: #000000 !important;
             font-weight: 900 !important;
         }
         body.sunlight-mode #issueModal p,
         body.sunlight-mode #chemicalEndModal p,
         body.sunlight-mode #chemicalIntakeModal p,
-        body.sunlight-mode #pauseReasonModal p {
+        body.sunlight-mode #pauseReasonModal p,
+        body.sunlight-mode #mobileFuelModal p {
             color: #334155 !important;
             font-weight: 700 !important;
         }
         body.sunlight-mode #issueModal label,
         body.sunlight-mode #chemicalEndModal label,
         body.sunlight-mode #chemicalIntakeModal label,
-        body.sunlight-mode #pauseReasonModal label {
+        body.sunlight-mode #pauseReasonModal label,
+        body.sunlight-mode #mobileFuelModal label {
             color: #000000 !important;
             font-weight: 800 !important;
         }
@@ -379,7 +384,14 @@
         body.sunlight-mode .form-textarea,
         body.sunlight-mode #issueText,
         body.sunlight-mode #issueRemainingChem,
-        body.sunlight-mode #pauseCustomReasonText {
+        body.sunlight-mode #pauseCustomReasonText,
+        body.sunlight-mode #mfVehicle,
+        body.sunlight-mode #mfOdo,
+        body.sunlight-mode #mfLiters,
+        body.sunlight-mode #mfPricePerLiter,
+        body.sunlight-mode #mfTotalCost,
+        body.sunlight-mode #mfStation,
+        body.sunlight-mode #mfDesc {
             background: #ffffff !important;
             border: 2px solid #000000 !important;
             color: #000000 !important;
@@ -388,7 +400,8 @@
         body.sunlight-mode #issueModal button,
         body.sunlight-mode #chemicalEndModal button,
         body.sunlight-mode #chemicalIntakeModal button,
-        body.sunlight-mode #pauseReasonModal button {
+        body.sunlight-mode #pauseReasonModal button,
+        body.sunlight-mode #mobileFuelModal button {
             border: 2px solid #000000 !important;
             font-weight: 800 !important;
         }
@@ -535,6 +548,7 @@
             <a href="#" onclick="toggleDrawer(false); animateRoutePreview();" class="drawer-item" id="drawerPreviewBtn">▶️ Rota Önizle</a>
             <a href="#" onclick="toggleDrawer(false); navigateToRouteStart();" class="drawer-item" id="drawerNavStartBtn">📍 Başlangıca Navigasyon</a>
             <a href="#" onclick="toggleDrawer(false); openGoogleNavigation();" class="drawer-item" id="drawerNavBtn">🗺️ Google Navigasyon</a>
+            <a href="#" onclick="toggleDrawer(false); openMobileFuelModal();" class="drawer-item" id="drawerFuelBtn">⛽ Yakıt Girişi</a>
             <a href="#" onclick="toggleDrawer(false); mobileLogout();" class="drawer-item drawer-logout-btn">🚪 Oturumu Kapat</a>
         </nav>
     </div>
@@ -2725,6 +2739,121 @@ function submitIntakeAndStart() {
     startSessionClick();
 }
 
+function calculateMobileTotalCost() {
+    const liters = parseFloat(document.getElementById('mfLiters').value) || 0;
+    const price = parseFloat(document.getElementById('mfPricePerLiter').value) || 0;
+    if (liters > 0 && price > 0) {
+        document.getElementById('mfTotalCost').value = (liters * price).toFixed(2);
+    }
+}
+
+function calculateMobileUnitPrice() {
+    const liters = parseFloat(document.getElementById('mfLiters').value) || 0;
+    const total = parseFloat(document.getElementById('mfTotalCost').value) || 0;
+    if (liters > 0 && total > 0) {
+        document.getElementById('mfPricePerLiter').value = (total / liters).toFixed(2);
+    }
+}
+
+async function openMobileFuelModal() {
+    try {
+        const vRes = await fetch('/api/vehicles', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+        if (!vRes.ok) throw new Error("Araç listesi alınamadı");
+        const vehicles = await vRes.json();
+        
+        const select = document.getElementById('mfVehicle');
+        select.innerHTML = '<option value="">Araç Seçiniz...</option>' + 
+            vehicles.map(v => `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`).join('');
+        
+        if (vehicleId) {
+            select.value = vehicleId;
+        }
+        
+        document.getElementById('mfOdo').value = '';
+        document.getElementById('mfLiters').value = '';
+        document.getElementById('mfPricePerLiter').value = '';
+        document.getElementById('mfTotalCost').value = '';
+        document.getElementById('mfStation').value = '';
+        document.getElementById('mfDesc').value = '';
+        
+        document.getElementById('mobileFuelModal').style.display = 'flex';
+    } catch (err) {
+        alert("Form seçenekleri yüklenirken hata: " + err.message);
+    }
+}
+
+function closeMobileFuelModal() {
+    document.getElementById('mobileFuelModal').style.display = 'none';
+}
+
+async function submitMobileFuelRecord() {
+    const vehicle_id = document.getElementById('mfVehicle').value;
+    const odometer = document.getElementById('mfOdo').value.trim();
+    const fuel_liters = document.getElementById('mfLiters').value.trim();
+    const price_per_liter = document.getElementById('mfPricePerLiter').value.trim();
+    const total_cost = document.getElementById('mfTotalCost').value.trim();
+    const station_name = document.getElementById('mfStation').value.trim();
+    const description = document.getElementById('mfDesc').value.trim();
+    
+    if (!vehicle_id) {
+        alert("Lütfen araç seçiniz!");
+        return;
+    }
+    if (!odometer || parseFloat(odometer) < 0) {
+        alert("Lütfen geçerli bir kilometre giriniz!");
+        return;
+    }
+    if (!fuel_liters || parseFloat(fuel_liters) <= 0) {
+        alert("Lütfen geçerli bir litre miktarı giriniz!");
+        return;
+    }
+    if (!price_per_liter || parseFloat(price_per_liter) <= 0) {
+        alert("Lütfen geçerli bir birim fiyat giriniz!");
+        return;
+    }
+    if (!total_cost || parseFloat(total_cost) <= 0) {
+        alert("Lütfen geçerli bir toplam tutar giriniz!");
+        return;
+    }
+    
+    try {
+        const pRes = await fetch('/api/personnel', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+        const personnel = pRes.ok ? await pRes.json() : [];
+        const myPersonnel = personnel.find(p => p.user_id === USER.id);
+        const driver_id = myPersonnel ? myPersonnel.id : null;
+        
+        const body = {
+            vehicle_id: parseInt(vehicle_id),
+            driver_id,
+            odometer: parseFloat(odometer),
+            fuel_liters: parseFloat(fuel_liters),
+            price_per_liter: parseFloat(price_per_liter),
+            total_cost: parseFloat(total_cost),
+            station_name: station_name || null,
+            description: description || null
+        };
+        
+        const res = await fetch('/api/vehicles/fuel/logs', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + TOKEN,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Kaydedilemedi');
+        }
+        
+        alert("Yakıt alım kaydı başarıyla eklendi.");
+        closeMobileFuelModal();
+    } catch (err) {
+        alert("Hata oluştu: " + err.message);
+    }
+}
+
 function showMobileSpeedWarning(speed) {
     const el = document.getElementById('mobileSpeedWarning');
     if (el) {
@@ -3151,6 +3280,55 @@ setupPushNotifications();
         <div style="display:flex;gap:8px;margin-top:8px;">
             <button onclick="closeIssueModal()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">İptal</button>
             <button onclick="submitIssue()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Gönder</button>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Fuel Record Modal -->
+<div id="mobileFuelModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:20000;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;">
+    <div style="background:rgba(15,23,42,0.98);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.5);display:flex;flex-direction:column;gap:12px;box-sizing:border-box;">
+        <h3 style="color:#fff;margin:0;font-size:16px;font-weight:800;display:flex;align-items:center;gap:8px;">⛽ Yakıt Kaydı Girişi</h3>
+        <p style="font-size:11px; color:#94a3b8; margin:0; line-height:1.4;">Lütfen yakıt alım ayrıntılarını doldurunuz.</p>
+        
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Araç Seçin *</label>
+            <select id="mfVehicle" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box; outline:none;"></select>
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Kilometre (Odometer) *</label>
+            <input type="number" id="mfOdo" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="Örn: 154300" required>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div>
+                <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Miktar (Litre) *</label>
+                <input type="number" id="mfLiters" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="0.00" oninput="calculateMobileTotalCost()" required>
+            </div>
+            <div>
+                <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Litre Fiyatı (TL) *</label>
+                <input type="number" id="mfPricePerLiter" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="0.00" oninput="calculateMobileTotalCost()" required>
+            </div>
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Toplam Tutar (TL) *</label>
+            <input type="number" id="mfTotalCost" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box; font-weight:700;" placeholder="0.00" oninput="calculateMobileUnitPrice()" required>
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">İstasyon / Tedarikçi</label>
+            <input type="text" id="mfStation" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="Örn: Garaj İstasyonu">
+        </div>
+
+        <div>
+            <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Açıklama</label>
+            <textarea id="mfDesc" rows="2" placeholder="Notlar..." style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:10px; font-size:13px; resize:none; font-family:inherit; box-sizing:border-box;"></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:8px;">
+            <button onclick="closeMobileFuelModal()" style="flex:1;padding:10px;border:1px solid rgba(255,255,255,0.15);border-radius:8px;background:transparent;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">İptal</button>
+            <button onclick="submitMobileFuelRecord()" style="flex:1;padding:10px;border:none;border-radius:8px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;">Kaydet</button>
         </div>
     </div>
 </div>
