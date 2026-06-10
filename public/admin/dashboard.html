@@ -274,6 +274,32 @@ L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
 function centerMap(){map.setView([39.7477,37.0179],13);}
 function locateMe(){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(pos=>{map.setView([pos.coords.latitude,pos.coords.longitude],17);L.circleMarker([pos.coords.latitude,pos.coords.longitude],{radius:8,fillColor:'#3b82f6',color:'#fff',weight:2,fillOpacity:0.9}).addTo(map).bindPopup('Konumunuz').openPopup();},()=>{toast('Konum alınamadı','error');},{enableHighAccuracy:true,timeout:8000});}else{toast('Tarayıcınız konumu desteklemiyor','error');}}
 
+function focusOnSprayedStreet(streetId) {
+    const chkShowLines = document.getElementById('chkShowLines');
+    if (chkShowLines && !chkShowLines.checked) {
+        chkShowLines.checked = true;
+        updateLayerVisibility();
+    }
+    let foundLayer = null;
+    sprayedLinesSubGroup.eachLayer(layer => {
+        if (layer.streetId === streetId) foundLayer = layer;
+        if (layer.eachLayer) {
+            layer.eachLayer(sub => { if (sub.streetId === streetId) foundLayer = sub; });
+        }
+    });
+    if (foundLayer) {
+        if (foundLayer.getBounds) {
+            map.fitBounds(foundLayer.getBounds(), { maxZoom: 18, animate: true, padding: [50, 50] });
+            foundLayer.openPopup();
+        } else if (foundLayer.getLatLng) {
+            map.setView(foundLayer.getLatLng(), 18, { animate: true });
+            foundLayer.openPopup();
+        }
+    } else {
+        toast("İlgili ilaçlama hattı haritada bulunamadı veya süresi 30 günü geçmiş olabilir.", "info");
+    }
+}
+
 function haversine(lat1,lon1,lat2,lon2){
     const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLon=(lon2-lon1)*Math.PI/180;
     const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
@@ -903,9 +929,9 @@ async function loadDashboard(){
             const days=s.days_remaining||0;
             const bc=days<=0?'badge-danger':days<=3?'badge-danger':days<=7?'badge-warning':'badge-info';
             const label=days<=0?'DOLMUŞ':days+' gün';
-            return `<div class="session-item">
+            return `<div class="session-item" onclick="focusOnSprayedStreet(${s.id})">
                 <div style="display:flex;justify-content:space-between;">
-                    <span style="font-size:12px;">${s.street_name||s.neighborhood||''}</span>
+                    <span style="font-size:12px; font-weight:600;">${s.street_name||s.neighborhood||''}</span>
                     <span class="badge ${bc}">${label}</span></div>
                 <div style="font-size:10px;color:var(--text-muted);">${s.plate||''} • Son: ${s.sprayed_at?new Date(s.sprayed_at).toLocaleDateString('tr-TR'):''}</div>
             </div>`;
@@ -1081,7 +1107,15 @@ async function loadDashboard(){
                         }
 
                         // 1b. Central Line
-                        const layer = L.geoJSON(geom, { style: () => style });
+                        const layer = L.geoJSON(geom, { 
+                            style: () => style,
+                            onEachFeature: (feature, childLayer) => {
+                                childLayer.streetId = s.id;
+                                childLayer.streetName = s.street_name;
+                            }
+                        });
+                        layer.streetId = s.id;
+                        layer.streetName = s.street_name;
                         layer.originalDaysRemaining = remaining;
                         layer.isBuffer = false;
                         const daysText = remaining <= 0 ? '<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> kaldı`;

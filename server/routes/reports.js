@@ -344,7 +344,7 @@ router.get('/schedule', authMiddleware, async (req, res) => {
     const db = getDb();
     try {
         const result = await db.exec(`
-            SELECT ss.street_name, ss.sprayed_at, ss.expires_at,
+            SELECT ss.id, ss.street_name, ss.sprayed_at, ss.expires_at,
                    s.neighborhood, v.plate,
                    CAST(julianday(ss.expires_at) - julianday('now') AS INTEGER) as days_remaining
             FROM sprayed_streets ss
