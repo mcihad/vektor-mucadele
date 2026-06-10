@@ -84,12 +84,49 @@
             <div class="card">
                 <div class="card-header">
                     <span class="card-title">🗺️ 30 Günlük İlaç Etki Haritası</span>
-                    <div style="display:flex;gap:6px;">
+                    <div style="display:flex;gap:6px;align-items:center;">
+                        <div style="display:flex;gap:10px;align-items:center;font-size:11px;margin-right:10px;background:rgba(255,255,255,0.03);padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.08)">
+                            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;">
+                                <input type="checkbox" id="chkShowLines" checked onchange="updateLayerVisibility()" style="cursor:pointer;margin:0;accent-color:#38bdf8;">
+                                <span style="color:var(--text-primary);font-weight:600;">🛣️ Rotalar</span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;">
+                                <input type="checkbox" id="chkShowBuffers" checked onchange="updateLayerVisibility()" style="cursor:pointer;margin:0;accent-color:#38bdf8;">
+                                <span style="color:var(--text-primary);font-weight:600;">🟢 Etki (17m)</span>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:4px;cursor:pointer;margin:0;">
+                                <input type="checkbox" id="chkShowHulls" checked onchange="updateLayerVisibility()" style="cursor:pointer;margin:0;accent-color:#38bdf8;">
+                                <span style="color:var(--text-primary);font-weight:600;">🛡️ Ada (Blok)</span>
+                            </label>
+                        </div>
                         <button class="btn btn-sm btn-outline" onclick="centerMap()">📍 Merkez</button>
                         <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konumum</button>
                     </div>
                 </div>
                 <div id="map" class="map-container fullheight"></div>
+                <!-- SVG Patterns for Area Hatching -->
+                <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="hatch-fresh" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #10b981; stroke-width: 2.5; opacity: 0.35;" />
+                        </pattern>
+                        <pattern id="hatch-active" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #84cc16; stroke-width: 2.5; opacity: 0.35;" />
+                        </pattern>
+                        <pattern id="hatch-moderate" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #f59e0b; stroke-width: 2.5; opacity: 0.35;" />
+                        </pattern>
+                        <pattern id="hatch-slowing" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #f97316; stroke-width: 2.5; opacity: 0.35;" />
+                        </pattern>
+                        <pattern id="hatch-expiring" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #ef4444; stroke-width: 2.5; opacity: 0.35;" />
+                        </pattern>
+                        <pattern id="hatch-expired" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                            <line x1="0" y1="0" x2="0" y2="12" style="stroke: #6b7280; stroke-width: 2.0; stroke-dasharray: 2 2; opacity: 0.25;" />
+                        </pattern>
+                    </defs>
+                </svg>
                 <div style="margin-top:8px;display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--text-secondary);align-items:center">
                     <span><span style="display:inline-block;width:16px;height:4px;background:#10b981;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Yeni (0-10 gün)</span>
                     <span><span style="display:inline-block;width:16px;height:4px;background:#f59e0b;border-radius:2px;vertical-align:middle;margin-right:4px"></span> Azalıyor (11-20 gün)</span>
@@ -127,6 +164,7 @@
 <div class="toast-container" id="toastContainer"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const TOKEN=localStorage.getItem('vms_token');
@@ -190,11 +228,38 @@ const sivasBorders = L.tileLayer('https://harita.sivas.bel.tr/mahalleler/{z}/{x}
 }).addTo(map);
 
 const sprayedLayers=L.layerGroup().addTo(map);
+const sprayedLinesSubGroup=L.layerGroup().addTo(sprayedLayers);
+const sprayedBuffersSubGroup=L.layerGroup().addTo(sprayedLayers);
+const sprayedHullsSubGroup=L.layerGroup().addTo(sprayedLayers);
 const sprayedHeatmapLayer=L.layerGroup();
 const citizenReportMarkersLayer=L.layerGroup().addTo(map);
 const activeVehiclePathsGroup = L.layerGroup().addTo(map);
 const vehicleMarkers={};
 const vehiclePathsData = {}; // vehicle_id -> { points: [{lat, lng, is_spraying}], group: L.layerGroup() }
+
+function updateLayerVisibility() {
+    const showLines = document.getElementById('chkShowLines')?.checked !== false;
+    const showBuffers = document.getElementById('chkShowBuffers')?.checked !== false;
+    const showHulls = document.getElementById('chkShowHulls')?.checked !== false;
+
+    if (showLines) {
+        if (!sprayedLayers.hasLayer(sprayedLinesSubGroup)) sprayedLayers.addLayer(sprayedLinesSubGroup);
+    } else {
+        if (sprayedLayers.hasLayer(sprayedLinesSubGroup)) sprayedLayers.removeLayer(sprayedLinesSubGroup);
+    }
+
+    if (showBuffers) {
+        if (!sprayedLayers.hasLayer(sprayedBuffersSubGroup)) sprayedLayers.addLayer(sprayedBuffersSubGroup);
+    } else {
+        if (sprayedLayers.hasLayer(sprayedBuffersSubGroup)) sprayedLayers.removeLayer(sprayedBuffersSubGroup);
+    }
+
+    if (showHulls) {
+        if (!sprayedLayers.hasLayer(sprayedHullsSubGroup)) sprayedLayers.addLayer(sprayedHullsSubGroup);
+    } else {
+        if (sprayedLayers.hasLayer(sprayedHullsSubGroup)) sprayedLayers.removeLayer(sprayedHullsSubGroup);
+    }
+}
 
 const overlayMaps = {
     "Sivas Mahalle Sınırları (Belediye)": sivasBorders,
@@ -224,6 +289,90 @@ function getSprayStyle(daysRemaining){
     if(daysRemaining<=20) return{color:'#f59e0b',opacity:0.7,weight:4};                        // 16-20 gün - sarı
     if(daysRemaining<=25) return{color:'#84cc16',opacity:0.65,weight:4};                       // 21-25 gün - açık yeşil
     return{color:'#10b981',opacity:0.8,weight:5};                                              // 26-30 gün - yeşil
+}
+
+function getBufferStyle(daysRemaining) {
+    let color = '#10b981';
+    if (daysRemaining <= 0) color = '#6b7280';
+    else if (daysRemaining <= 5) color = '#ef4444';
+    else if (daysRemaining <= 15) color = '#f97316';
+    else if (daysRemaining <= 20) color = '#f59e0b';
+    else if (daysRemaining <= 25) color = '#84cc16';
+    
+    return {
+        color: color,
+        weight: 1.5,
+        opacity: 0.6,
+        fillColor: color,
+        fillOpacity: 0.32,
+        interactive: false
+    };
+}
+
+function getHullStyle(daysRemaining) {
+    let color = '#10b981';
+    let patternId = 'hatch-fresh';
+    if (daysRemaining <= 0) {
+        color = '#6b7280';
+        patternId = 'hatch-expired';
+    } else if (daysRemaining <= 5) {
+        color = '#ef4444';
+        patternId = 'hatch-expiring';
+    } else if (daysRemaining <= 15) {
+        color = '#f97316';
+        patternId = 'hatch-slowing';
+    } else if (daysRemaining <= 20) {
+        color = '#f59e0b';
+        patternId = 'hatch-moderate';
+    } else if (daysRemaining <= 25) {
+        color = '#84cc16';
+        patternId = 'hatch-active';
+    }
+    
+    return {
+        color: color,
+        weight: 1.5,
+        opacity: 0.35,
+        fillColor: `url(#${patternId})`,
+        fillOpacity: 0.8,
+        interactive: true
+    };
+}
+
+function areStreetsConnected(coordsA, coordsB, maxDist = 50) {
+    if (coordsA.length === 0 || coordsB.length === 0) return false;
+    for (let i = 0; i < coordsA.length; i++) {
+        const pA = coordsA[i];
+        for (let j = 0; j < coordsB.length; j++) {
+            const pB = coordsB[j];
+            if (haversine(pA[1], pA[0], pB[1], pB[0]) <= maxDist) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function getStreetCoords(s) {
+    let coords = [];
+    if (s.geometry_geojson) {
+        try {
+            const geom = JSON.parse(s.geometry_geojson);
+            const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+            if (geometry && geometry.coordinates) {
+                if (geometry.type === 'LineString') {
+                    coords = geometry.coordinates;
+                } else if (geometry.type === 'MultiLineString') {
+                    geometry.coordinates.forEach(line => {
+                        coords = coords.concat(line);
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing GeoJSON coordinates:", e);
+        }
+    }
+    return coords;
 }
 
 const socket=io();
@@ -780,40 +929,193 @@ async function loadDashboard(){
         }
         // Sokakları haritaya çiz
         sprayedHeatmapLayer.clearLayers();
+        sprayedLinesSubGroup.clearLayers();
+        sprayedBuffersSubGroup.clearLayers();
+        sprayedHullsSubGroup.clearLayers();
+
         const heatPoints = [];
-        (expiryData.streets||[]).forEach(s=>{
-            if(s.geometry_geojson){try{
-                const geom=JSON.parse(s.geometry_geojson);
-                const remaining=s.days_remaining||0;
-                const style=getSprayStyle(remaining);
-                const layer=L.geoJSON(geom,{style:()=>style});
-                const daysText=remaining<=0?'<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>':`<b>${Math.round(remaining)} gün</b> kaldı`;
-                const sprayedDate = new Date(s.sprayed_at);
-                const sprayedStr = sprayedDate.toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-                const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
-                layer.bindPopup(`<b>${s.street_name||'İlaçlama Hattı'}</b><br>
-                    📍 Mahalle: ${s.neighborhood||'-'}<br>
-                    🕐 Ne Zaman: <b>${sprayedStr}</b><br>
-                    📅 Bitiş: ${expiresStr}<br>
-                    ⏳ ${daysText}<br>
-                    🧪 İlaç: ${s.chemical_name || '-'}<br>
-                    🚐 Araç: ${s.plate||'-'}`);
-                sprayedLayers.addLayer(layer);
-                
-                // Add coordinates to heatmap if active protection remaining
-                if (remaining > 0) {
-                    const intensity = remaining / 30;
-                    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
-                    if (geometry) {
-                        if (geometry.type === 'LineString') {
-                            geometry.coordinates.forEach(c => heatPoints.push([c[1], c[0], intensity]));
-                        } else if (geometry.type === 'MultiLineString') {
-                            geometry.coordinates.forEach(line => line.forEach(c => heatPoints.push([c[1], c[0], intensity])));
+
+        // Group streets by session_id
+        const sessionsMap = new Map();
+        (expiryData.streets || []).forEach(s => {
+            const sessionId = s.session_id;
+            if (!sessionsMap.has(sessionId)) {
+                sessionsMap.set(sessionId, []);
+            }
+            sessionsMap.get(sessionId).push(s);
+        });
+
+        // Process each session for hulls & buffers
+        sessionsMap.forEach((streets, sessionId) => {
+            const remaining = streets[0].days_remaining || 0;
+
+            // Cluster streets within this session by spatial proximity and neighborhood name
+            if (remaining > 0 && streets.length >= 2 && typeof turf !== 'undefined') {
+                try {
+                    const streetNodes = streets.map((s, idx) => ({
+                        index: idx,
+                        street: s,
+                        coords: getStreetCoords(s)
+                    }));
+
+                    // Union-Find / DSU initialization
+                    const parent = Array.from({ length: streets.length }, (_, i) => i);
+                    function find(i) {
+                        if (parent[i] === i) return i;
+                        parent[i] = find(parent[i]);
+                        return parent[i];
+                    }
+                    function union(i, j) {
+                        const rootI = find(i);
+                        const rootJ = find(j);
+                        if (rootI !== rootJ) {
+                            parent[rootI] = rootJ;
                         }
                     }
+
+                    // Perform union on adjacent streets (within 50 meters and inside the same neighborhood)
+                    for (let i = 0; i < streetNodes.length; i++) {
+                        for (let j = i + 1; j < streetNodes.length; j++) {
+                            if (streetNodes[i].street.neighborhood === streetNodes[j].street.neighborhood &&
+                                areStreetsConnected(streetNodes[i].coords, streetNodes[j].coords, 50)) {
+                                union(i, j);
+                            }
+                        }
+                    }
+
+                    // Group street nodes by their clusters
+                    const clusters = new Map();
+                    for (let i = 0; i < streets.length; i++) {
+                        const root = find(i);
+                        if (!clusters.has(root)) {
+                            clusters.set(root, []);
+                        }
+                        clusters.get(root).push(streetNodes[i]);
+                    }
+
+                    // Draw Convex Hull for each cluster
+                    clusters.forEach(cluster => {
+                        if (cluster.length >= 2) {
+                            const points = [];
+                            cluster.forEach(node => {
+                                node.coords.forEach(c => {
+                                    points.push(turf.point(c));
+                                });
+                            });
+
+                            if (points.length >= 3) {
+                                const pointFC = turf.featureCollection(points);
+                                const hull = turf.convex(pointFC);
+                                if (hull) {
+                                    const hullStyle = getHullStyle(remaining);
+                                    const hullLayer = L.geoJSON(hull, { style: () => hullStyle });
+                                    hullLayer.originalDaysRemaining = remaining;
+                                    hullLayer.isHull = true;
+
+                                    // Build popup summary
+                                    const streetListHtml = cluster.map(node => {
+                                        const s = node.street;
+                                        const daysText = s.days_remaining <= 0 
+                                            ? '<span style="color:#ef4444; font-weight:700;">Süre Doldu</span>' 
+                                            : `<span style="color:#10b981; font-weight:700;">${Math.round(s.days_remaining)} gün</span>`;
+                                        return `<li style="margin-bottom: 2px;">🛣️ <b>${s.street_name || 'İlaçlama Hattı'}:</b> ${daysText}</li>`;
+                                    }).join('');
+
+                                    const neighborhood = cluster[0].street.neighborhood || '-';
+                                    const maxRemaining = Math.max(...cluster.map(node => node.street.days_remaining || 0));
+                                    const statusText = maxRemaining <= 0 
+                                        ? '<span style="color:#ef4444; font-weight:bold;">Etki Süresi Dolmuş</span>' 
+                                        : `<b>Maksimum Koruma:</b> ${Math.round(maxRemaining)} gün etki kaldı`;
+
+                                    const chemicals = Array.from(new Set(cluster.map(node => node.street.chemical_name).filter(Boolean))).join(', ') || '-';
+
+                                    hullLayer.bindPopup(`
+                                        <div style="font-family: inherit; font-size: 11px; line-height: 1.4; color: #fff; min-width: 200px;">
+                                            <b style="font-size: 12.5px; color: #38bdf8; display: block; margin-bottom: 4px;">🛡️ İlaçlı Alan (Bina Adası)</b>
+                                            📍 <b>Mahalle:</b> ${neighborhood}<br>
+                                            ⏳ <b>Etki Durumu:</b> ${statusText}<br>
+                                            🧪 <b>İlaçlar:</b> ${chemicals}<br>
+                                            <div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 4px;">
+                                                <b style="color: #38bdf8; display: block; margin-bottom: 2px;">🛣️ Bölgedeki Sokaklar:</b>
+                                                <ul style="margin: 0; padding-left: 12px; list-style-type: disc;">
+                                                    ${streetListHtml}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    `);
+                                    sprayedHullsSubGroup.addLayer(hullLayer);
+                                }
+                            }
+                        }
+                    });
+
+                } catch (hullErr) {
+                    console.error("Convex hull error in admin dashboard:", hullErr);
                 }
-            }catch(e){}}
+            }
+
+            // Draw individual streets
+            streets.forEach(s => {
+                if (s.geometry_geojson) {
+                    try {
+                        const geom = JSON.parse(s.geometry_geojson);
+                        const style = getSprayStyle(remaining);
+                        
+                        // 1a. Buffer Layer (17m)
+                        if (remaining > 0 && typeof turf !== 'undefined') {
+                            try {
+                                const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                                const lineLength = turf.length(geometry, { units: 'meters' });
+                                if (lineLength >= 15) {
+                                    const buffered = turf.buffer(geom, 17, { units: 'meters' });
+                                    const bufferStyle = getBufferStyle(remaining);
+                                    const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
+                                    bufferLayer.originalDaysRemaining = remaining;
+                                    bufferLayer.isBuffer = true;
+                                    sprayedBuffersSubGroup.addLayer(bufferLayer);
+                                }
+                            } catch (bufErr) {
+                                console.error("Buffer error in admin dashboard:", bufErr);
+                            }
+                        }
+
+                        // 1b. Central Line
+                        const layer = L.geoJSON(geom, { style: () => style });
+                        layer.originalDaysRemaining = remaining;
+                        layer.isBuffer = false;
+                        const daysText = remaining <= 0 ? '<b style="color:#ef4444">SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> kaldı`;
+                        const sprayedDate = new Date(s.sprayed_at);
+                        const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const expiresStr = new Date(s.expires_at).toLocaleDateString('tr-TR');
+                        
+                        layer.bindPopup(`<b>${s.street_name || 'İlaçlama Hattı'}</b><br>
+                            📍 Mahalle: ${s.neighborhood || '-'}<br>
+                            🕐 Ne Zaman: <b>${sprayedStr}</b><br>
+                            📅 Bitiş: ${expiresStr}<br>
+                            ⏳ ${daysText}<br>
+                            🧪 İlaç: ${s.chemical_name || '-'}<br>
+                            🚐 Araç: ${s.plate || '-'}`);
+                        sprayedLinesSubGroup.addLayer(layer);
+
+                        // Heatmap points
+                        if (remaining > 0) {
+                            const intensity = remaining / 30;
+                            const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                            if (geometry) {
+                                if (geometry.type === 'LineString') {
+                                    geometry.coordinates.forEach(c => heatPoints.push([c[1], c[0], intensity]));
+                                } else if (geometry.type === 'MultiLineString') {
+                                    geometry.coordinates.forEach(line => line.forEach(c => heatPoints.push([c[1], c[0], intensity])));
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.error("GeoJSON parsing error:", e);
+                    }
+                }
+            });
         });
+
         if (heatPoints.length > 0) {
             const heatLayer = L.heatLayer(heatPoints, {
                 radius: 20,
@@ -824,6 +1126,9 @@ async function loadDashboard(){
             });
             sprayedHeatmapLayer.addLayer(heatLayer);
         }
+
+        // Apply visibility from checkboxes
+        updateLayerVisibility();
     }
 }
 

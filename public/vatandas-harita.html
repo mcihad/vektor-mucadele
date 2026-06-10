@@ -834,6 +834,30 @@
 </head>
 <body>
 
+    <!-- SVG Patterns for Area Hatching -->
+    <svg style="position: absolute; width: 0; height: 0; overflow: hidden;" version="1.1" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <pattern id="hatch-fresh" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #10b981; stroke-width: 2.5; opacity: 0.35;" />
+            </pattern>
+            <pattern id="hatch-active" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #84cc16; stroke-width: 2.5; opacity: 0.35;" />
+            </pattern>
+            <pattern id="hatch-moderate" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #f59e0b; stroke-width: 2.5; opacity: 0.35;" />
+            </pattern>
+            <pattern id="hatch-slowing" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #f97316; stroke-width: 2.5; opacity: 0.35;" />
+            </pattern>
+            <pattern id="hatch-expiring" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #ef4444; stroke-width: 2.5; opacity: 0.35;" />
+            </pattern>
+            <pattern id="hatch-expired" width="12" height="12" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="12" style="stroke: #6b7280; stroke-width: 2.0; stroke-dasharray: 2 2; opacity: 0.25;" />
+            </pattern>
+        </defs>
+    </svg>
+
     <!-- Floating Topbar Header -->
     <div class="floating-header" id="floatingHeader">
         <div class="header-logo-section">
@@ -877,47 +901,87 @@
             <button class="segment-btn" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
         </div>
 
+        <div class="control-label" style="margin-top: 10px;">Gelecek Simülasyonu</div>
+        <div class="simulation-container">
+            <div class="simulation-title">
+                <span>⏱️ Zaman Kaydırıcı</span>
+                <span id="simulationValue" style="color: #10b981; font-weight: 700;">Bugün (0. Gün)</span>
+            </div>
+            <input type="range" id="simulationSlider" min="0" max="30" value="0" step="1" oninput="runEfficacySimulation(this.value)">
+            <div class="simulation-labels">
+                <span>Bugün</span>
+                <span>15 Gün</span>
+                <span>30 Gün</span>
+            </div>
+        </div>
 
+        <div id="layerTogglesContainer" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+            <div class="control-label">Gösterim Katmanları</div>
+            <label class="toggle-option" style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; cursor: pointer; padding: 6px 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <span>🛣️ Rota Çizgileri</span>
+                <input type="checkbox" id="chkShowLines" checked onchange="updateLayerVisibility()" style="cursor: pointer; width: 14px; height: 14px; accent-color: #38bdf8; margin: 0;">
+            </label>
+            <label class="toggle-option" style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; cursor: pointer; padding: 6px 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <span>🟢 İlaçlama Etki Şeridi (17m)</span>
+                <input type="checkbox" id="chkShowBuffers" checked onchange="updateLayerVisibility()" style="cursor: pointer; width: 14px; height: 14px; accent-color: #38bdf8; margin: 0;">
+            </label>
+            <label class="toggle-option" style="display: flex; align-items: center; justify-content: space-between; font-size: 11px; cursor: pointer; padding: 6px 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px;">
+                <span>🛡️ Bina Adası Tarama (Blok)</span>
+                <input type="checkbox" id="chkShowHulls" checked onchange="updateLayerVisibility()" style="cursor: pointer; width: 14px; height: 14px; accent-color: #38bdf8; margin: 0;">
+            </label>
+        </div>
         
-        <div class="control-label">Koruma Dereceleri Lejantı</div>
+        <div class="control-label" style="margin-top: 10px;">Koruma Dereceleri Lejantı</div>
         <div class="legend-container">
             <div class="legend-row">
-                <div class="legend-color" style="background:#10b981"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(16, 185, 129, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-fresh)" stroke="#10b981" stroke-width="1.5" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">0 - 5. Gün (Maksimum Koruma)</span>
                     <span class="legend-desc">Yeni ilaçlanmış hatlar. Etki gücü: %100 - %85</span>
                 </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#84cc16"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(132, 204, 22, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-active)" stroke="#84cc16" stroke-width="1.5" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">6 - 10. Gün (Yüksek Koruma)</span>
                     <span class="legend-desc">Koruma etkisi güçlü seviyede: %85 - %70</span>
                 </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#f59e0b"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(245, 158, 11, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-moderate)" stroke="#f59e0b" stroke-width="1.5" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">11 - 15. Gün (Orta Koruma)</span>
                     <span class="legend-desc">Etki stabil şekilde devam ediyor: %70 - %50</span>
                 </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#f97316"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(249, 115, 22, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-slowing)" stroke="#f97316" stroke-width="1.5" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">16 - 20. Gün (Azalan Etki)</span>
                     <span class="legend-desc">Koruyuculuk zayıflamaya başlıyor: %50 - %35</span>
                 </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#ef4444"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(239, 68, 68, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-expiring)" stroke="#ef4444" stroke-width="1.5" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">21 - 30. Gün (Kritik Dönem)</span>
                     <span class="legend-desc">Etki süresi dolmak üzere olan hatlar: %35 - %5</span>
                 </div>
             </div>
             <div class="legend-row">
-                <div class="legend-color" style="background:#6b7280; border: 1px dashed rgba(255,255,255,0.4);"></div>
+                <svg width="14" height="14" style="border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 4px rgba(0,0,0,0.5); background: rgba(107, 114, 128, 0.15);">
+                    <rect width="14" height="14" fill="url(#hatch-expired)" stroke="#6b7280" stroke-width="1.5" stroke-dasharray="2 2" />
+                </svg>
                 <div class="legend-text-container">
                     <span class="legend-title">30+ Gün (Etkisiz)</span>
                     <span class="legend-desc">Koruma süresi dolmuş hatlar: %0</span>
@@ -967,6 +1031,9 @@
         let map;
         let sprayedLinesGroup;
         let sprayedHeatmapGroup;
+        let sprayedLinesSubGroup;
+        let sprayedBuffersSubGroup;
+        let sprayedHullsSubGroup;
         let activeMode = 'lines'; // 'heatmap' or 'lines'
         let roadmapLayer;
         let satelliteLayer;
@@ -1033,6 +1100,10 @@
             sprayedLinesGroup = L.layerGroup().addTo(map); 
             sprayedHeatmapGroup = L.layerGroup();
             
+            sprayedLinesSubGroup = L.layerGroup().addTo(sprayedLinesGroup);
+            sprayedBuffersSubGroup = L.layerGroup().addTo(sprayedLinesGroup);
+            sprayedHullsSubGroup = L.layerGroup().addTo(sprayedLinesGroup);
+            
             loadSprayedData();
 
             // Set default drawer state based on device viewport
@@ -1083,19 +1154,31 @@
 
         function getHullStyle(daysRemaining) {
             let color = '#10b981';
-            if (daysRemaining <= 0) color = '#6b7280';
-            else if (daysRemaining <= 10) color = '#ef4444';
-            else if (daysRemaining <= 15) color = '#f97316';
-            else if (daysRemaining <= 20) color = '#f59e0b';
-            else if (daysRemaining <= 25) color = '#84cc16';
+            let patternId = 'hatch-fresh';
+            if (daysRemaining <= 0) {
+                color = '#6b7280';
+                patternId = 'hatch-expired';
+            } else if (daysRemaining <= 10) {
+                color = '#ef4444';
+                patternId = 'hatch-expiring';
+            } else if (daysRemaining <= 15) {
+                color = '#f97316';
+                patternId = 'hatch-slowing';
+            } else if (daysRemaining <= 20) {
+                color = '#f59e0b';
+                patternId = 'hatch-moderate';
+            } else if (daysRemaining <= 25) {
+                color = '#84cc16';
+                patternId = 'hatch-active';
+            }
             
             return {
                 color: color,
-                weight: 1,
-                opacity: 0.25,
-                fillColor: color,
-                fillOpacity: 0.15,
-                interactive: false
+                weight: 1.5,
+                opacity: 0.35,
+                fillColor: `url(#${patternId})`,
+                fillOpacity: 0.8,
+                interactive: true
             };
         }
 
@@ -1107,7 +1190,11 @@
                 if (!data || !data.streets) return;
 
                 const heatPoints = [];
-                sprayedLinesGroup.clearLayers();
+                
+                // Clear sub-groups instead of parent to maintain structure
+                sprayedLinesSubGroup.clearLayers();
+                sprayedBuffersSubGroup.clearLayers();
+                sprayedHullsSubGroup.clearLayers();
 
                 // Group streets by session_id
                 const sessionsMap = new Map();
@@ -1200,10 +1287,11 @@
                                 }
                             }
 
-                            // Perform union on adjacent streets (within 50 meters)
+                            // Perform union on adjacent streets (within 50 meters and inside the same neighborhood)
                             for (let i = 0; i < streetNodes.length; i++) {
                                 for (let j = i + 1; j < streetNodes.length; j++) {
-                                    if (areStreetsConnected(streetNodes[i].coords, streetNodes[j].coords, 50)) {
+                                    if (streetNodes[i].street.neighborhood === streetNodes[j].street.neighborhood &&
+                                        areStreetsConnected(streetNodes[i].coords, streetNodes[j].coords, 50)) {
                                         union(i, j);
                                     }
                                 }
@@ -1237,7 +1325,40 @@
                                             const hullLayer = L.geoJSON(hull, { style: () => hullStyle });
                                             hullLayer.originalDaysRemaining = remaining;
                                             hullLayer.isHull = true;
-                                            sprayedLinesGroup.addLayer(hullLayer);
+
+                                            // Build a summary of sprayed streets inside this block
+                                            const streetListHtml = cluster.map(node => {
+                                                const s = node.street;
+                                                const daysText = s.days_remaining <= 0 
+                                                    ? '<span style="color:#ef4444; font-weight:700;">Süre Doldu</span>' 
+                                                    : `<span style="color:#10b981; font-weight:700;">${Math.round(s.days_remaining)} gün</span>`;
+                                                return `<li style="margin-bottom: 4px;">🛣️ <b>${s.street_name || 'İlaçlama Hattı'}:</b> ${daysText}</li>`;
+                                            }).join('');
+
+                                            const neighborhood = cluster[0].street.neighborhood || '-';
+                                            const maxRemaining = Math.max(...cluster.map(node => node.street.days_remaining || 0));
+                                            const statusText = maxRemaining <= 0 
+                                                ? '<span style="color:#ef4444; font-weight:bold;">Etki Süresi Dolmuş</span>' 
+                                                : `<b>Maksimum Koruma:</b> ${Math.round(maxRemaining)} gün etki kaldı`;
+
+                                            const chemicals = Array.from(new Set(cluster.map(node => node.street.chemical_name).filter(Boolean))).join(', ') || '-';
+
+                                            hullLayer.bindPopup(`
+                                                <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #fff; min-width: 220px;">
+                                                    <b style="font-size: 13.5px; color: #38bdf8; display: block; margin-bottom: 6px;">🛡️ İlaçlı Alan (Bina Adası)</b>
+                                                    📍 <b>Mahalle:</b> ${neighborhood}<br>
+                                                    ⏳ <b>Etki Durumu:</b> ${statusText}<br>
+                                                    🧪 <b>İlaçlar:</b> ${chemicals}<br>
+                                                    <div style="margin-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); padding-top: 6px;">
+                                                        <b style="color: #38bdf8; display: block; margin-bottom: 4px;">🛣️ Bölgedeki Sokaklar:</b>
+                                                        <ul style="margin: 0; padding-left: 14px; list-style-type: disc;">
+                                                            ${streetListHtml}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            `);
+
+                                            sprayedHullsSubGroup.addLayer(hullLayer);
                                         }
                                     }
                                 }
@@ -1266,7 +1387,7 @@
                                             const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
                                             bufferLayer.originalDaysRemaining = remaining;
                                             bufferLayer.isBuffer = true;
-                                            sprayedLinesGroup.addLayer(bufferLayer);
+                                            sprayedBuffersSubGroup.addLayer(bufferLayer);
                                         }
                                     } catch (bufErr) {
                                         console.error("Turf buffer error:", bufErr);
@@ -1292,7 +1413,7 @@
                                         🧪 <b>Uygulanan İlaç:</b> ${s.chemical_name || '-'}
                                     </div>
                                 `);
-                                sprayedLinesGroup.addLayer(layer);
+                                sprayedLinesSubGroup.addLayer(layer);
 
                                 // 2. Heatmap points
                                 if (remaining > 0) {
@@ -1331,6 +1452,9 @@
                     sprayedHeatmapGroup.addLayer(heatLayer);
                 }
 
+                // Update visibility based on current checkbox states
+                updateLayerVisibility();
+
                 // Apply simulation if slider has value > 0
                 const simSlider = document.getElementById('simulationSlider');
                 if (simSlider && simSlider.value > 0) {
@@ -1347,10 +1471,12 @@
             const btnLines = document.getElementById('btnToggleLines');
             const btnHeat = document.getElementById('btnToggleHeatmap');
             const control = document.getElementById('mapModeControl');
+            const toggles = document.getElementById('layerTogglesContainer');
             
             if (btnLines) btnLines.classList.toggle('active', mode === 'lines');
             if (btnHeat) btnHeat.classList.toggle('active', mode === 'heatmap');
             if (control) control.classList.toggle('slide-right', mode === 'heatmap');
+            if (toggles) toggles.style.display = mode === 'lines' ? 'flex' : 'none';
 
             if (mode === 'lines') {
                 map.removeLayer(sprayedHeatmapGroup);
@@ -1358,6 +1484,30 @@
             } else {
                 map.removeLayer(sprayedLinesGroup);
                 map.addLayer(sprayedHeatmapGroup);
+            }
+        }
+
+        function updateLayerVisibility() {
+            const showLines = document.getElementById('chkShowLines')?.checked !== false;
+            const showBuffers = document.getElementById('chkShowBuffers')?.checked !== false;
+            const showHulls = document.getElementById('chkShowHulls')?.checked !== false;
+
+            if (showLines) {
+                if (!sprayedLinesGroup.hasLayer(sprayedLinesSubGroup)) sprayedLinesGroup.addLayer(sprayedLinesSubGroup);
+            } else {
+                if (sprayedLinesGroup.hasLayer(sprayedLinesSubGroup)) sprayedLinesGroup.removeLayer(sprayedLinesSubGroup);
+            }
+
+            if (showBuffers) {
+                if (!sprayedLinesGroup.hasLayer(sprayedBuffersSubGroup)) sprayedLinesGroup.addLayer(sprayedBuffersSubGroup);
+            } else {
+                if (sprayedLinesGroup.hasLayer(sprayedBuffersSubGroup)) sprayedLinesGroup.removeLayer(sprayedBuffersSubGroup);
+            }
+
+            if (showHulls) {
+                if (!sprayedLinesGroup.hasLayer(sprayedHullsSubGroup)) sprayedLinesGroup.addLayer(sprayedHullsSubGroup);
+            } else {
+                if (sprayedLinesGroup.hasLayer(sprayedHullsSubGroup)) sprayedLinesGroup.removeLayer(sprayedHullsSubGroup);
             }
         }
 
@@ -1392,16 +1542,20 @@
                 }
             }
 
-            sprayedLinesGroup.eachLayer(layer => {
-                if (typeof layer.originalDaysRemaining !== 'undefined') {
-                    const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
-                    if (layer.isHull) {
-                        layer.setStyle(getHullStyle(simulatedRemaining));
-                    } else if (layer.isBuffer) {
-                        layer.setStyle(getBufferStyle(simulatedRemaining));
-                    } else {
-                        layer.setStyle(getSprayStyle(simulatedRemaining));
-                    }
+            [sprayedLinesSubGroup, sprayedBuffersSubGroup, sprayedHullsSubGroup].forEach(subGroup => {
+                if (subGroup) {
+                    subGroup.eachLayer(layer => {
+                        if (typeof layer.originalDaysRemaining !== 'undefined') {
+                            const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
+                            if (layer.isHull) {
+                                layer.setStyle(getHullStyle(simulatedRemaining));
+                            } else if (layer.isBuffer) {
+                                layer.setStyle(getBufferStyle(simulatedRemaining));
+                            } else {
+                                layer.setStyle(getSprayStyle(simulatedRemaining));
+                            }
+                        }
+                    });
                 }
             });
         }
