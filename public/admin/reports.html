@@ -43,6 +43,7 @@
         <div class="tabs">
             <button class="tab active" onclick="showTab('daily',this)">Günlük</button>
             <button class="tab" onclick="showTab('monthly',this)">Aylık</button>
+            <button class="tab" onclick="showTab('personnel',this)">Personel Raporu</button>
             <button class="tab" onclick="showTab('coverage',this)">Mahalle Kapsam</button>
         </div>
 
@@ -119,6 +120,34 @@
             </div>
         </div>
 
+        <!-- Personnel Report -->
+        <div id="tab-personnel" style="display:none;">
+            <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
+                <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end;">
+                    <div class="form-group" style="margin:0;"><label class="form-label">Başlangıç Tarihi</label><input type="date" class="form-input" id="persDateFrom" onchange="loadPersonnelReport()"></div>
+                    <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="persDateTo" onchange="loadPersonnelReport()"></div>
+                    <div class="form-group" style="margin:0;">
+                        <label class="form-label">Personel</label>
+                        <select class="form-input" id="persSelect" onchange="loadPersonnelReport()" style="min-width:180px;"></select>
+                    </div>
+                </div>
+                <button class="btn btn-outline btn-sm" onclick="exportPersonnelExcel()" style="border-color:#10b981;color:#10b981;display:flex;align-items:center;gap:6px;margin:0;">🟢 Raporu Excel'e Aktar</button>
+            </div>
+            <div class="stats-grid" id="persStats"></div>
+            
+            <div class="card" style="margin-top:20px;">
+                <div class="card-title" id="persTableTitle" style="margin-bottom:12px;">👤 Personel İlaçlama Raporu</div>
+                <div class="table-container">
+                    <table id="persExcelTable">
+                        <thead>
+                            <tr id="persTableHead"></tr>
+                        </thead>
+                        <tbody id="persTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- Coverage -->
         <div id="tab-coverage" style="display:none;">
             <div style="margin-bottom:16px;display:flex;justify-content:space-between;align-items:end;flex-wrap:wrap;gap:12px;">
@@ -192,6 +221,9 @@ thirtyFiveDaysAgo.setDate(now.getDate() - 35);
 const thirtyFiveDaysAgoStr = thirtyFiveDaysAgo.toISOString().split('T')[0];
 document.getElementById('coverageDateFrom').value = thirtyFiveDaysAgoStr;
 document.getElementById('coverageDateTo').value = todayStr;
+
+document.getElementById('persDateFrom').value = thirtyFiveDaysAgoStr;
+document.getElementById('persDateTo').value = todayStr;
 
 let dailyVehicleChartInstance, dailyNeighborhoodChartInstance;
 let vehicleChartInstance, personnelChartInstance, dailyChartInstance;
@@ -809,9 +841,289 @@ function exportMonthlyTrendExcel() {
     exportDataToExcel(headers, rows, `Performans_Trend_Raporu_${from}_${to}`);
 }
 
+async function initPersonnelDropdown() {
+    try {
+        const personnelList = await api('/api/personnel');
+        const select = document.getElementById('persSelect');
+        select.innerHTML = '<option value="all">-- Tüm Personel --</option>';
+        personnelList.forEach(p => {
+            const roleText = p.role === 'driver' ? 'Şoför' : p.role === 'operator' ? 'Operatör' : p.role || '';
+            select.innerHTML += `<option value="${p.id}" data-name="${p.name}" data-role="${roleText}">${p.name} (${roleText})</option>`;
+        });
+    } catch (e) {
+        console.error("Personel listesi yüklenemedi:", e);
+    }
+}
+
+async function loadPersonnelReport() {
+    const from = document.getElementById('persDateFrom').value;
+    const to = document.getElementById('persDateTo').value;
+    const selectedPersId = document.getElementById('persSelect').value;
+    
+    const data = await api(`/api/reports/daily?date_from=${from}&date_to=${to}`);
+    const sessions = data.sessions || [];
+    
+    const statsContainer = document.getElementById('persStats');
+    const tableTitle = document.getElementById('persTableTitle');
+    const tableHead = document.getElementById('persTableHead');
+    const tableBody = document.getElementById('persTableBody');
+    
+    if (selectedPersId === 'all') {
+        tableTitle.textContent = '👤 Tüm Personel İlaçlama Performansı (Toplu)';
+        tableHead.innerHTML = `
+            <th>Personel Adı</th>
+            <th>Görevi</th>
+            <th>Şoförlük Yaptığı Oturum</th>
+            <th>Operatörlük Yaptığı Oturum</th>
+            <th>Toplam Oturum</th>
+            <th>Toplam Mesafe (km)</th>
+            <th>Kullanılan İlaç (lt)</th>
+            <th>Süre (dk)</th>
+        `;
+        
+        const aggMap = {};
+        
+        const selectOptions = document.getElementById('persSelect').options;
+        for (let i = 0; i < selectOptions.length; i++) {
+            const option = selectOptions[i];
+            const id = option.value;
+            if (id === 'all') continue;
+            aggMap[id] = {
+                id: id,
+                name: option.getAttribute('data-name'),
+                role: option.getAttribute('data-role') || '-',
+                driver_sessions: 0,
+                operator_sessions: 0,
+                total_sessions: 0,
+                total_km: 0,
+                chemical_used: 0,
+                duration: 0
+            };
+        }
+        
+        let uniqueSessionsCount = 0;
+        let totalUniqueKm = 0;
+        let totalUniqueChem = 0;
+        let totalUniqueDuration = 0;
+        
+        sessions.forEach(s => {
+            const duration = s.start_time && s.end_time 
+                ? Math.round((new Date(s.end_time) - new Date(s.start_time)) / 60000) 
+                : 0;
+                
+            let hasInvolvement = false;
+            
+            if (s.driver_id) {
+                hasInvolvement = true;
+                if (!aggMap[s.driver_id]) {
+                    aggMap[s.driver_id] = {
+                        id: s.driver_id,
+                        name: s.driver_name || 'Bilinmeyen',
+                        role: 'Şoför',
+                        driver_sessions: 0,
+                        operator_sessions: 0,
+                        total_sessions: 0,
+                        total_km: 0,
+                        chemical_used: 0,
+                        duration: 0
+                    };
+                }
+                aggMap[s.driver_id].driver_sessions++;
+                aggMap[s.driver_id].total_sessions++;
+                aggMap[s.driver_id].total_km += Number(s.total_km || 0);
+                aggMap[s.driver_id].chemical_used += Number(s.chemical_used_lt || 0);
+                aggMap[s.driver_id].duration += duration;
+            }
+            
+            if (s.operator_id) {
+                hasInvolvement = true;
+                if (!aggMap[s.operator_id]) {
+                    aggMap[s.operator_id] = {
+                        id: s.operator_id,
+                        name: s.operator_name || 'Bilinmeyen',
+                        role: 'Operatör',
+                        driver_sessions: 0,
+                        operator_sessions: 0,
+                        total_sessions: 0,
+                        total_km: 0,
+                        chemical_used: 0,
+                        duration: 0
+                    };
+                }
+                aggMap[s.operator_id].operator_sessions++;
+                aggMap[s.operator_id].total_sessions++;
+                aggMap[s.operator_id].total_km += Number(s.total_km || 0);
+                aggMap[s.operator_id].chemical_used += Number(s.chemical_used_lt || 0);
+                aggMap[s.operator_id].duration += duration;
+            }
+            
+            if (hasInvolvement) {
+                uniqueSessionsCount++;
+                totalUniqueKm += Number(s.total_km || 0);
+                totalUniqueChem += Number(s.chemical_used_lt || 0);
+                totalUniqueDuration += duration;
+            }
+        });
+        
+        const personnelCount = Object.keys(aggMap).length;
+        statsContainer.innerHTML = `
+            <div class="stat-card blue"><div class="stat-icon blue">👥</div><div><div class="stat-value">${personnelCount}</div><div class="stat-label">Toplam Personel</div></div></div>
+            <div class="stat-card green"><div class="stat-icon green">📋</div><div><div class="stat-value">${uniqueSessionsCount}</div><div class="stat-label">Toplam Oturum</div></div></div>
+            <div class="stat-card orange"><div class="stat-icon orange">📏</div><div><div class="stat-value">${Number(totalUniqueKm).toFixed(1)}</div><div class="stat-label">Toplam km</div></div></div>
+            <div class="stat-card purple"><div class="stat-icon purple">🧪</div><div><div class="stat-value">${Number(totalUniqueChem).toFixed(1)}</div><div class="stat-label">Toplam lt İlaç</div></div></div>
+        `;
+        
+        let html = '';
+        const list = Object.values(aggMap).sort((a,b) => b.total_sessions - a.total_sessions);
+        
+        if (list.length > 0) {
+            let grandDriver = 0;
+            let grandOperator = 0;
+            let grandTotal = 0;
+            let grandKm = 0;
+            let grandChem = 0;
+            let grandDuration = 0;
+            
+            list.forEach(p => {
+                grandDriver += p.driver_sessions;
+                grandOperator += p.operator_sessions;
+                grandTotal += p.total_sessions;
+                grandKm += p.total_km;
+                grandChem += p.chemical_used;
+                grandDuration += p.duration;
+                
+                html += `
+                    <tr>
+                        <td><strong>${p.name}</strong></td>
+                        <td>${p.role}</td>
+                        <td>${p.driver_sessions}</td>
+                        <td>${p.operator_sessions}</td>
+                        <td style="color:#3b82f6; font-weight:bold;">${p.total_sessions}</td>
+                        <td style="color:#10b981;">${p.total_km.toFixed(1)} km</td>
+                        <td style="color:#f59e0b;">${p.chemical_used.toFixed(1)} lt</td>
+                        <td>${p.duration} dk</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                    <td>📈 GENEL TOPLAM</td>
+                    <td>-</td>
+                    <td>${grandDriver}</td>
+                    <td>${grandOperator}</td>
+                    <td style="color:#3b82f6;">${grandTotal}</td>
+                    <td style="color:#10b981;">${grandKm.toFixed(1)} km</td>
+                    <td style="color:#f59e0b;">${grandChem.toFixed(1)} lt</td>
+                    <td>${grandDuration} dk</td>
+                </tr>
+            `;
+        } else {
+            html = '<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-muted)">Personel kaydı bulunmamaktadır</td></tr>';
+        }
+        tableBody.innerHTML = html;
+        
+    } else {
+        const selectedOption = document.getElementById('persSelect').querySelector(`option[value="${selectedPersId}"]`);
+        const name = selectedOption ? selectedOption.getAttribute('data-name') : 'Personel';
+        
+        tableTitle.textContent = `👤 ${name} - İlaçlama Oturum Detayları`;
+        tableHead.innerHTML = `
+            <th>Oturum ID / Tarih</th>
+            <th>Rolü</th>
+            <th>Araç Plakası</th>
+            <th>İlaçlanan Mahalle</th>
+            <th>İlaçlama Mesafesi</th>
+            <th>Kullanılan İlaç</th>
+            <th>Süre</th>
+        `;
+        
+        const filteredSessions = sessions.filter(s => 
+            Number(s.driver_id) === Number(selectedPersId) || 
+            Number(s.operator_id) === Number(selectedPersId)
+        );
+        
+        let totalKm = 0;
+        let totalChem = 0;
+        let totalDuration = 0;
+        let totalSessions = filteredSessions.length;
+        
+        let html = '';
+        if (totalSessions > 0) {
+            filteredSessions.forEach(s => {
+                const duration = s.start_time && s.end_time 
+                    ? Math.round((new Date(s.end_time) - new Date(s.start_time)) / 60000) 
+                    : 0;
+                totalKm += Number(s.total_km || 0);
+                totalChem += Number(s.chemical_used_lt || 0);
+                totalDuration += duration;
+                
+                const roleInSession = [];
+                if (Number(s.driver_id) === Number(selectedPersId)) roleInSession.push('Şoför');
+                if (Number(s.operator_id) === Number(selectedPersId)) roleInSession.push('Operatör');
+                
+                const dateText = s.start_time 
+                    ? new Date(s.start_time).toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : '-';
+                
+                html += `
+                    <tr>
+                        <td><strong>Oturum #${s.id}</strong> <span style="font-size:11px;color:var(--text-muted)">(${dateText})</span></td>
+                        <td>${roleInSession.join(' + ')}</td>
+                        <td>🚐 ${s.plate || '-'}</td>
+                        <td>📍 ${s.neighborhood || '-'}</td>
+                        <td style="color:#10b981;">${Number(s.total_km || 0).toFixed(1)} km</td>
+                        <td style="color:#f59e0b;">${Number(s.chemical_used_lt || 0).toFixed(1)} lt</td>
+                        <td>${duration} dk</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                <tr style="background: rgba(16, 185, 129, 0.12); font-weight: bold; border-left: 4px solid #10b981;">
+                    <td>📈 TOPLAM</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td style="color:#10b981;">${totalKm.toFixed(1)} km</td>
+                    <td style="color:#f59e0b;">${totalChem.toFixed(1)} lt</td>
+                    <td>${totalDuration} dk</td>
+                </tr>
+            `;
+        } else {
+            html = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-muted)">Bu personel için belirtilen tarihlerde kayıt bulunmamaktadır</td></tr>';
+        }
+        tableBody.innerHTML = html;
+        
+        statsContainer.innerHTML = `
+            <div class="stat-card blue"><div class="stat-icon blue">📋</div><div><div class="stat-value">${totalSessions}</div><div class="stat-label">Katıldığı Oturum</div></div></div>
+            <div class="stat-card green"><div class="stat-icon green">📏</div><div><div class="stat-value">${Number(totalKm).toFixed(1)}</div><div class="stat-label">Toplam km</div></div></div>
+            <div class="stat-card orange"><div class="stat-icon orange">🧪</div><div><div class="stat-value">${Number(totalChem).toFixed(1)}</div><div class="stat-label">lt İlaç</div></div></div>
+            <div class="stat-card purple"><div class="stat-icon purple">⏱️</div><div><div class="stat-value">${totalDuration}</div><div class="stat-label">Toplam Süre (dk)</div></div></div>
+        `;
+    }
+}
+
+function exportPersonnelExcel() {
+    const from = document.getElementById('persDateFrom').value;
+    const to = document.getElementById('persDateTo').value;
+    const selectedPersId = document.getElementById('persSelect').value;
+    
+    let filename = `Personel_Ilaclama_Raporu_${from}_${to}`;
+    if (selectedPersId !== 'all') {
+        const selectedOption = document.getElementById('persSelect').querySelector(`option[value="${selectedPersId}"]`);
+        const name = selectedOption ? selectedOption.getAttribute('data-name') : '';
+        if (name) {
+            filename = `${name.replace(/\s+/g, '_')}_Ilaclama_Raporu_${from}_${to}`;
+        }
+    }
+    exportHtmlTableToExcel('persExcelTable', filename);
+}
+
 loadDaily();
 loadMonthly();
 loadCoverage();
+initPersonnelDropdown().then(() => loadPersonnelReport());
 </script>
 <script src="/admin/admin-notifications.js"></script>
 </body>
