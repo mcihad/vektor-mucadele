@@ -901,19 +901,6 @@
             <button class="segment-btn" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
         </div>
 
-        <div class="control-label" style="margin-top: 10px;">Gelecek Simülasyonu</div>
-        <div class="simulation-container">
-            <div class="simulation-title">
-                <span>⏱️ Zaman Kaydırıcı</span>
-                <span id="simulationValue" style="color: #10b981; font-weight: 700;">Bugün (0. Gün)</span>
-            </div>
-            <input type="range" id="simulationSlider" min="0" max="30" value="0" step="1" oninput="runEfficacySimulation(this.value)">
-            <div class="simulation-labels">
-                <span>Bugün</span>
-                <span>15 Gün</span>
-                <span>30 Gün</span>
-            </div>
-        </div>
 
         <div id="layerTogglesContainer" style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px;">
             <div class="control-label">Gösterim Katmanları</div>
