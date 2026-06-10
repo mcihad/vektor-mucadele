@@ -402,6 +402,28 @@ function getStreetCoords(s) {
     return coords;
 }
 
+function getStreetMaxSpan(geom) {
+    let coords = [];
+    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+    if (geometry && geometry.coordinates) {
+        if (geometry.type === 'LineString') {
+            coords = geometry.coordinates;
+        } else if (geometry.type === 'MultiLineString') {
+            geometry.coordinates.forEach(line => {
+                coords = coords.concat(line);
+            });
+        }
+    }
+    if (coords.length < 2) return 0;
+    const first = coords[0];
+    let maxDist = 0;
+    for (let i = 1; i < coords.length; i++) {
+        const dist = haversine(first[1], first[0], coords[i][1], coords[i][0]);
+        if (dist > maxDist) maxDist = dist;
+    }
+    return maxDist;
+}
+
 const socket=io();
 socket.emit('join-admin');
 socket.on('vehicle-update',data=>{
@@ -1091,9 +1113,8 @@ async function loadDashboard(){
                         // 1a. Buffer Layer (17m)
                         if (remaining > 0 && typeof turf !== 'undefined') {
                             try {
-                                const geometry = geom.type === 'Feature' ? geom.geometry : geom;
-                                const lineLength = turf.length(geometry, { units: 'meters' });
-                                if (lineLength >= 15) {
+                                const maxSpan = getStreetMaxSpan(geom);
+                                if (maxSpan >= 15) {
                                     const buffered = turf.buffer(geom, 17, { units: 'meters' });
                                     const bufferStyle = getBufferStyle(remaining);
                                     const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });

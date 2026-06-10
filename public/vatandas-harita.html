@@ -1223,7 +1223,6 @@
                     return false;
                 }
 
-                // Helper to extract coordinates from geometry
                 function getStreetCoords(s) {
                     let coords = [];
                     if (s.geometry_geojson) {
@@ -1244,6 +1243,28 @@
                         }
                     }
                     return coords;
+                }
+
+                function getStreetMaxSpan(geom) {
+                    let coords = [];
+                    const geometry = geom.type === 'Feature' ? geom.geometry : geom;
+                    if (geometry && geometry.coordinates) {
+                        if (geometry.type === 'LineString') {
+                            coords = geometry.coordinates;
+                        } else if (geometry.type === 'MultiLineString') {
+                            geometry.coordinates.forEach(line => {
+                                coords = coords.concat(line);
+                            });
+                        }
+                    }
+                    if (coords.length < 2) return 0;
+                    const first = coords[0];
+                    let maxDist = 0;
+                    for (let i = 1; i < coords.length; i++) {
+                        const dist = getDistanceMeters(first, coords[i]);
+                        if (dist > maxDist) maxDist = dist;
+                    }
+                    return maxDist;
                 }
 
                 // Process each session
@@ -1366,9 +1387,8 @@
                                 // 1a. Buffer Area Layer (17m left & 17m right) - Draw only if street is longer than 15 meters (removes isolated circular blobs)
                                 if (remaining > 0 && typeof turf !== 'undefined') {
                                     try {
-                                        const geometry = geom.type === 'Feature' ? geom.geometry : geom;
-                                        const lineLength = turf.length(geometry, { units: 'meters' });
-                                        if (lineLength >= 15) {
+                                        const maxSpan = getStreetMaxSpan(geom);
+                                        if (maxSpan >= 15) {
                                             const buffered = turf.buffer(geom, 17, { units: 'meters' });
                                             const bufferStyle = getBufferStyle(remaining);
                                             const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
