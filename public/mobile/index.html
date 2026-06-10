@@ -213,7 +213,7 @@
         @keyframes slideDown{from{transform:translateY(-120%)}to{transform:translateY(0)}}
         .route-info-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 10px;margin-bottom:4px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
         #mRole{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;cursor:pointer;outline:none;font-family:inherit}
-        #mRole option{background:#111827;color:#fff}
+        select option{background:#111827;color:#fff}
         .summary-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin:16px;text-align:center}
         .summary-card h2{font-size:18px;margin-bottom:16px;color:var(--success)}
         .summary-card .stat-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:14px}
@@ -254,7 +254,7 @@
             color: #000000 !important;
             font-weight: 800 !important;
         }
-        body.sunlight-mode #mRole option {
+        body.sunlight-mode select option {
             background: #ffffff !important;
             color: #000000 !important;
         }
@@ -545,10 +545,10 @@
             </div>
             
             <div style="font-size: 9px; text-transform: uppercase; color: var(--text-muted); padding: 4px 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-top: 16px; margin-bottom: 8px;">SAHA İŞLEMLERİ</div>
+            <a href="#" onclick="toggleDrawer(false); openMobileFuelModal();" class="drawer-item" id="drawerFuelBtn">⛽ Yakıt Girişi</a>
             <a href="#" onclick="toggleDrawer(false); animateRoutePreview();" class="drawer-item" id="drawerPreviewBtn">▶️ Rota Önizle</a>
             <a href="#" onclick="toggleDrawer(false); navigateToRouteStart();" class="drawer-item" id="drawerNavStartBtn">📍 Başlangıca Navigasyon</a>
             <a href="#" onclick="toggleDrawer(false); openGoogleNavigation();" class="drawer-item" id="drawerNavBtn">🗺️ Google Navigasyon</a>
-            <a href="#" onclick="toggleDrawer(false); openMobileFuelModal();" class="drawer-item" id="drawerFuelBtn">⛽ Yakıt Girişi</a>
         </nav>
     </div>
     <div class="drawer-overlay" ontouchend="toggleDrawer(false)" onclick="toggleDrawer(false)"></div>
@@ -2756,16 +2756,26 @@ function calculateMobileUnitPrice() {
 
 async function openMobileFuelModal() {
     try {
+        console.log("[MobileFuel] Fetching vehicles with token:", TOKEN ? "Present" : "Missing");
         const vRes = await fetch('/api/vehicles', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
-        if (!vRes.ok) throw new Error("Araç listesi alınamadı");
+        if (!vRes.ok) {
+            console.error("[MobileFuel] Fetch vehicles failed:", vRes.status, vRes.statusText);
+            throw new Error(`Araç listesi alınamadı (HTTP ${vRes.status})`);
+        }
         const vehicles = await vRes.json();
+        console.log("[MobileFuel] Loaded vehicles:", vehicles.length, vehicles);
         
         const select = document.getElementById('mfVehicle');
         select.innerHTML = '<option value="">Araç Seçiniz...</option>' + 
             vehicles.map(v => `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`).join('');
         
-        if (vehicleId) {
+        // Safe check for global vehicleId matching
+        if (vehicleId && vehicles.some(v => String(v.id) === String(vehicleId))) {
             select.value = vehicleId;
+            console.log("[MobileFuel] Auto-selected current active vehicleId:", vehicleId);
+        } else {
+            select.value = "";
+            console.log("[MobileFuel] No matching active vehicle found in list, resetting selection");
         }
         
         document.getElementById('mfOdo').value = '';
@@ -2777,6 +2787,7 @@ async function openMobileFuelModal() {
         
         document.getElementById('mobileFuelModal').style.display = 'flex';
     } catch (err) {
+        console.error("[MobileFuel] Error opening fuel modal:", err);
         alert("Form seçenekleri yüklenirken hata: " + err.message);
     }
 }
