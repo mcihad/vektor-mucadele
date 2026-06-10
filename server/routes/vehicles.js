@@ -114,13 +114,23 @@ router.get('/fuel/stats', authMiddleware, async (req, res) => {
 
 // Save a new fuel log
 router.post('/fuel/logs', authMiddleware, async (req, res) => {
-    const { vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description } = req.body;
+    const { vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description, fuel_type } = req.body;
     const db = getDb();
     try {
         await db.run(`
-            INSERT INTO vehicle_fuel_logs (vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description, fill_date)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-        `, [vehicle_id, driver_id ? parseInt(driver_id) : null, parseFloat(odometer), parseFloat(fuel_liters), parseFloat(price_per_liter), parseFloat(total_cost), station_name || null, description || null]);
+            INSERT INTO vehicle_fuel_logs (vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description, fuel_type, fill_date)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `, [
+            vehicle_id, 
+            driver_id ? parseInt(driver_id) : null, 
+            parseFloat(odometer), 
+            parseFloat(fuel_liters), 
+            price_per_liter ? parseFloat(price_per_liter) : null, 
+            parseFloat(total_cost), 
+            station_name || null, 
+            description || null,
+            fuel_type || null
+        ]);
         saveDatabase();
         res.json({ message: 'Yakıt kaydı başarıyla eklendi' });
     } catch (err) {

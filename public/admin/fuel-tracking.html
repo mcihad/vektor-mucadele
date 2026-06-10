@@ -62,8 +62,8 @@
             <div class="stat-card orange">
                 <div class="stat-icon orange">📊</div>
                 <div>
-                    <div class="stat-value" id="avgFuelPrice">0.00 TL</div>
-                    <div class="stat-label">Ortalama Birim Fiyat (lt)</div>
+                    <div class="stat-value" id="totalFuelRecords">0</div>
+                    <div class="stat-label">Toplam Kayıt Sayısı</div>
                 </div>
             </div>
         </div>
@@ -80,7 +80,7 @@
                             <th>Tarih</th>
                             <th style="text-align: right;">Kilometre (Odo)</th>
                             <th style="text-align: right;">Miktar (lt)</th>
-                            <th style="text-align: right;">Birim Fiyat</th>
+                            <th style="text-align: left;">Yakıt Tipi</th>
                             <th style="text-align: right;">Toplam Tutar</th>
                             <th>Personel</th>
                             <th>İstasyon</th>
@@ -132,15 +132,20 @@
             <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom: 12px;">
                 <div>
                     <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Litre (lt) *</label>
-                    <input type="number" id="fLiters" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateTotalCost()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                    <input type="number" id="fLiters" step="0.01" required min="0.1" placeholder="0.00" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Birim Fiyat *</label>
-                    <input type="number" id="fPricePerLiter" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateTotalCost()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Yakıt Tipi *</label>
+                    <select id="fFuelType" required style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); outline:none;">
+                        <option value="Dizel (Motorin)">Dizel (Motorin)</option>
+                        <option value="Benzin">Benzin</option>
+                        <option value="LPG">LPG</option>
+                        <option value="AdBlue">AdBlue</option>
+                    </select>
                 </div>
                 <div>
                     <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Toplam Tutar (TL) *</label>
-                    <input type="number" id="fTotalCost" step="0.01" required min="0.1" placeholder="0.00" oninput="calculateUnitPrice()" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); font-weight:700;">
+                    <input type="number" id="fTotalCost" step="0.01" required min="0.1" placeholder="0.00" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); font-weight:700;">
                 </div>
             </div>
             <div style="margin-bottom: 16px;">
@@ -194,21 +199,7 @@ function toast(msg, type='info') {
     setTimeout(() => t.remove(), 4000);
 }
 
-function calculateTotalCost() {
-    const liters = parseFloat(document.getElementById('fLiters').value) || 0;
-    const price = parseFloat(document.getElementById('fPricePerLiter').value) || 0;
-    if (liters > 0 && price > 0) {
-        document.getElementById('fTotalCost').value = (liters * price).toFixed(2);
-    }
-}
-
-function calculateUnitPrice() {
-    const liters = parseFloat(document.getElementById('fLiters').value) || 0;
-    const total = parseFloat(document.getElementById('fTotalCost').value) || 0;
-    if (liters > 0 && total > 0) {
-        document.getElementById('fPricePerLiter').value = (total / liters).toFixed(2);
-    }
-}
+// Calculations not used anymore
 
 async function load() {
     try {
@@ -220,13 +211,12 @@ async function load() {
 
         document.getElementById('totalFuelLiters').textContent = Number(stats.total_liters).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' lt';
         document.getElementById('totalFuelCost').textContent = Number(stats.total_cost).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
-        document.getElementById('avgFuelPrice').textContent = Number(stats.avg_price).toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' TL';
+        document.getElementById('totalFuelRecords').textContent = Number(stats.total_records || 0);
 
         document.getElementById('fuelLogsTable').innerHTML = logs.map(l => {
             const dateStr = new Date(l.fill_date).toLocaleString('tr-TR');
             const total = Number(l.total_cost).toFixed(2);
             const liters = Number(l.fuel_liters).toFixed(2);
-            const price = Number(l.price_per_liter).toFixed(2);
             
             return `<tr>
                 <td><strong>${l.vehicle_plate}</strong></td>
@@ -234,7 +224,7 @@ async function load() {
                 <td style="font-size:11px;">${dateStr}</td>
                 <td style="text-align: right;">${Number(l.odometer).toLocaleString('tr-TR')} km</td>
                 <td style="text-align: right; font-weight: 600;">${liters} lt</td>
-                <td style="text-align: right;">${price} TL</td>
+                <td style="text-align: left;">${l.fuel_type || '-'}</td>
                 <td style="text-align: right; font-weight: 700; color: var(--success);">${total} TL</td>
                 <td>${l.driver_name || '-'}</td>
                 <td>${l.station_name || '-'}</td>
@@ -282,7 +272,7 @@ async function saveFuelRecord(e) {
     const driver_id = document.getElementById('fDriver').value ? parseInt(document.getElementById('fDriver').value) : null;
     const odometer = parseFloat(document.getElementById('fOdo').value);
     const fuel_liters = parseFloat(document.getElementById('fLiters').value);
-    const price_per_liter = parseFloat(document.getElementById('fPricePerLiter').value);
+    const fuel_type = document.getElementById('fFuelType').value;
     const total_cost = parseFloat(document.getElementById('fTotalCost').value);
     const station_name = document.getElementById('fStation').value;
     const description = document.getElementById('fDesc').value;
@@ -290,7 +280,7 @@ async function saveFuelRecord(e) {
     try {
         await api('/api/vehicles/fuel/logs', {
             method: 'POST',
-            body: JSON.stringify({ vehicle_id, driver_id, odometer, fuel_liters, price_per_liter, total_cost, station_name, description })
+            body: JSON.stringify({ vehicle_id, driver_id, odometer, fuel_liters, price_per_liter: null, total_cost, station_name, description, fuel_type })
         });
         toast('Yakıt alım kaydı başarıyla eklendi', 'success');
         closeAddFuelModal();

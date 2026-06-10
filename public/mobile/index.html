@@ -2780,7 +2780,7 @@ async function openMobileFuelModal() {
         
         document.getElementById('mfOdo').value = '';
         document.getElementById('mfLiters').value = '';
-        document.getElementById('mfPricePerLiter').value = '';
+        document.getElementById('mfFuelType').value = 'Dizel (Motorin)';
         document.getElementById('mfTotalCost').value = '';
         document.getElementById('mfStation').value = '';
         document.getElementById('mfDesc').value = '';
@@ -2800,7 +2800,7 @@ async function submitMobileFuelRecord() {
     const vehicle_id = document.getElementById('mfVehicle').value;
     const odometer = document.getElementById('mfOdo').value.trim();
     const fuel_liters = document.getElementById('mfLiters').value.trim();
-    const price_per_liter = document.getElementById('mfPricePerLiter').value.trim();
+    const fuel_type = document.getElementById('mfFuelType').value;
     const total_cost = document.getElementById('mfTotalCost').value.trim();
     const station_name = document.getElementById('mfStation').value.trim();
     const description = document.getElementById('mfDesc').value.trim();
@@ -2815,10 +2815,6 @@ async function submitMobileFuelRecord() {
     }
     if (!fuel_liters || parseFloat(fuel_liters) <= 0) {
         alert("Lütfen geçerli bir litre miktarı giriniz!");
-        return;
-    }
-    if (!price_per_liter || parseFloat(price_per_liter) <= 0) {
-        alert("Lütfen geçerli bir birim fiyat giriniz!");
         return;
     }
     if (!total_cost || parseFloat(total_cost) <= 0) {
@@ -2837,10 +2833,11 @@ async function submitMobileFuelRecord() {
             driver_id,
             odometer: parseFloat(odometer),
             fuel_liters: parseFloat(fuel_liters),
-            price_per_liter: parseFloat(price_per_liter),
+            price_per_liter: null,
             total_cost: parseFloat(total_cost),
             station_name: station_name || null,
-            description: description || null
+            description: description || null,
+            fuel_type
         };
         
         const res = await fetch('/api/vehicles/fuel/logs', {
@@ -3313,17 +3310,22 @@ setupPushNotifications();
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
             <div>
                 <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Miktar (Litre) *</label>
-                <input type="number" id="mfLiters" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="0.00" oninput="calculateMobileTotalCost()" required>
+                <input type="number" id="mfLiters" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="0.00" required>
             </div>
             <div>
-                <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Litre Fiyatı (TL) *</label>
-                <input type="number" id="mfPricePerLiter" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box;" placeholder="0.00" oninput="calculateMobileTotalCost()" required>
+                <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Yakıt Tipi *</label>
+                <select id="mfFuelType" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box; outline:none;" required>
+                    <option value="Dizel (Motorin)">Dizel (Motorin)</option>
+                    <option value="Benzin">Benzin</option>
+                    <option value="LPG">LPG</option>
+                    <option value="AdBlue">AdBlue</option>
+                </select>
             </div>
         </div>
 
         <div>
             <label style="display:block; font-size:11px; color:#94a3b8; margin-bottom:4px; font-weight:600;">Toplam Tutar (TL) *</label>
-            <input type="number" id="mfTotalCost" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box; font-weight:700;" placeholder="0.00" oninput="calculateMobileUnitPrice()" required>
+            <input type="number" id="mfTotalCost" step="0.01" style="width:100%; height:40px; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:8px; color:#fff; padding:0 12px; font-size:14px; box-sizing:border-box; font-weight:700;" placeholder="0.00" required>
         </div>
 
         <div>

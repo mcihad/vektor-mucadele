@@ -501,12 +501,21 @@ async function createPgTables() {
             fill_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             odometer DOUBLE PRECISION NOT NULL,
             fuel_liters DOUBLE PRECISION NOT NULL,
-            price_per_liter DOUBLE PRECISION NOT NULL,
+            price_per_liter DOUBLE PRECISION,
             total_cost DOUBLE PRECISION NOT NULL,
             station_name VARCHAR(255),
-            description TEXT
+            description TEXT,
+            fuel_type VARCHAR(100)
         )
     `);
+
+    // Ensure vehicle_fuel_logs has fuel_type column and price_per_liter is optional
+    try {
+        await dbConnection.query(`ALTER TABLE vehicle_fuel_logs ADD COLUMN IF NOT EXISTS fuel_type VARCHAR(100)`);
+        await dbConnection.query(`ALTER TABLE vehicle_fuel_logs ALTER COLUMN price_per_liter DROP NOT NULL`);
+    } catch(e) {
+        console.log('Error migrating vehicle_fuel_logs columns:', e.message);
+    }
 }
 
 async function seedPgData() {
