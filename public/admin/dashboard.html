@@ -502,14 +502,19 @@ function updateVehicleOnMap(data){
     }
 }
 
-async function loadActiveVehiclePaths() {
+let dashboardLoadSeq = 0;
+
+async function loadActiveVehiclePaths(seq) {
     try {
         const activeSessions = await api('/api/sessions?status=active,beklemede');
+        if (seq !== dashboardLoadSeq) return;
         window._activeSessionsByVehicle = {};
         if (activeSessions) {
             for (const s of activeSessions) {
                 window._activeSessionsByVehicle[s.vehicle_id] = s;
                 const vehicleId = s.vehicle_id;
+                
+                if (seq !== dashboardLoadSeq) return;
                 if (!vehiclePathsData[vehicleId]) {
                     vehiclePathsData[vehicleId] = {
                         points: [],
@@ -523,6 +528,7 @@ async function loadActiveVehiclePaths() {
                     try {
                         const coords = typeof s.route_coords === 'string' ? JSON.parse(s.route_coords) : s.route_coords;
                         if (coords && coords.length > 0) {
+                            if (seq !== dashboardLoadSeq) return;
                             vehiclePathsData[vehicleId].plannedGroup.clearLayers();
                             L.polyline(coords, {
                                 color: '#ef4444',
@@ -540,7 +546,17 @@ async function loadActiveVehiclePaths() {
                 }
 
                 const points = await api(`/api/sessions/${s.id}/route`);
+                if (seq !== dashboardLoadSeq) return;
+                
                 if (points && points.length > 0) {
+                    // Safe guard check
+                    if (!vehiclePathsData[vehicleId]) {
+                        vehiclePathsData[vehicleId] = {
+                            points: [],
+                            group: L.layerGroup().addTo(activeVehiclePathsGroup),
+                            plannedGroup: L.layerGroup().addTo(activeVehiclePathsGroup)
+                        };
+                    }
                     vehiclePathsData[vehicleId].points = points.map(p => ({
                         lat: p.latitude,
                         lng: p.longitude,
@@ -661,13 +677,16 @@ function updateVehicleOnlineUI() {
 }
 
 async function loadDashboard(){
+    const seq = ++dashboardLoadSeq;
     activeVehiclePathsGroup.clearLayers();
     for (const key in vehiclePathsData) {
         delete vehiclePathsData[key];
     }
-    await loadActiveVehiclePaths();
+    await loadActiveVehiclePaths(seq);
+    if (seq !== dashboardLoadSeq) return;
 
     const stats=await api('/api/reports/dashboard');
+    if (seq !== dashboardLoadSeq) return;
     if(stats){
         document.getElementById('statActive').textContent=stats.active_sessions;
         document.getElementById('statToday').textContent=stats.today_sessions;
@@ -680,6 +699,7 @@ async function loadDashboard(){
     }
     // Vehicles
     const vehicles=await api('/api/vehicles');
+    if (seq !== dashboardLoadSeq) return;
     const vList=document.getElementById('vehicleList');
     if(vehicles){
         // Araç online durumlarını kaydet
@@ -721,10 +741,12 @@ async function loadDashboard(){
             </div>`;
         }).join('');
         const locs=await api('/api/reports/vehicle-locations');
+        if (seq !== dashboardLoadSeq) return;
         if(locs) locs.forEach(v=>updateVehicleOnMap({vehicle_id:v.id,plate:v.plate,latitude:v.last_lat,longitude:v.last_lng}));
     }
     // Schedule
     const schedule=await api('/api/reports/schedule');
+    if (seq !== dashboardLoadSeq) return;
     const schList=document.getElementById('scheduleList');
     if(schedule){
         schList.innerHTML=schedule.slice(0,8).map(s=>{
@@ -741,6 +763,7 @@ async function loadDashboard(){
     }
     // ─── 30 Günlük Etki Haritası ───
     const expiryData=await api('/api/reports/expiry-map');
+    if (seq !== dashboardLoadSeq) return;
     sprayedLayers.clearLayers();
     if(expiryData){
         // Uyarıları göster

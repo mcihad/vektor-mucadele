@@ -226,6 +226,274 @@
             70% { transform: scale(1.6); opacity: 0; }
             100% { transform: scale(0.95); opacity: 0; }
         }
+
+        /* --- GÜNEŞ MODU / YÜKSEK KONTRAST (SUNLIGHT HIGH CONTRAST) --- */
+        body.sunlight-mode {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode .mobile-app {
+            background: #ffffff !important;
+        }
+        body.sunlight-mode .mobile-header {
+            background: #f1f5f9 !important;
+            border-bottom: 2px solid #94a3b8 !important;
+        }
+        body.sunlight-mode .mobile-header h1 {
+            background: none !important;
+            -webkit-text-fill-color: #000000 !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode #hamburgerBtn {
+            color: #000000 !important;
+        }
+        body.sunlight-mode #mRole {
+            background: #ffffff !important;
+            border: 2px solid #475569 !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode #mRole option {
+            background: #ffffff !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode #mUserName {
+            color: #000000 !important;
+            font-weight: 700 !important;
+            opacity: 1 !important;
+        }
+        body.sunlight-mode .mobile-panel {
+            background: #ffffff !important;
+            border-top: 3px solid #000000 !important;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.15) !important;
+            backdrop-filter: none !important;
+        }
+        body.sunlight-mode .mobile-stat {
+            background: #cbd5e1 !important;
+            border: 2px solid #475569 !important;
+        }
+        body.sunlight-mode .mobile-stat .val {
+            color: #000000 !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode .mobile-stat .lbl {
+            color: #1e293b !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode .route-info-card {
+            background: #f8fafc !important;
+            border: 2px solid #000000 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05) !important;
+        }
+        body.sunlight-mode .route-info-card div,
+        body.sunlight-mode .route-info-card span {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        body.sunlight-mode #riSpecs {
+            color: #1d4ed8 !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode #tiStatus {
+            color: #b45309 !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode .no-route-card {
+            background: #f1f5f9 !important;
+            border: 2px dashed #475569 !important;
+            color: #0f172a !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode .session-controls-sticky {
+            background: #ffffff !important;
+        }
+        body.sunlight-mode .gps-status {
+            color: #000000 !important;
+            font-weight: 800 !important;
+            opacity: 1 !important;
+            text-decoration: underline;
+        }
+        body.sunlight-mode .spray-btn {
+            border: 2px solid #000000 !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            font-size: 13px !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.6) !important;
+        }
+        body.sunlight-mode .spray-btn.start {
+            background: #15803d !important;
+        }
+        body.sunlight-mode .spray-btn.pause {
+            background: #ea580c !important;
+        }
+        body.sunlight-mode .spray-btn.resume {
+            background: #166534 !important;
+        }
+        body.sunlight-mode .spray-btn.finish {
+            background: #b91c1c !important;
+        }
+        body.sunlight-mode #btnSessionIssue {
+            background: #eab308 !important;
+            color: #000000 !important;
+            text-shadow: none !important;
+        }
+        /* Modals in Sunlight Mode */
+        body.sunlight-mode #issueModal, 
+        body.sunlight-mode #chemicalEndModal, 
+        body.sunlight-mode #chemicalIntakeModal, 
+        body.sunlight-mode #pauseReasonModal {
+            background: rgba(0, 0, 0, 0.6) !important;
+        }
+        body.sunlight-mode #issueModal > div, 
+        body.sunlight-mode #chemicalEndModal > div, 
+        body.sunlight-mode #chemicalIntakeModal > div, 
+        body.sunlight-mode #pauseReasonModal > div {
+            background: #ffffff !important;
+            border: 3px solid #000000 !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode #issueModal h3,
+        body.sunlight-mode #chemicalEndModal span,
+        body.sunlight-mode #chemicalIntakeModal span,
+        body.sunlight-mode #pauseReasonModal span {
+            color: #000000 !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode #issueModal p,
+        body.sunlight-mode #chemicalEndModal p,
+        body.sunlight-mode #chemicalIntakeModal p,
+        body.sunlight-mode #pauseReasonModal p {
+            color: #334155 !important;
+            font-weight: 700 !important;
+        }
+        body.sunlight-mode #issueModal label,
+        body.sunlight-mode #chemicalEndModal label,
+        body.sunlight-mode #chemicalIntakeModal label,
+        body.sunlight-mode #pauseReasonModal label {
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode .form-input,
+        body.sunlight-mode .form-select,
+        body.sunlight-mode .form-textarea,
+        body.sunlight-mode #issueText,
+        body.sunlight-mode #issueRemainingChem,
+        body.sunlight-mode #pauseCustomReasonText {
+            background: #ffffff !important;
+            border: 2px solid #000000 !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        body.sunlight-mode #issueModal button,
+        body.sunlight-mode #chemicalEndModal button,
+        body.sunlight-mode #chemicalIntakeModal button,
+        body.sunlight-mode #pauseReasonModal button {
+            border: 2px solid #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode #btnLocateMe {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+        }
+        body.sunlight-mode .alert-banner.route-off {
+            background: #dc2626 !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            border: 3px solid #000000 !important;
+        }
+        body.sunlight-mode .alert-banner.already-sprayed {
+            background: #ea580c !important;
+            color: #ffffff !important;
+            font-weight: 900 !important;
+            border: 3px solid #000000 !important;
+        }
+        body.sunlight-mode #crTaskList div {
+            background: #f8fafc !important;
+            border: 2px solid #000000 !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode #crTaskList div span,
+        body.sunlight-mode #crTaskList div div {
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
+        body.sunlight-mode #crTaskList button {
+            border: 1px solid #000000 !important;
+            font-weight: 800 !important;
+        }
+        /* Mobile Drawer Sunlight Mode */
+        body.sunlight-mode .mobile-drawer .drawer-content {
+            background: #ffffff !important;
+            border-right: 3px solid #000000 !important;
+            backdrop-filter: none !important;
+        }
+        body.sunlight-mode .mobile-drawer .logo {
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode .mobile-drawer .sub {
+            color: #334155 !important;
+            font-weight: 700 !important;
+        }
+        body.sunlight-mode .mobile-drawer .drawer-close {
+            background: #e2e8f0 !important;
+            border: 2px solid #000000 !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+        }
+        body.sunlight-mode .mobile-drawer .drawer-item {
+            color: #000000 !important;
+            font-weight: 700 !important;
+            border: 1px solid transparent !important;
+        }
+        body.sunlight-mode .mobile-drawer .drawer-item:active,
+        body.sunlight-mode .mobile-drawer .drawer-item:hover {
+            background: #e2e8f0 !important;
+            border-color: #000000 !important;
+        }
+        body.sunlight-mode #drawerAdminTitle {
+            color: #334155 !important;
+            font-weight: 800 !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+        }
+        body.sunlight-mode .drawer-close-tab {
+            background: #ffffff !important;
+            border: 2px solid #000000 !important;
+            border-left: none !important;
+            color: #ef4444 !important;
+        }
+        body.sunlight-mode .leaflet-bar a {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #cbd5e1 !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode .leaflet-control-layers {
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+            font-weight: bold !important;
+        }
+        body.sunlight-mode #summaryScreen {
+            background: #ffffff !important;
+        }
+        body.sunlight-mode .summary-card {
+            background: #f8fafc !important;
+            border: 3px solid #000000 !important;
+            color: #000000 !important;
+        }
+        body.sunlight-mode .summary-card h2 {
+            color: #15803d !important;
+            font-weight: 900 !important;
+        }
+        body.sunlight-mode .summary-card .stat-row {
+            border-bottom: 2px solid #cbd5e1 !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+        }
     </style>
 </head>
 <body>
@@ -281,6 +549,7 @@
             <h1>🦟 VMS Saha</h1>
         </div>
         <div style="display:flex;align-items:center;gap:6px">
+            <button id="sunlightToggleBtn" onclick="toggleSunlightMode()" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:6px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;-webkit-tap-highlight-color:transparent;outline:none;" title="Güneş/Kontrast Modu">☀️</button>
             <span id="mPlate" class="badge badge-info" style="font-size:10px;padding:3px 6px"></span>
             <select id="mRole">
                 <option value="driver">🚗 Şoför</option>
@@ -383,7 +652,7 @@ let vehiclePlate=localStorage.getItem('vms_vehicle_plate');
 let map,socket,watchId;
 let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null,pauseTime=null,timerTimeout=null;
 let routeCoords=[],routeLine=null,positionMarker=null;
-let assignedRoute=null,assignedRouteLayer=null,assignedRouteArrowsGroup=null,sprayedStreetsLayer=null,assignedSession=null;
+let assignedRoute=null,assignedRouteLayer=null,assignedRouteArrowsGroup=null,sprayedStreetsLayer=null,assignedSession=null,activeNeighborhoodLayer=null,activeWorkAreaLayer=null;
 let routeSegmentsGroup=null,sessionPathPoints=[];
 let routeOffTimeout=null,sprayedAlertTimeout=null;
 let reportMarkersLayer=null,allActiveReports=[],selectedReport=null;
@@ -820,6 +1089,14 @@ async function loadSprayedStreets(){
 }
 
 async function loadAssignedRoute(){
+    if (activeNeighborhoodLayer) {
+        try { map.removeLayer(activeNeighborhoodLayer); } catch(err){}
+        activeNeighborhoodLayer = null;
+    }
+    if (activeWorkAreaLayer) {
+        try { map.removeLayer(activeWorkAreaLayer); } catch(err){}
+        activeWorkAreaLayer = null;
+    }
     let hasRoute = false;
     // 1. Planlanmış Rota sorgula
     try{
@@ -986,6 +1263,61 @@ async function loadAssignedRoute(){
         console.error('Görev sorgulama hatası:', e);
         if(!hasRoute){
             document.getElementById('noRouteCard').style.display='block';
+        }
+    }
+
+    // 3. Draw neighborhood boundary if specified
+    const neighborhoodName = (assignedRoute && assignedRoute.neighborhood) || (assignedSession && assignedSession.neighborhood);
+    if(neighborhoodName) {
+        try {
+            const nhRes = await fetch('/api/routes/neighborhoods', {headers:{'Authorization':'Bearer '+TOKEN}});
+            const neighborhoods = await nhRes.json();
+            const targetNh = (neighborhoods || []).find(n => n.name && n.name.toLowerCase() === neighborhoodName.toLowerCase());
+            if (targetNh && targetNh.boundary_geojson) {
+                const geom = JSON.parse(targetNh.boundary_geojson);
+                if (activeNeighborhoodLayer) {
+                    map.removeLayer(activeNeighborhoodLayer);
+                }
+                activeNeighborhoodLayer = L.geoJSON(geom, {
+                    style: {
+                        color: '#3b82f6',
+                        weight: 3,
+                        fillColor: '#3b82f6',
+                        fillOpacity: 0.08,
+                        dashArray: '4 4'
+                    }
+                }).addTo(map);
+                
+                // If there's no planned route line AND no custom work area, zoom map to the neighborhood boundary
+                if (!hasRoute && !(assignedSession && assignedSession.work_area_geojson)) {
+                    map.fitBounds(activeNeighborhoodLayer.getBounds(), {padding: [50, 50]});
+                }
+            }
+        } catch (err) {
+            console.error("Mahalle sınırı yükleme hatası:", err);
+        }
+    }
+
+    // 4. Draw custom session work area if specified
+    if (assignedSession && assignedSession.work_area_geojson) {
+        try {
+            const geom = JSON.parse(assignedSession.work_area_geojson);
+            activeWorkAreaLayer = L.geoJSON(geom, {
+                style: {
+                    color: '#f97316',
+                    weight: 4,
+                    fillColor: '#f97316',
+                    fillOpacity: 0.15,
+                    dashArray: '5 5'
+                }
+            }).addTo(map);
+            
+            // If there's no planned route line, zoom map to the custom work area
+            if (!hasRoute) {
+                map.fitBounds(activeWorkAreaLayer.getBounds(), {padding: [50, 50]});
+            }
+        } catch(err) {
+            console.error("Özel çalışma alanı çizilemedi:", err);
         }
     }
 }
@@ -1413,8 +1745,8 @@ function checkAlreadySprayed(lat,lng){
                                                     if (diff > 180) {
                                                         diff = 360 - diff;
                                                     }
-                                                    // If diff >= 120, opposite direction on a two-way street -> not duplicate
-                                                    if (diff >= 120) {
+                                                    // If diff >= 120, opposite direction on a two-way street -> not duplicate, unless distance <= 10m (10m left/right buffer covers it)
+                                                    if (diff >= 120 && dist > 10) {
                                                         match = false; 
                                                     }
                                                 }
@@ -1457,7 +1789,8 @@ function checkAlreadySprayed(lat,lng){
                         if (diff > 180) {
                             diff = 360 - diff;
                         }
-                        if (diff >= 120) {
+                        // Opposite direction -> not duplicate, unless distance <= 10m
+                        if (diff >= 120 && dist > 10) {
                             match = false;
                         }
                     }
@@ -2758,6 +3091,43 @@ window.addEventListener('online', syncOfflineTracks);
 
 // Her 30 saniyede bir kuyrukta veri varsa ve internet aktifse eşitlemeyi dene
 setInterval(syncOfflineTracks, 30000);
+
+// --- Sunlight Mode Logic ---
+function toggleSunlightMode() {
+    const isSunlight = document.body.classList.toggle('sunlight-mode');
+    localStorage.setItem('vms_sunlight_mode', isSunlight ? '1' : '0');
+    updateSunlightButton(isSunlight);
+}
+
+function updateSunlightButton(isSunlight) {
+    const btn = document.getElementById('sunlightToggleBtn');
+    if (btn) {
+        btn.textContent = isSunlight ? '🌙' : '☀️';
+        if (isSunlight) {
+            btn.style.background = '#1e293b';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = '#0f172a';
+        } else {
+            btn.style.background = 'rgba(255,255,255,0.1)';
+            btn.style.color = '#ffffff';
+            btn.style.borderColor = 'rgba(255,255,255,0.2)';
+        }
+    }
+}
+
+// Initialize Sunlight Mode from storage
+(function initSunlightMode() {
+    const saved = localStorage.getItem('vms_sunlight_mode');
+    if (saved === '1') {
+        document.body.classList.add('sunlight-mode');
+        const btn = document.getElementById('sunlightToggleBtn');
+        if (btn) {
+            updateSunlightButton(true);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => updateSunlightButton(true));
+        }
+    }
+})();
 
 setupPushNotifications();
 </script>

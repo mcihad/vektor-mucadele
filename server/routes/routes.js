@@ -448,7 +448,7 @@ router.get('/assigned/:userId', authMiddleware, async (req, res) => {
             WHERE pr.assigned_user_id = ? 
               AND (
                 pr.status = 'active'
-                OR (pr.status = 'assigned' AND pr.planned_date >= ?)
+                OR (pr.status = 'assigned' AND (pr.planned_date IS NULL OR pr.planned_date <= ?))
               )
             ORDER BY pr.planned_date DESC
             LIMIT 1

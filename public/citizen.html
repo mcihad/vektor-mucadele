@@ -7,10 +7,113 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
-        .citizen-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:12px; background:#0f172a; }
-        .citizen-card { width:100%; max-width:500px; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 24px; box-shadow:var(--shadow-lg); }
-        .citizen-card h1 { font-size:18px; text-align:center; margin-bottom:2px; color:#fff; }
-        .citizen-card .sub { text-align:center; font-size:12px; color:var(--text-muted); margin-bottom:12px; }
+        body {
+            background-image: linear-gradient(rgba(10, 14, 26, 0.65), rgba(10, 14, 26, 0.65)), url('/icons/sivas_bg.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+        body::before {
+            display: none !important;
+        }
+        .citizen-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            background: transparent !important;
+            backdrop-filter: blur(3px);
+            -webkit-backdrop-filter: blur(3px);
+        }
+        .citizen-card {
+            width: 100%;
+            max-width: 500px;
+            background: rgba(26, 34, 54, 0.85) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: var(--radius-lg);
+            padding: 20px 24px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+        
+        /* Elegant Signature Container without Dark Background Box */
+        .signature-container {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 100;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            padding: 0 !important;
+            max-width: 320px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: default;
+        }
+        .signature-container:hover {
+            transform: translateY(-3px);
+        }
+        .signature-logo {
+            height: 52px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 10px rgba(0,0,0,0.85)) drop-shadow(0 2px 4px rgba(0,0,0,0.6));
+            margin-bottom: 2px;
+            transition: transform 0.3s ease;
+        }
+        .signature-container:hover .signature-logo {
+            transform: scale(1.05);
+        }
+        .signature-title {
+            font-size: 10px;
+            color: #3b82f6; /* Modern aesthetic blue accent */
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.7);
+        }
+        .signature-dept {
+            font-size: 11px;
+            color: #ffffff;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 10px rgba(0,0,0,0.7);
+        }
+        .signature-by {
+            font-size: 9.5px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 500;
+            font-style: italic;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.95), 0 0 8px rgba(0,0,0,0.6);
+        }
+        @media (max-width: 768px) {
+            .signature-container {
+                position: relative;
+                bottom: auto;
+                right: auto;
+                margin: 20px auto;
+                max-width: 90%;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                backdrop-filter: none !important;
+                -webkit-backdrop-filter: none !important;
+            }
+        }
         .success-msg { text-align:center; padding:30px 10px; }
         .success-msg .icon { font-size:48px; margin-bottom:12px; }
         .success-msg h2 { color:var(--success); margin-bottom:6px; }
@@ -26,49 +129,91 @@
         .btn-lg { padding: 10px 18px !important; font-size: 14.5px !important; border-radius: 8px !important; }
         
         @media (max-width: 576px) {
-            .citizen-card { padding: 16px 18px; }
-            .map-container { height: 140px; }
+            .citizen-card {
+                padding: 12px 14px !important;
+                margin: 5px auto !important;
+                max-width: 95% !important;
+            }
+            .card-logo {
+                width: 70px !important;
+                height: 70px !important;
+                padding: 4px !important;
+                border-width: 1.5px !important;
+            }
+            .logo-wrapper {
+                margin-bottom: 8px !important;
+            }
+            .citizen-card h1 {
+                font-size: 17px !important;
+            }
+            .citizen-card h2 {
+                font-size: 11.5px !important;
+                margin-bottom: 2px !important;
+            }
+            .citizen-card .subtitle {
+                font-size: 10px !important;
+                margin-bottom: 10px !important;
+            }
+            .map-container {
+                height: 120px !important;
+            }
+            .form-group {
+                margin-bottom: 6px !important;
+            }
+            .form-label {
+                font-size: 10.5px !important;
+                margin-bottom: 2px !important;
+            }
+            .form-input, .form-select, .form-textarea {
+                padding: 6px 10px !important;
+                font-size: 12px !important;
+                border-radius: 6px !important;
+            }
+            .btn-lg {
+                padding: 8px 14px !important;
+                font-size: 13px !important;
+                border-radius: 6px !important;
+            }
+            .gps-alert {
+                font-size: 9.5px !important;
+                padding: 6px 10px !important;
+                margin-top: 8px !important;
+            }
         }
     </style>
 </head>
 <body>
 <div class="citizen-page">
-    <div class="citizen-card" id="formCard">
-        <div style="text-align:center;font-size:28px;margin-bottom:4px;">🦟</div>
-        <h1>Haşere İhbar Formu</h1>
-        <p class="sub">Sivas Belediyesi Veteriner İşleri Müdürlüğü</p>
+    <div class="citizen-card" id="formCard" style="box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08);">
+        <!-- Sivas Belediyesi Circular Logo -->
+        <div style="text-align:center;margin-bottom:20px;" class="logo-wrapper">
+            <img src="/icons/sivas_logo.jpg" alt="Sivas Belediyesi" class="card-logo" style="width:110px;height:110px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:2.5px solid #1e3a8a;object-fit:contain;">
+        </div>
+        <h1 style="font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.2; margin-bottom:2px; text-align:center; color:#fff;">SİVAS BELEDİYESİ</h1>
+        <h2 style="font-size:13.5px; font-weight:700; color:var(--accent); margin-bottom:6px; letter-spacing:0.2px; text-align:center;">Veteriner İşleri Müdürlüğü</h2>
+        <p class="subtitle" style="font-size:11.5px; color:var(--text-muted); margin-bottom:20px; font-weight:500; text-align:center;">Vektörle Mücadele Yönetim Sistemi - Haşere İhbar Formu</p>
 
         <form id="reportForm">
             <div class="grid-2">
                 <div class="form-group">
-                    <label class="form-label">Adınız Soyadınız</label>
-                    <input type="text" class="form-input" id="rName" placeholder="Adınız Soyadınız">
+                    <label class="form-label">Adınız Soyadınız *</label>
+                    <input type="text" class="form-input" id="rName" placeholder="Adınız Soyadınız" required pattern="[a-zA-ZçÇğĞıİöÖşŞüÜ\s]+" title="Lütfen sadece harf ve boşluk giriniz">
                 </div>
                 <div class="form-group">
                     <label class="form-label">Telefon Numaranız *</label>
-                    <input type="tel" class="form-input" id="rPhone" placeholder="05XX XXX XX XX" required>
+                    <input type="tel" class="form-input" id="rPhone" placeholder="05XXXXXXXXX" required pattern="\d{11}" minlength="11" maxlength="11" title="Lütfen 11 haneli telefon numaranızı giriniz (Örn: 05XXXXXXXXX)">
                 </div>
             </div>
             
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">İhbar Türü</label>
-                    <select class="form-select" id="rType">
-                        <option value="sivrisinek">🦟 Sivrisinek</option>
-                        <option value="karasinek">🪰 Karasinek</option>
-                        <option value="kemirgen">🐀 Kemirgen</option>
-                        <option value="haşere">🐛 Diğer Haşere</option>
-                        <option value="larva">💧 Su Birikintisi/Larva</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Öncelik</label>
-                    <select class="form-select" id="rPriority">
-                        <option value="normal">Normal</option>
-                        <option value="yüksek">Yüksek</option>
-                        <option value="acil">Acil</option>
-                    </select>
-                </div>
+            <div class="form-group">
+                <label class="form-label">İhbar Türü</label>
+                <select class="form-select" id="rType">
+                    <option value="sivrisinek">🦟 Sivrisinek</option>
+                    <option value="karasinek">🪰 Karasinek</option>
+                    <option value="kemirgen">🐀 Kemirgen</option>
+                    <option value="haşere">🐛 Diğer Haşere</option>
+                    <option value="larva">💧 Su Birikintisi/Larva</option>
+                </select>
             </div>
 
             <div class="form-group">
@@ -88,15 +233,20 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Adres / Açıklama *</label>
-                <textarea class="form-textarea" id="rDesc" rows="3" placeholder="Lütfen sorunu ve adresi detaylı yazınız..." required></textarea>
+                <label class="form-label">Adres *</label>
+                <textarea class="form-textarea" id="rAddress" rows="2" placeholder="Lütfen açık adresinizi yazın veya haritadan konum seçerek otomatik doldurulmasını sağlayın..." required></textarea>
             </div>
 
-            <div class="gps-alert" id="gpsAlert">
-                ⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**
+            <div class="form-group">
+                <label class="form-label">Açıklama / Şikayet Detayı *</label>
+                <textarea class="form-textarea" id="rDesc" rows="2" placeholder="Lütfen şikayet detaylarını açıklayınız (örn: su birikintisinde sineklenme var)..." required></textarea>
             </div>
 
             <button type="submit" class="btn btn-primary btn-lg" id="submitBtn" style="width:100%;justify-content:center;" disabled>📨 İhbar Gönder</button>
+
+            <div class="gps-alert" id="gpsAlert" style="margin-top: 12px; margin-bottom: 0;">
+                ⚠️ İhbar yapabilmek için lütfen tarayıcınızın GPS konumunu açın veya **harita üzerinde ihbar noktasını tıklayarak/pimi sürükleyerek seçin.**
+            </div>
         </form>
     </div>
 
@@ -115,15 +265,60 @@
 let userLat = null, userLng = null;
 let map = null, marker = null;
 
+// Form input restriction listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Only allow letters and spaces for name
+    const rNameInput = document.getElementById('rName');
+    if (rNameInput) {
+        rNameInput.addEventListener('input', function() {
+            this.value = this.value.replace(/[^a-zA-ZçÇğĞıİöÖşŞüÜ\s]/g, '');
+        });
+    }
+
+    // Only allow digits and max 11 digits for phone
+    const rPhoneInput = document.getElementById('rPhone');
+    if (rPhoneInput) {
+        rPhoneInput.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 11) {
+                this.value = this.value.slice(0, 11);
+            }
+        });
+    }
+});
+
 // Initialize Sivas Map
 function initMap() {
     map = L.map('citizenMap').setView([39.7477, 37.0179], 13);
     
-    // Google Maps Tile Layer as default
-    L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+    const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         attribution: '© Google Maps',
         maxZoom: 22
-    }).addTo(map);
+    }).addTo(map); // Google Maps as default
+    
+    const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
+    });
+    
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '© Google Maps',
+        maxZoom: 22
+    });
+    
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap',
+        maxZoom: 19
+    });
+
+    const baseMaps = {
+        "Google Harita": googleRoadmap,
+        "Google Uydu + Hibrit": googleHybrid,
+        "Google Uydu": googleSatellite,
+        "OpenStreetMap": osm
+    };
+    
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
 
     // Draggable marker
     marker = L.marker([39.7477, 37.0179], { draggable: true }).addTo(map);
@@ -174,10 +369,8 @@ async function updateCoordinates(lat, lng, doGeocode = true) {
             const res = await fetch(`/api/routes/geocoding/reverse?lat=${lat}&lng=${lng}`);
             const data = await res.json();
             if (data && data.address) {
-                // Autofill the address into description
-                const descTextarea = document.getElementById('rDesc');
-                let cleanVal = descTextarea.value.replace(/^Adres: .*\n\n/, ""); // Remove old autofilled address if exists
-                descTextarea.value = `Adres: ${data.address}\n\n` + cleanVal;
+                // Autofill the address field
+                document.getElementById('rAddress').value = data.address;
                 
                 // Autoselect neighborhood - improved matching
                 if (data.neighborhood) {
@@ -272,8 +465,9 @@ document.getElementById('reportForm').addEventListener('submit', async (e) => {
                 reporter_phone: document.getElementById('rPhone').value,
                 report_type: document.getElementById('rType').value,
                 neighborhood: document.getElementById('rNeighborhood').value,
+                address: document.getElementById('rAddress').value,
                 description: document.getElementById('rDesc').value,
-                priority: document.getElementById('rPriority').value,
+                priority: 'normal',
                 latitude: userLat,
                 longitude: userLng
             })
@@ -308,5 +502,14 @@ function resetForm() {
     map.setView([39.7477, 37.0179], 13);
 }
 </script>
+
+<!-- Department Signature and Logo in Bottom-Right Corner -->
+<div class="signature-container">
+    <img src="/icons/akilli_sehir_logo.png" alt="Akıllı Şehir" class="signature-logo">
+    <div class="signature-title">SİVAS BELEDİYESİ</div>
+    <div class="signature-dept">Akıllı Şehir ve Kent Bilgi Sistemleri Müdürlüğü</div>
+    <div class="signature-by">Tarafından Hazırlanmıştır</div>
+</div>
+
 </body>
 </html>

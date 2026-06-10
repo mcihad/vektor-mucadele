@@ -6,7 +6,56 @@
     <title>VMS - İlaçlama Kayıtları</title>
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+    <style>
+        /* Two-column modal layout for New Session */
+        .session-modal-content {
+            display: grid;
+            grid-template-columns: 1.2fr 1.8fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .session-modal-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        .map-draw-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .map-draw-toolbar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+        }
+        .draw-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            transition: var(--transition);
+        }
+        .draw-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .draw-btn.active-draw {
+            border-color: var(--danger);
+            color: var(--danger);
+            background: rgba(239,68,68,0.1);
+        }
+    </style>
 </head>
 <body>
 <aside class="sidebar">
@@ -79,7 +128,7 @@
                         <tr>
                             <th>ID</th><th>Araç</th><th>Ekip</th><th>Mahalle</th>
                             <th>Uygulama</th><th>Başlangıç</th><th>Bitiş</th>
-                            <th>Mesafe</th><th>İlaç</th><th>Durum</th><th>İşlem</th>
+                            <th>Mesafe</th><th>İlaç Stok (Depo)</th><th>Araç Stok</th><th>Durum</th><th>İşlem</th>
                         </tr>
                     </thead>
                     <tbody id="sessionTable"></tbody>
@@ -91,47 +140,75 @@
 
 <!-- New Session Modal -->
 <div class="modal-overlay" id="sessionModal">
-    <div class="modal">
+    <div class="modal" style="max-width: 1100px; width: 95%;">
         <div class="modal-header">
             <div class="modal-title">💉 Yeni İlaçlama Oturumu</div>
             <button class="modal-close" onclick="closeModal()">&times;</button>
         </div>
         <form id="sessionForm">
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Araç *</label>
-                    <select class="form-select" id="sVehicle" required></select>
+            <div class="session-modal-content">
+                <!-- Sol Kolon: Girdiler -->
+                <div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Araç *</label>
+                            <select class="form-select" id="sVehicle" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Uygulama Türü</label>
+                            <select class="form-select" id="sAppType"></select>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Şoför *</label>
+                            <select class="form-select" id="sDriver" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Operatör</label>
+                            <select class="form-select" id="sOperator"><option value="">Seçiniz</option></select>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Mahalle *</label>
+                            <select class="form-select" id="sNeighborhood" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Görevlendirme Tarihi *</label>
+                            <input type="date" class="form-input" id="sPlannedDate" required>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">İlaç</label>
+                            <select class="form-select" id="sChemical"></select>
+                        </div>
+                        <div class="form-group">
+                            <!-- Boş alan -->
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notlar</label>
+                        <textarea class="form-textarea" id="sNotes" rows="3"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Uygulama Türü</label>
-                    <select class="form-select" id="sAppType"></select>
+
+                <!-- Sağ Kolon: Harita Çizim Alani -->
+                <div class="map-draw-container">
+                    <div class="map-draw-toolbar">
+                        <button type="button" class="draw-btn" id="btnDrawPolygon" onclick="startSessionDrawing('polygon')">🔷 Alan Çiz</button>
+                        <button type="button" class="draw-btn" id="btnDrawCircle" onclick="startSessionDrawing('circle')">⭕ Daire Çiz</button>
+                        <button type="button" class="draw-btn" id="btnDrawPolyline" onclick="startSessionDrawing('polyline')">📏 Rota Çiz</button>
+                        <button type="button" class="draw-btn" id="btnDeleteDraw" style="color:var(--danger); border-color:var(--danger); display:none;" onclick="clearSessionDrawing()">🗑️ Çizimi Sil</button>
+                    </div>
+                    <div id="sessionDrawMap" style="height: 340px; border-radius: 8px; border: 1px solid var(--border); background: #1e293b; position: relative; z-index: 1;"></div>
+                    <div id="sessionDrawInstruction" style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; font-style: italic;">
+                        İsteğe bağlı: Harita üzerinde görev alanı/rotası belirleyebilirsiniz.
+                    </div>
                 </div>
             </div>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Şoför *</label>
-                    <select class="form-select" id="sDriver" required></select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">Operatör *</label>
-                    <select class="form-select" id="sOperator" required></select>
-                </div>
-            </div>
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">Mahalle</label>
-                    <select class="form-select" id="sNeighborhood"></select>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">İlaç</label>
-                    <select class="form-select" id="sChemical"></select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Notlar</label>
-                <textarea class="form-textarea" id="sNotes" rows="2"></textarea>
-            </div>
-            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
                 <button type="button" class="btn btn-outline" onclick="closeModal()">İptal</button>
                 <button type="submit" class="btn btn-primary">Kaydet</button>
             </div>
@@ -250,7 +327,7 @@ async function loadSessions() {
             statusBadge = 'badge-info';
         }
         
-        const intakeInfo = s.intake_chemical_name
+         const intakeInfo = s.intake_chemical_name
             ? `<div style="margin-top:6px; font-size:9px; color:#10b981; line-height:1.3; background:rgba(16,185,129,0.06); padding:4px 8px; border-radius:6px; border:1px solid rgba(16,185,129,0.15); display:block; max-width:180px;">
                 🧪 <b>Dolum:</b> ${s.intake_chemical_name}<br>
                 ⚖️ <b>Miktar:</b> ${s.intake_amount_lt} lt<br>
@@ -258,6 +335,13 @@ async function loadSessions() {
                 📅 <b>Tarih:</b> ${s.intake_date ? new Date(s.intake_date).toLocaleString('tr-TR', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '-'}
                </div>`
             : '';
+
+        const vehicleStockInfo = (s.chemical_used_lt !== null || s.remaining_chemical_lt !== null)
+            ? `<div style="margin-top:6px; font-size:9px; color:#3b82f6; line-height:1.3; background:rgba(59,130,246,0.06); padding:4px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.15); display:block; max-width:180px;">
+                🧪 <b>Tüketim:</b> ${s.chemical_used_lt !== null && s.chemical_used_lt !== undefined ? s.chemical_used_lt + ' lt' : '-'}<br>
+                📦 <b>Kalan:</b> ${s.remaining_chemical_lt !== null && s.remaining_chemical_lt !== undefined ? s.remaining_chemical_lt + ' lt' : '-'}
+               </div>`
+            : '<span style="color:var(--text-muted);font-size:11px;">-</span>';
 
         let notesHtml = '';
         if (s.notes) {
@@ -279,11 +363,14 @@ async function loadSessions() {
             <td>${s.driver_name || '-'}<br><span style="font-size:10px;color:var(--text-muted)">${s.operator_name || ''}</span></td>
             <td>${s.neighborhood || '-'}</td>
             <td style="font-size:11px;">${s.application_type || '-'}</td>
-            <td style="font-size:11px;">${s.start_time ? new Date(s.start_time).toLocaleString('tr-TR') : '-'}</td>
+            <td style="font-size:11px;">${s.start_time ? new Date(s.start_time).toLocaleString('tr-TR') : s.planned_date ? `🗓️ ${new Date(s.planned_date).toLocaleDateString('tr-TR')}` : '-'}</td>
             <td style="font-size:11px;">${s.end_time ? new Date(s.end_time).toLocaleString('tr-TR') : '-'}</td>
             <td>${Number(s.total_km || 0).toFixed(1)} km</td>
             <td>
                 ${intakeInfo}
+            </td>
+            <td>
+                ${vehicleStockInfo}
             </td>
             <td>
                 <span class="badge ${statusBadge}">${statusText}</span>
@@ -299,7 +386,7 @@ async function loadSessions() {
                 </div>
             </td>
         </tr>`;
-    }).join('') || '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-muted)">Kayıt bulunamadı</td></tr>';
+    }).join('') || '<tr><td colspan="12" style="text-align:center;padding:40px;color:var(--text-muted)">Kayıt bulunamadı</td></tr>';
 }
 
 function clearFilters() {
@@ -309,6 +396,158 @@ function clearFilters() {
     loadSessions();
 }
 
+// ─── Yeni Oturum Harita Çizim İşlemleri ───
+let drawMap = null;
+let drawDrawnItems = null;
+let currentSessionDrawer = null;
+let currentSessionDrawnGeoJSON = null;
+let allNeighborhoods = [];
+let activeNeighborhoodBoundaryLayer = null;
+
+function initDrawMap() {
+    if (drawMap) return;
+    
+    const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+    const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
+    
+    drawMap = L.map('sessionDrawMap', {
+        center: [39.7505, 37.0150],
+        zoom: 13,
+        layers: [googleRoadmap]
+    });
+    
+    const baseMaps = {
+        "Google Harita": googleRoadmap,
+        "Google Uydu": googleSatellite,
+        "Google Uydu + Hibrit": googleHybrid,
+        "OpenStreetMap": osm
+    };
+    
+    drawDrawnItems = new L.FeatureGroup().addTo(drawMap);
+    
+    L.control.layers(baseMaps, { "Çizilen Elemanlar": drawDrawnItems }, { position: 'topright' }).addTo(drawMap);
+    
+    // Override Leaflet.Draw touch handlers to allow map panning/dragging on touch screens (tablets) without adding vertices
+    if (typeof L !== 'undefined' && L.Draw) {
+        if (L.Draw.Polyline) {
+            L.Draw.Polyline.prototype._onTouch = L.Util.falseFn;
+        }
+        if (L.Draw.SimpleShape) {
+            L.Draw.SimpleShape.prototype._onTouch = L.Util.falseFn;
+        }
+    }
+    
+    drawMap.on(L.Draw.Event.CREATED, (e) => {
+        const layer = e.layer;
+        drawDrawnItems.clearLayers();
+        drawDrawnItems.addLayer(layer);
+        
+        let geojson;
+        if (layer instanceof L.Circle) {
+            const center = layer.getLatLng();
+            const radius = layer.getRadius();
+            const points = 64;
+            const coords = [];
+            for (let i = 0; i <= points; i++) {
+                const angle = (i / points) * 2 * Math.PI;
+                const dx = radius * Math.cos(angle);
+                const dy = radius * Math.sin(angle);
+                const lat = center.lat + (dy / 111320);
+                const lng = center.lng + (dx / (111320 * Math.cos(center.lat * Math.PI / 180)));
+                coords.push([lng, lat]);
+            }
+            geojson = { type: 'Polygon', coordinates: [coords] };
+        } else {
+            geojson = layer.toGeoJSON().geometry;
+        }
+        
+        currentSessionDrawnGeoJSON = geojson;
+        document.getElementById('btnDeleteDraw').style.display = 'inline-flex';
+        stopSessionDrawing();
+        
+        document.getElementById('sessionDrawInstruction').innerHTML = `✅ <b>Çizim Kaydedildi:</b> Oturum oluşturulduğunda bu alan atanacaktır.`;
+    });
+}
+
+function startSessionDrawing(type) {
+    stopSessionDrawing();
+    drawDrawnItems.clearLayers();
+    currentSessionDrawnGeoJSON = null;
+    document.getElementById('btnDeleteDraw').style.display = 'none';
+    
+    document.getElementById('btnDrawPolygon').classList.remove('active-draw');
+    document.getElementById('btnDrawCircle').classList.remove('active-draw');
+    document.getElementById('btnDrawPolyline').classList.remove('active-draw');
+    
+    let handler;
+    const inst = document.getElementById('sessionDrawInstruction');
+    if (type === 'polygon') {
+        document.getElementById('btnDrawPolygon').classList.add('active-draw');
+        inst.innerHTML = `🔷 <b>Alan Çizimi Aktif:</b> Haritaya tıklayarak köşeleri belirleyin. Çift tıklama tamamlar.`;
+        handler = new L.Draw.Polygon(drawMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
+    } else if (type === 'circle') {
+        document.getElementById('btnDrawCircle').classList.add('active-draw');
+        inst.innerHTML = `⭕ <b>Daire Çizimi Aktif:</b> Haritaya tıklayıp sürükleyerek daire çizin.`;
+        handler = new L.Draw.Circle(drawMap, { shapeOptions: { color: '#3b82f6', weight: 3, fillOpacity: 0.2 } });
+    } else if (type === 'polyline') {
+        document.getElementById('btnDrawPolyline').classList.add('active-draw');
+        inst.innerHTML = `📏 <b>Rota Çizimi Aktif:</b> Haritaya tıklayarak rotayı çizin. Çift tıklama tamamlar.`;
+        handler = new L.Draw.Polyline(drawMap, { shapeOptions: { color: '#f97316', weight: 4 } });
+    }
+    
+    if (handler) {
+        currentSessionDrawer = handler;
+        currentSessionDrawer.enable();
+    }
+}
+
+function stopSessionDrawing() {
+    if (currentSessionDrawer) {
+        currentSessionDrawer.disable();
+        currentSessionDrawer = null;
+    }
+    document.getElementById('btnDrawPolygon').classList.remove('active-draw');
+    document.getElementById('btnDrawCircle').classList.remove('active-draw');
+    document.getElementById('btnDrawPolyline').classList.remove('active-draw');
+}
+
+function clearSessionDrawing() {
+    stopSessionDrawing();
+    drawDrawnItems.clearLayers();
+    currentSessionDrawnGeoJSON = null;
+    document.getElementById('btnDeleteDraw').style.display = 'none';
+    document.getElementById('sessionDrawInstruction').innerHTML = `İsteğe bağlı: Harita üzerinde görev alanı/rotası belirleyebilirsiniz.`;
+}
+
+// Mahalle değiştiğinde çizim haritasını mahalle sınırlarına odakla
+document.getElementById('sNeighborhood').addEventListener('change', (e) => {
+    const name = e.target.value;
+    if (!name) return;
+    const n = allNeighborhoods.find(nh => nh.name === name);
+    if (n && n.boundary_geojson && drawMap) {
+        try {
+            const geom = JSON.parse(n.boundary_geojson);
+            if (activeNeighborhoodBoundaryLayer) {
+                drawMap.removeLayer(activeNeighborhoodBoundaryLayer);
+            }
+            activeNeighborhoodBoundaryLayer = L.geoJSON(geom, {
+                style: {
+                    color: '#3b82f6',
+                    weight: 2,
+                    fillColor: '#3b82f6',
+                    fillOpacity: 0.05,
+                    dashArray: '4 4'
+                }
+            }).addTo(drawMap);
+            drawMap.fitBounds(activeNeighborhoodBoundaryLayer.getBounds());
+        } catch (err) {
+            console.error("Mahalle sınırları çizilemedi:", err);
+        }
+    }
+});
+
 async function openNewSession() {
     // Load dropdowns
     const [vehicles, personnel, chemicals, neighborhoods, appTypes] = await Promise.all([
@@ -316,17 +555,39 @@ async function openNewSession() {
         api('/api/routes/neighborhoods'), api('/api/routes/application-types')
     ]);
 
+    allNeighborhoods = neighborhoods;
+
     document.getElementById('sVehicle').innerHTML = vehicles.map(v => `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`).join('');
     document.getElementById('sDriver').innerHTML = personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-    document.getElementById('sOperator').innerHTML = personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    document.getElementById('sOperator').innerHTML = '<option value="">Atama Yapılmadı (Boş)</option>' + personnel.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
     document.getElementById('sChemical').innerHTML = '<option value="">Seçiniz</option>' + chemicals.map(c => `<option value="${c.id}">${c.name} (${c.stock_amount}lt)</option>`).join('');
     document.getElementById('sNeighborhood').innerHTML = '<option value="">Seçiniz</option>' + neighborhoods.map(n => `<option value="${n.name}">${n.name}</option>`).join('');
     document.getElementById('sAppType').innerHTML = appTypes.map(a => `<option value="${a.name}">${a.name}</option>`).join('');
 
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('sPlannedDate').value = today;
+
     document.getElementById('sessionModal').classList.add('active');
+
+    // Initialize map and invalidate size after modal transitions in
+    setTimeout(() => {
+        initDrawMap();
+        if (drawMap) {
+            drawMap.invalidateSize();
+            clearSessionDrawing();
+            if (activeNeighborhoodBoundaryLayer) {
+                drawMap.removeLayer(activeNeighborhoodBoundaryLayer);
+                activeNeighborhoodBoundaryLayer = null;
+            }
+            drawMap.setView([39.7505, 37.0150], 13);
+        }
+    }, 150);
 }
 
-function closeModal() { document.getElementById('sessionModal').classList.remove('active'); }
+function closeModal() {
+    document.getElementById('sessionModal').classList.remove('active');
+    stopSessionDrawing();
+}
 
 document.getElementById('sessionForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -336,11 +597,13 @@ document.getElementById('sessionForm').addEventListener('submit', async (e) => {
             body: JSON.stringify({
                 vehicle_id: document.getElementById('sVehicle').value,
                 driver_id: document.getElementById('sDriver').value,
-                operator_id: document.getElementById('sOperator').value,
+                operator_id: document.getElementById('sOperator').value || null,
                 chemical_id: document.getElementById('sChemical').value || null,
                 neighborhood: document.getElementById('sNeighborhood').value,
                 application_type: document.getElementById('sAppType').value,
-                notes: document.getElementById('sNotes').value
+                notes: document.getElementById('sNotes').value,
+                planned_date: document.getElementById('sPlannedDate').value,
+                work_area_geojson: currentSessionDrawnGeoJSON ? JSON.stringify(currentSessionDrawnGeoJSON) : null
             })
         });
         closeModal();
@@ -400,6 +663,7 @@ async function resolveSession(id) {
 // ─── Oturum Rotasını Haritada Gösteren Fonksiyonlar ───
 let routeMap = null;
 let routeSegmentsGroup = null;
+let routeWorkAreaGroup = null;
 
 async function viewSessionRoute(sessionId, plate) {
     document.getElementById('routeMapTitle').textContent = `🗺️ İlaçlama Rotası - Oturum #${sessionId} (${plate})`;
@@ -408,71 +672,115 @@ async function viewSessionRoute(sessionId, plate) {
     // Haritayı yüklemek için modal animasyonunun bitmesini bekle
     setTimeout(() => {
         if (!routeMap) {
-            routeMap = L.map('sessionRouteMap').setView([39.7505, 37.0150], 13);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(routeMap);
+            const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+            const googleSatellite = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+            const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { attribution: '© Google Maps', maxZoom: 22 });
+            const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
+            
+            routeMap = L.map('sessionRouteMap', {
+                center: [39.7505, 37.0150],
+                zoom: 13,
+                layers: [googleRoadmap]
+            });
+            
+            const baseMaps = {
+                "Google Harita": googleRoadmap,
+                "Google Uydu": googleSatellite,
+                "Google Uydu + Hibrit": googleHybrid,
+                "OpenStreetMap": osm
+            };
+            
             routeSegmentsGroup = L.layerGroup().addTo(routeMap);
+            routeWorkAreaGroup = L.layerGroup().addTo(routeMap);
+            
+            L.control.layers(baseMaps, { "Rota Segmentleri": routeSegmentsGroup, "Çalışma Alanı": routeWorkAreaGroup }, { position: 'topright' }).addTo(routeMap);
         } else {
             routeSegmentsGroup.clearLayers();
+            if (routeWorkAreaGroup) routeWorkAreaGroup.clearLayers();
         }
+        
+        let hasPoints = false;
         
         // Sunucudan konum noktalarını çek
         api(`/api/sessions/${sessionId}/route`).then(points => {
-            if (!points || points.length === 0) {
-                toast('Bu oturuma ait konum kaydı bulunamadı.', 'warning');
-                return;
-            }
-            
-            const pathPoints = points.map(p => ({
-                lat: p.latitude,
-                lng: p.longitude,
-                is_spraying: (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) ? 1 : 0
-            }));
-            
-            // Segmentlere göre rotayı çiz
-            let currentSegment = [pathPoints[0]];
-            let currentSpraying = pathPoints[0].is_spraying;
-            
-            for (let i = 1; i < pathPoints.length; i++) {
-                const pt = pathPoints[i];
-                if (pt.is_spraying === currentSpraying) {
-                    currentSegment.push(pt);
-                } else {
-                    drawHistoryPathSegment(currentSegment, currentSpraying);
-                    currentSegment = [pathPoints[i - 1], pt];
-                    currentSpraying = pt.is_spraying;
+            if (points && points.length > 0) {
+                hasPoints = true;
+                const pathPoints = points.map(p => ({
+                    lat: p.latitude,
+                    lng: p.longitude,
+                    is_spraying: (p.is_spraying === 1 || p.is_spraying === true || p.is_spraying == 1) ? 1 : 0
+                }));
+                
+                // Segmentlere göre rotayı çiz
+                let currentSegment = [pathPoints[0]];
+                let currentSpraying = pathPoints[0].is_spraying;
+                
+                for (let i = 1; i < pathPoints.length; i++) {
+                    const pt = pathPoints[i];
+                    if (pt.is_spraying === currentSpraying) {
+                        currentSegment.push(pt);
+                    } else {
+                        drawHistoryPathSegment(currentSegment, currentSpraying);
+                        currentSegment = [pathPoints[i - 1], pt];
+                        currentSpraying = pt.is_spraying;
+                    }
                 }
+                if (currentSegment.length >= 2) {
+                    drawHistoryPathSegment(currentSegment, currentSpraying);
+                }
+                
+                // Başlangıç (S) ve Bitiş (B) işaretçileri
+                const startPt = pathPoints[0];
+                const endPt = pathPoints[pathPoints.length - 1];
+                
+                L.marker([startPt.lat, startPt.lng], {
+                    icon: L.divIcon({
+                        className: 'start-marker',
+                        html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">S</div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    })
+                }).bindPopup('<b>İlaçlama Başlangıcı</b>').addTo(routeSegmentsGroup);
+                
+                L.marker([endPt.lat, endPt.lng], {
+                    icon: L.divIcon({
+                        className: 'end-marker',
+                        html: '<div style="background:#ef4444;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">B</div>',
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12]
+                    })
+                }).bindPopup('<b>İlaçlama Bitişi</b>').addTo(routeSegmentsGroup);
+                
+                // Harita odağını rotaya göre sığdır
+                const bounds = L.latLngBounds(pathPoints.map(p => [p.lat, p.lng]));
+                routeMap.fitBounds(bounds, { padding: [40, 40] });
+            } else {
+                toast('Bu oturuma ait konum kaydı bulunamadı.', 'warning');
             }
-            if (currentSegment.length >= 2) {
-                drawHistoryPathSegment(currentSegment, currentSpraying);
-            }
             
-            // Başlangıç (S) ve Bitiş (B) işaretçileri
-            const startPt = pathPoints[0];
-            const endPt = pathPoints[pathPoints.length - 1];
-            
-            L.marker([startPt.lat, startPt.lng], {
-                icon: L.divIcon({
-                    className: 'start-marker',
-                    html: '<div style="background:#10b981;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">S</div>',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            }).bindPopup('<b>İlaçlama Başlangıcı</b>').addTo(routeSegmentsGroup);
-            
-            L.marker([endPt.lat, endPt.lng], {
-                icon: L.divIcon({
-                    className: 'end-marker',
-                    html: '<div style="background:#ef4444;color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">B</div>',
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                })
-            }).bindPopup('<b>İlaçlama Bitişi</b>').addTo(routeSegmentsGroup);
-            
-            // Harita odağını rotaya göre sığdır
-            const bounds = L.latLngBounds(pathPoints.map(p => [p.lat, p.lng]));
-            routeMap.fitBounds(bounds, { padding: [40, 40] });
+            // Çalışma alanını çekip çiz
+            api(`/api/sessions/${sessionId}`).then(session => {
+                if (session && session.work_area_geojson) {
+                    try {
+                        const geom = JSON.parse(session.work_area_geojson);
+                        const layer = L.geoJSON(geom, {
+                            style: {
+                                color: '#f97316',
+                                weight: 3,
+                                fillColor: '#f97316',
+                                fillOpacity: 0.15,
+                                dashArray: '5 5'
+                            }
+                        });
+                        layer.addTo(routeWorkAreaGroup);
+                        if (!hasPoints) {
+                            routeMap.fitBounds(layer.getBounds(), { padding: [40, 40] });
+                        }
+                    } catch (e) {
+                        console.error("Çalışma alanı çizilirken hata:", e);
+                    }
+                }
+            });
             
             // Harita yükleme boyut hatasını düzeltmek için invalidate
             routeMap.invalidateSize();

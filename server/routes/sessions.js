@@ -180,7 +180,8 @@ module.exports = function(io) {
                     FROM spray_sessions s
                     LEFT JOIN vehicles v ON s.vehicle_id = v.id
                     LEFT JOIN chemicals c ON s.chemical_id = c.id
-                    WHERE (s.driver_id = ? OR s.operator_id = ?) AND s.status IN ('active', 'planned', 'beklemede')
+                    WHERE (s.driver_id = ? OR s.operator_id = ?)
+                      AND (s.status IN ('active', 'beklemede') OR (s.status = 'planned' AND (s.planned_date IS NULL OR s.planned_date <= CURRENT_DATE)))
                     ORDER BY CASE WHEN s.status = 'active' THEN 1 WHEN s.status = 'beklemede' THEN 2 ELSE 3 END, s.created_at DESC LIMIT 1`, [personnelId, personnelId]);
             const rows = rowsToObjects(result);
             res.json(rows.length > 0 ? rows[0] : null);
@@ -193,15 +194,36 @@ module.exports = function(io) {
     router.post('/', authMiddleware, async (req, res) => {
         const { 
             vehicle_id, driver_id, operator_id, chemical_id, route_id, neighborhood, district, application_type, notes,
-            intake_chemical_name, intake_received_from, intake_amount_lt, intake_date, intake_chemical_type
+            intake_chemical_name, intake_received_from, intake_amount_lt, intake_date, intake_chemical_type,
+            planned_date, work_area_geojson
         } = req.body;
+        
+        if (!vehicle_id || !driver_id || !neighborhood) {
+            return res.status(400).json({ error: 'Araç, Şoför ve Mahalle alanları zorunludur' });
+        }
+
         const db = getDb();
         try {
-            await db.run(`INSERT INTO spray_sessions (vehicle_id, driver_id, operator_id, chemical_id, route_id, neighborhood, district, application_type, status, notes, intake_chemical_name, intake_received_from, intake_amount_lt, intake_date, intake_chemical_type)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+            await db.run(`INSERT INTO spray_sessions (vehicle_id, driver_id, operator_id, chemical_id, route_id, neighborhood, district, application_type, status, notes, intake_chemical_name, intake_received_from, intake_amount_lt, intake_date, intake_chemical_type, planned_date, work_area_geojson)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 [
-                    vehicle_id, driver_id, operator_id, chemical_id, route_id || null, neighborhood, district || 'Merkez', application_type || 'sokak_ilacalama', 'planned', notes,
-                    intake_chemical_name || null, intake_received_from || null, intake_amount_lt ? parseFloat(intake_amount_lt) : null, intake_date || null, intake_chemical_type || null
+                    vehicle_id ? parseInt(vehicle_id) : null,
+                    driver_id ? parseInt(driver_id) : null,
+                    operator_id ? parseInt(operator_id) : null,
+                    chemical_id ? parseInt(chemical_id) : null,
+                    route_id ? parseInt(route_id) : null,
+                    neighborhood,
+                    district || 'Merkez',
+                    application_type || 'sokak_ilacalama',
+                    'planned',
+                    notes,
+                    intake_chemical_name || null,
+                    intake_received_from || null,
+                    intake_amount_lt ? parseFloat(intake_amount_lt) : null,
+                    intake_date || null,
+                    intake_chemical_type || null,
+                    planned_date || new Date().toISOString().split('T')[0],
+                    work_area_geojson || null
                 ]);
             saveDatabase();
             const result = await db.exec("SELECT last_insert_rowid()");
@@ -391,9 +413,9 @@ module.exports = function(io) {
             const area_covered_m2 = finalKm * 1000 * 10;
 
             await db.run(`UPDATE spray_sessions SET status = 'completed', end_time = datetime('now'),
-                    chemical_used_lt = ?, total_km = ?, area_covered_m2 = ?, notes = ?
+                    chemical_used_lt = ?, remaining_chemical_lt = ?, total_km = ?, area_covered_m2 = ?, notes = ?
                     WHERE id = ?`,
-                [Math.round(chemical_used_lt * 10) / 10, finalKm, area_covered_m2, notes, req.params.id]);
+                [Math.round(chemical_used_lt * 10) / 10, remaining_chemical_lt, finalKm, area_covered_m2, notes, req.params.id]);
 
             // ─── İlaçlama Tamamlandığında Araç Deposundan Düş (İlaçlama Tüketimi) ───
             const chemicalId = sess.chemical_id;
@@ -527,7 +549,7 @@ module.exports = function(io) {
 
     // Update session status / notes / metadata
     router.put('/:id', authMiddleware, async (req, res) => {
-        const { status, notes, chemical_used_lt, total_km, area_covered_m2 } = req.body;
+        const { status, notes, chemical_used_lt, total_km, area_covered_m2, remaining_chemical_lt } = req.body;
         const db = getDb();
         
         try {
@@ -560,6 +582,10 @@ module.exports = function(io) {
         if (area_covered_m2 !== undefined) {
             sets.push(" area_covered_m2 = ?");
             params.push(area_covered_m2);
+        }
+        if (remaining_chemical_lt !== undefined) {
+            sets.push(" remaining_chemical_lt = ?");
+            params.push(remaining_chemical_lt !== null ? parseFloat(remaining_chemical_lt) : null);
         }
         
         if (sets.length === 0) return res.status(400).json({ error: 'Güncellenecek alan yok' });
@@ -602,8 +628,8 @@ module.exports = function(io) {
                                 remaining_chemical_lt = Math.max(0, startingTankAmount - chemical_used_lt);
                             }
 
-                            await db.run("UPDATE spray_sessions SET chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
-                                [Math.round(chemical_used_lt * 10) / 10, req.params.id]);
+                            await db.run("UPDATE spray_sessions SET remaining_chemical_lt = ?, chemical_used_lt = ?, end_time = datetime('now') WHERE id = ?",
+                                 [remaining_chemical_lt, Math.round(chemical_used_lt * 10) / 10, req.params.id]);
 
                             // ─── İlaçlama Tamamlandığında Araç Deposundan Düş (Sorun Bildirildi) ───
                             const chemicalId = sess.chemical_id;

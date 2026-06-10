@@ -254,6 +254,9 @@ async function createPgTables() {
             area_covered_m2 DOUBLE PRECISION DEFAULT 0,
             status VARCHAR(50) DEFAULT 'planned',
             notes TEXT,
+            remaining_chemical_lt DOUBLE PRECISION,
+            planned_date DATE DEFAULT CURRENT_DATE,
+            work_area_geojson TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -333,6 +336,7 @@ async function createPgTables() {
             assigned_user_id INTEGER REFERENCES users(id),
             assignment_time TIMESTAMP,
             photo_path VARCHAR(255),
+            planned_date DATE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             resolved_at TIMESTAMP
         )
@@ -355,6 +359,10 @@ async function createPgTables() {
     `).catch(err => console.log('admin_notes column already exists or error:', err.message));
 
     await dbConnection.query(`
+        ALTER TABLE citizen_reports ADD COLUMN IF NOT EXISTS planned_date DATE
+    `).catch(err => console.log('planned_date column already exists in citizen_reports or error:', err.message));
+
+    await dbConnection.query(`
         ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS intake_chemical_name VARCHAR(255)
     `).catch(err => console.log('intake_chemical_name already exists or error:', err.message));
 
@@ -373,6 +381,18 @@ async function createPgTables() {
     await dbConnection.query(`
         ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS intake_chemical_type VARCHAR(100)
     `).catch(err => console.log('intake_chemical_type already exists or error:', err.message));
+
+    await dbConnection.query(`
+        ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS remaining_chemical_lt DOUBLE PRECISION
+    `).catch(err => console.log('remaining_chemical_lt already exists or error:', err.message));
+
+    await dbConnection.query(`
+        ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS planned_date DATE DEFAULT CURRENT_DATE
+    `).catch(err => console.log('planned_date already exists or error:', err.message));
+
+    await dbConnection.query(`
+        ALTER TABLE spray_sessions ADD COLUMN IF NOT EXISTS work_area_geojson TEXT
+    `).catch(err => console.log('work_area_geojson already exists or error:', err.message));
 
     await dbConnection.query(`
         ALTER TABLE personnel ADD COLUMN IF NOT EXISTS status VARCHAR(50) DEFAULT 'aktif'

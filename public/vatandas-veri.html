@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sivas Belediyesi - Vektörle Mücadele Kamu Bilgi Haritası</title>
+    <title>Sivas Belediyesi - Haşere ile Mücadele Kamu Bilgi Haritası</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <style>
@@ -11,8 +12,9 @@
             margin: 0; padding: 0;
             width: 100%; height: 100%;
             overflow: hidden;
-            background: #0a0e1a;
-            font-family: 'Inter', -apple-system, sans-serif;
+            background: #060913;
+            font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #f8fafc;
         }
         
         #publicMap {
@@ -25,235 +27,341 @@
         .floating-header {
             position: absolute;
             top: 20px;
-            left: 20px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(99, 179, 237, 0.2);
-            border-radius: 12px;
-            padding: 8px 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 410px;
+            background: rgba(10, 15, 30, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            border-radius: 16px;
+            padding: 10px 16px;
             z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-            gap: 0;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(59, 130, 246, 0.1);
-            transition: all 0.3s ease;
-        }
-
-        .header-main-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 15px rgba(56, 189, 248, 0.05);
+            transition: all 0.3s ease;
         }
 
-        /* Expand / Collapse Button */
-        .header-expand-btn {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            color: rgba(255,255,255,0.85);
-            border-radius: 8px;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            font-size: 10px;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            outline: none;
-        }
-
-        .header-expand-btn:hover {
-            background: rgba(255,255,255,0.12);
-            color: #fff;
-            transform: scale(1.05);
-        }
-
-        .header-expand-btn span {
-            transition: transform 0.3s ease;
-            display: inline-block;
-        }
-        
         .header-logo-section {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
         
         .header-logo-section .logo-emoji {
-            font-size: 24px;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            font-size: 22px;
+            filter: drop-shadow(0 2px 8px rgba(56, 189, 248, 0.4));
         }
 
         .header-title-section h1 {
             font-size: 13.5px;
             font-weight: 800;
             margin: 0;
-            background: linear-gradient(135deg, #3b82f6, #06b6d4);
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            letter-spacing: 0.5px;
         }
         
         .header-title-section p {
             font-size: 9px;
-            color: var(--text-secondary);
+            color: rgba(255, 255, 255, 0.45);
             margin: 1px 0 0 0;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             font-weight: 600;
         }
 
-        /* Glassmorphism Floating Info Card / Bottom Sheet */
-        .floating-info-card {
+        .header-info-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.9);
+            border-radius: 20px;
+            padding: 0 12px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .header-info-btn:hover, .header-info-btn.active {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: rgba(56, 189, 248, 0.5);
+            color: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.2);
+            transform: translateY(-1px);
+        }
+
+        /* Unified Info Panel (Desktop Left Sidebar / Mobile Bottom Sheet) */
+        .info-card-panel {
             position: absolute;
             bottom: 20px;
             left: 20px;
-            width: 340px;
-            background: rgba(15, 23, 42, 0.9);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(99, 179, 237, 0.25);
+            width: 270px;
+            max-height: calc(100vh - 120px);
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(56, 189, 248, 0.15);
             border-radius: 16px;
-            padding: 24px 20px 20px 20px;
+            padding: 16px 14px;
             z-index: 1000;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.05);
             color: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
             
-            /* Desktop transition state */
+            /* Desktop transition */
             opacity: 0;
-            transform: translateY(15px);
+            transform: translateY(20px);
             pointer-events: none;
             transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
 
-        .floating-info-card.active {
+        .info-card-panel.active {
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
         }
 
-        /* Close Button inside Card */
         .info-card-close {
             position: absolute;
             top: 14px;
             right: 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            color: rgba(255, 255, 255, 0.85);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
             border-radius: 50%;
-            width: 26px;
-            height: 26px;
+            width: 22px;
+            height: 22px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 11px;
-            font-weight: bold;
+            font-size: 9px;
             transition: all 0.2s ease;
-            z-index: 10;
         }
 
         .info-card-close:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #fff;
+            background: rgba(239, 68, 68, 0.15);
+            border-color: rgba(239, 68, 68, 0.4);
+            color: #f87171;
             transform: scale(1.05);
         }
 
         .info-card-title {
-            font-size: 13.5px;
+            font-size: 13px;
             font-weight: 800;
             color: #fff;
-            margin-bottom: 12px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             border-bottom: 1px solid rgba(255,255,255,0.08);
-            padding-bottom: 8px;
+            padding-bottom: 10px;
+            margin-right: 25px; /* Leave space for close button */
         }
 
         .info-item {
-            font-size: 11.5px;
-            color: rgba(255,255,255,0.75);
-            line-height: 1.6;
-            margin-bottom: 10px;
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.5;
+            margin: 0;
         }
 
         .info-item b {
-            color: #3b82f6;
+            color: #38bdf8;
+            font-weight: 600;
         }
 
-        /* Efficacy Decay Progress Visualization */
+        /* Segmented Control */
+        .control-label {
+            font-size: 10px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: -6px;
+        }
+
+        .segmented-control {
+            position: relative;
+            display: flex;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 4px;
+            z-index: 1;
+        }
+
+        .segmented-control::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            border-radius: 8px;
+            transition: transform 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+            z-index: -1;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+        }
+
+        .segmented-control.slide-right::before {
+            transform: translateX(100%);
+        }
+
+        .segment-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.6);
+            padding: 8px 12px;
+            font-size: 11.5px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: color 0.25s ease;
+            font-family: inherit;
+            text-align: center;
+        }
+
+        .segment-btn.active {
+            color: #fff;
+        }
+
+        /* Decay Bar Visualization */
         .decay-bar-container {
-            margin: 16px 0;
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.02);
             border-radius: 10px;
-            padding: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            padding: 8px 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
         
         .decay-bar-title {
-            font-size: 10.5px;
+            font-size: 9.5px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             display: flex;
             justify-content: space-between;
             font-weight: 700;
         }
 
         .decay-bar {
-            height: 8px;
-            border-radius: 4px;
+            height: 5px;
+            border-radius: 2.5px;
             background: linear-gradient(to right, #10b981 0%, #84cc16 25%, #f59e0b 50%, #f97316 75%, #ef4444 100%);
             position: relative;
-            margin-bottom: 6px;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);
+            margin-bottom: 4px;
         }
 
         .decay-bar-labels {
             display: flex;
             justify-content: space-between;
-            font-size: 9px;
-            color: rgba(255, 255, 255, 0.5);
+            font-size: 8px;
+            color: rgba(255, 255, 255, 0.4);
             font-weight: 600;
         }
 
-        /* Efficacy Colors Legend */
+        /* Future Simulation Slider */
+        .simulation-container {
+            background: rgba(56, 189, 248, 0.03);
+            border-radius: 10px;
+            padding: 8px 10px;
+            border: 1px solid rgba(56, 189, 248, 0.12);
+        }
+        
+        .simulation-title {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 4px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+        }
+
+        #simulationSlider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: rgba(255, 255, 255, 0.12);
+            outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            margin: 8px 0 8px 0;
+            cursor: pointer;
+        }
+
+        #simulationSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #38bdf8;
+            border: 2px solid #fff;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+
+        #simulationSlider::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        .simulation-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 600;
+        }
+
+        /* Efficacy Legend */
         .legend-container {
-            margin-top: 14px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 4px;
+            max-height: 180px;
+            overflow-y: auto;
+            padding-right: 4px;
         }
 
         .legend-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 11px;
-            padding: 6px 8px;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-            background: rgba(255, 255, 255, 0.02);
+            gap: 8px;
+            font-size: 10px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.01);
             border: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.2s ease;
         }
 
         .legend-row:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            border-color: rgba(56, 189, 248, 0.15);
             transform: translateX(4px);
         }
 
         .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
             flex-shrink: 0;
-            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+            box-shadow: 0 0 4px rgba(0,0,0,0.5);
         }
         
         .legend-text-container {
@@ -264,122 +372,196 @@
         
         .legend-title {
             font-weight: 700;
-            color: #fff;
-            font-size: 11px;
+            color: #f8fafc;
+            font-size: 10px;
         }
         
         .legend-desc {
-            font-size: 9.5px;
-            color: rgba(255, 255, 255, 0.55);
+            font-size: 8.5px;
+            color: rgba(255, 255, 255, 0.45);
         }
 
-        /* Pulsing Action Button */
-        .floating-action-btn {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #ef4444, #f97316);
-            color: #fff;
-            border-radius: 50px;
-            padding: 16px 28px;
-            z-index: 1000;
-            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
-            font-weight: 800;
-            font-size: 14px;
-            text-decoration: none;
+        /* Sidebar Only Actions */
+        .sidebar-only-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .sidebar-action-btn {
+            width: 100%;
+            height: 40px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
-            gap: 10px;
-            border: 1px solid rgba(255,255,255,0.25);
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            justify-content: center;
+            gap: 8px;
+            font-weight: 700;
+            font-size: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .sidebar-action-btn.primary-btn {
+            background: linear-gradient(135deg, #ef4444, #f97316);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
             animation: pulse-button 2s infinite;
         }
 
-        .floating-action-btn:hover {
-            transform: scale(1.05) translateY(-3px);
-            box-shadow: 0 12px 35px rgba(239, 68, 68, 0.6);
+        .sidebar-action-btn.primary-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
         }
 
-        @keyframes pulse-button {
-            0% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
-            50% { box-shadow: 0 10px 35px rgba(239, 68, 68, 0.8); }
-            100% { box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4); }
-        }
-
-        /* Floating Admin Login Button */
-        .admin-login-btn {
-            position: absolute;
-            bottom: 80px;
-            right: 20px;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+        .sidebar-action-btn.secondary-btn {
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
-            border-radius: 50px;
-            padding: 12px 24px;
-            z-index: 1000;
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
-            font-weight: 700;
-            font-size: 13.5px;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
-        .admin-login-btn:hover {
-            transform: scale(1.05) translateY(-2px);
-            background: rgba(59, 130, 246, 0.15);
-            border-color: rgba(59, 130, 246, 0.6);
-            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.25);
+        .sidebar-action-btn.secondary-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(56, 189, 248, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .admin-link-container {
+            text-align: center;
+            padding-top: 2px;
+        }
+
+        .admin-link {
+            font-size: 10.5px;
+            color: rgba(255, 255, 255, 0.35);
+            text-decoration: none;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: color 0.2s ease;
+        }
+
+        .admin-link:hover {
+            color: #38bdf8;
+        }
+
+        /* Bottom Sheet Handle (Mobile only) */
+        .bottom-sheet-handle {
+            display: none;
+        }
+
+        /* Collapsible Floating Basemap Switcher on the Right */
+        .basemap-floating-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            z-index: 1010;
         }
         
-        .admin-login-btn:active {
-            transform: scale(0.98) translateY(0);
-        }
-
-        /* Floating GPS Location Button */
-        .gps-locate-btn {
-            position: absolute;
-            bottom: 140px;
-            right: 20px;
-            width: 48px;
-            height: 48px;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(99, 179, 237, 0.3);
+        .basemap-floating-btn {
+            width: 46px;
+            height: 46px;
+            background: rgba(10, 15, 30, 0.75);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.15);
             border-radius: 50%;
             color: #fff;
-            font-size: 20px;
+            font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
             box-shadow: 0 6px 20px rgba(0,0,0,0.5);
-            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 1000;
+            transition: all 0.25s ease;
         }
-
-        .gps-locate-btn:hover {
-            background: rgba(99, 179, 237, 0.2);
-            border-color: rgba(99, 179, 237, 0.6);
-            transform: scale(1.1);
-            box-shadow: 0 8px 25px rgba(99, 179, 237, 0.35);
+        
+        .basemap-floating-btn:hover {
+            transform: scale(1.05);
+            border-color: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.25);
         }
-
-        .gps-locate-btn:active {
+        
+        .basemap-floating-btn:active {
             transform: scale(0.95);
+        }
+        
+        .basemap-dropdown {
+            position: absolute;
+            top: 52px;
+            right: 0;
+            background: rgba(10, 15, 30, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.15);
+            border-radius: 14px;
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.6);
+            transform: scale(0.9) translateY(-10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            min-width: 135px;
+            z-index: 1020;
+        }
+        
+        .basemap-dropdown.active {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        .basemap-item-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 11px;
+            font-weight: 700;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        
+        .basemap-item-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+        
+        .basemap-item-btn.active {
+            background: linear-gradient(135deg, #38bdf8, #0284c7);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Mobile Bottom Dock */
+        .bottom-dock {
+            display: none;
         }
 
         /* Custom Premium Dark Leaflet Popups */
         .leaflet-popup-content-wrapper {
-            background: rgba(15, 23, 42, 0.96) !important;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(99, 179, 237, 0.25);
+            background: rgba(10, 15, 30, 0.95) !important;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.25);
             border-radius: 12px;
             color: #fff !important;
             box-shadow: 0 10px 25px rgba(0,0,0,0.6);
@@ -387,9 +569,9 @@
         }
 
         .leaflet-popup-tip {
-            background: rgba(15, 23, 42, 0.96) !important;
-            border-left: 1px solid rgba(99, 179, 237, 0.25);
-            border-bottom: 1px solid rgba(99, 179, 237, 0.25);
+            background: rgba(10, 15, 30, 0.95) !important;
+            border-left: 1px solid rgba(56, 189, 248, 0.25);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.25);
             box-shadow: none !important;
         }
 
@@ -414,182 +596,206 @@
             color: #fff !important;
         }
 
-        /* Wrapper for controls inside Header with Collapsible Transition */
-        .header-controls-wrapper {
+        /* Zoom Control offset for Sidebar on Desktop */
+        @media (min-width: 769px) {
+            .leaflet-left {
+                left: 20px !important;
+                transition: left 0.3s ease;
+            }
+        }
+
+        /* Desktop Floating Actions */
+        .desktop-floating-actions {
+            position: fixed;
+            bottom: 30px;
+            right: 20px;
             display: flex;
-            align-items: center;
-            gap: 10px;
-            overflow: hidden;
-            max-height: 0;
-            opacity: 0;
-            margin-top: 0;
-            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.3s ease;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 12px;
+            z-index: 1000;
         }
-
-        .floating-header.expanded .header-controls-wrapper {
-            max-height: 60px;
-            opacity: 1;
-            margin-top: 8px;
-        }
-
-        .map-toggle-group {
-            display: flex;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 8px;
-            padding: 3px;
-            gap: 2px;
-        }
-
-        .map-toggle-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            font-family: inherit;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .map-toggle-btn.active {
-            background: var(--accent);
+        
+        .floating-circle-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(56, 189, 248, 0.25);
             color: #fff;
-            box-shadow: 0 4px 12px var(--accent-glow);
-        }
-
-        /* Info Toggle Button */
-        .info-toggle-btn {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            color: #fff;
-            font-size: 10.5px;
-            font-weight: 700;
-            padding: 6px 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.25s ease;
-            font-family: inherit;
+            font-size: 20px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            transition: all 0.25s ease;
+        }
+        
+        .floating-circle-btn:hover {
+            transform: translateY(-2px);
+            border-color: rgba(56, 189, 248, 0.5);
+            box-shadow: 0 8px 25px rgba(56, 189, 248, 0.25);
+        }
+        
+        .floating-pill-btn {
+            height: 46px;
+            padding: 0 20px;
+            border-radius: 23px;
+            background: linear-gradient(135deg, #ef4444, #f97316);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            font-weight: 800;
+            font-size: 11.5px;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.3);
+            transition: all 0.25s ease;
+            animation: pulse-button 2s infinite;
+        }
+        
+        .floating-pill-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5);
         }
 
-        .info-toggle-btn:hover {
-            background: rgba(255,255,255,0.12);
-            border-color: rgba(99, 179, 237, 0.4);
+        @media (max-width: 768px) {
+            .desktop-floating-actions, .desktop-only-location-btn {
+                display: none !important;
+            }
         }
 
-        .info-toggle-btn.active {
-            background: rgba(99, 179, 237, 0.2);
-            border-color: rgba(99, 179, 237, 0.5);
-            color: #63b3ed;
-        }
-
-        /* Responsive UI & Premium Bottom Sheet Drawer */
+        /* Responsive UI & Mobile Layout overrides */
         @media (max-width: 768px) {
             .floating-header {
-                top: 10px; left: 10px; right: 10px;
+                top: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                width: calc(100% - 100px);
+                max-width: 330px;
                 padding: 8px 12px;
-                flex-direction: column;
-                gap: 0;
-                align-items: stretch;
-            }
-            .floating-header.expanded {
-                padding-bottom: 12px;
-            }
-            .header-logo-section {
-                justify-content: flex-start;
-            }
-            .header-controls-wrapper {
-                flex-direction: row;
-                flex-wrap: wrap;
-                justify-content: center;
-                gap: 4px;
-                max-height: 0;
-                opacity: 0;
-                margin-top: 0;
-                transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, margin-top 0.35s ease;
-            }
-            .floating-header.expanded .header-controls-wrapper {
-                max-height: 140px;
-                opacity: 1;
-                margin-top: 10px;
-            }
-            .map-toggle-group {
-                flex: 1 1 auto;
-                justify-content: center;
-            }
-            .map-toggle-btn {
-                flex: 1;
-                justify-content: center;
-                padding: 5px 4px;
-                font-size: 9.5px;
-                gap: 4px;
-            }
-            .info-toggle-btn {
-                flex: 1 1 100%;
-                justify-content: center;
-                padding: 5px 10px;
-                font-size: 10px;
             }
 
-            /* Bottom Sheet styling for mobile info card */
-            .floating-info-card {
+            .header-info-btn {
+                display: none;
+            }
+
+            /* Bottom Sheet Panel styling */
+            .info-card-panel {
                 position: fixed;
                 bottom: 0;
                 left: 0;
                 right: 0;
+                top: auto;
                 width: 100%;
                 border-radius: 24px 24px 0 0;
-                padding: 24px 20px 155px 20px;
-                z-index: 1005;
-                border-left: none;
-                border-right: none;
+                border: 1px solid rgba(56, 189, 248, 0.2);
                 border-bottom: none;
+                padding: 20px 20px 30px 20px;
+                z-index: 1005;
+                box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+                max-height: 75vh;
                 
-                /* Keep opacity full, slide offscreen entirely */
                 opacity: 1;
                 transform: translateY(100%);
                 transition: transform 0.35s cubic-bezier(0.32, 0.94, 0.6, 1);
             }
 
-            .floating-info-card.active {
+            .info-card-panel.active {
                 transform: translateY(0);
             }
 
-            .floating-action-btn {
-                bottom: 15px;
-                left: 15px;
-                right: 15px;
-                justify-content: center;
-                padding: 14px 20px;
-                font-size: 13px;
-                z-index: 1006; /* Above the bottom sheet */
+            .bottom-sheet-handle {
+                display: block;
+                width: 40px;
+                height: 4px;
+                background: rgba(255, 255, 255, 0.2);
+                border-radius: 2px;
+                margin: -8px auto 16px auto;
+                flex-shrink: 0;
             }
 
-            .admin-login-btn {
-                bottom: 70px;
+            /* Mobile Bottom Dock */
+            .bottom-dock {
+                position: fixed;
+                bottom: 20px;
                 left: 15px;
                 right: 15px;
+                background: rgba(10, 15, 30, 0.85);
+                backdrop-filter: blur(20px);
+                -webkit-backdrop-filter: blur(20px);
+                border: 1px solid rgba(56, 189, 248, 0.2);
+                border-radius: 20px;
+                padding: 10px 14px;
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            }
+
+            .dock-circle-btn {
+                width: 42px;
+                height: 42px;
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 50%;
+                color: #fff;
+                font-size: 16px;
+                display: flex;
+                align-items: center;
                 justify-content: center;
-                padding: 12px 20px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .dock-circle-btn:hover, .dock-circle-btn.active {
+                background: rgba(56, 189, 248, 0.12);
+                border-color: rgba(56, 189, 248, 0.4);
+                color: #38bdf8;
+            }
+
+            .dock-primary-btn {
+                flex: 1;
+                height: 42px;
+                background: linear-gradient(135deg, #ef4444, #f97316);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 12px;
+                color: #fff;
+                font-weight: 800;
                 font-size: 12.5px;
-                z-index: 1006; /* Above the bottom sheet */
+                letter-spacing: 0.5px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                cursor: pointer;
+                text-decoration: none;
+                box-shadow: 0 4px 15px rgba(239, 68, 68, 0.25);
+                animation: pulse-button 2s infinite;
+                transition: all 0.2s ease;
             }
 
-            .gps-locate-btn {
-                bottom: 125px;
-                right: 15px;
-                width: 44px;
-                height: 44px;
-                font-size: 18px;
-                z-index: 1004; /* Floating above the map layer, below bottom drawer */
+            /* Floating Basemap Switcher on the Right for Mobile */
+            .basemap-floating-container {
+                top: 10px;
+                right: 10px;
+            }
+            .basemap-floating-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 16px;
+            }
+            .basemap-dropdown {
+                min-width: 125px;
             }
         }
 
@@ -642,65 +848,10 @@
             opacity: 0.45 !important;
         }
 
-        /* Future Simulation Slider Styles */
-        .simulation-container {
-            margin: 14px 0;
-            background: rgba(59, 130, 246, 0.05);
-            border-radius: 10px;
-            padding: 12px;
-            border: 1px solid rgba(59, 130, 246, 0.15);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.25);
-        }
-        
-        .simulation-title {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: rgba(255, 255, 255, 0.75);
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            font-weight: 700;
-        }
-
-        #simulationSlider {
-            width: 100%;
-            height: 5px;
-            border-radius: 3px;
-            background: rgba(255, 255, 255, 0.15);
-            outline: none;
-            -webkit-appearance: none;
-            appearance: none;
-            margin: 6px 0 8px 0;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        #simulationSlider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #3b82f6;
-            border: 2px solid #fff;
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-
-        #simulationSlider::-webkit-slider-thumb:hover {
-            transform: scale(1.2);
-            background: #60a5fa;
-            box-shadow: 0 0 12px rgba(59, 130, 246, 1);
-        }
-
-        .simulation-labels {
-            display: flex;
-            justify-content: space-between;
-            font-size: 9px;
-            color: rgba(255, 255, 255, 0.5);
-            font-weight: 600;
+        @keyframes pulse-button {
+            0% { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
+            50% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.65); }
+            100% { box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); }
         }
     </style>
 </head>
@@ -708,80 +859,50 @@
 
     <!-- Floating Topbar Header -->
     <div class="floating-header" id="floatingHeader">
-        <div class="header-main-row">
-            <div class="header-logo-section">
-                <span class="logo-emoji">🦟</span>
-                <div class="header-title-section">
-                    <h1>SİVAS VEKTÖRLE MÜCADELE</h1>
-                    <p>Kamu Bilgilendirme ve İzleme Portalı</p>
-                </div>
+        <div class="header-logo-section">
+            <span class="logo-emoji">🛡️</span>
+            <div class="header-title-section">
+                <h1>SİVAS HAŞERE İLE MÜCADELE</h1>
+                <p>Kamu İzleme ve Bilgi Haritası</p>
             </div>
-            
-            <!-- Expand / Collapse controls button -->
-            <button class="header-expand-btn" onclick="toggleHeaderControls()" title="Menüyü Aç/Kapat">
-                <span id="expandChevron">▼</span>
-            </button>
         </div>
-        
-        <div class="header-controls-wrapper">
-            <!-- Toggle map rendering style -->
-            <div class="map-toggle-group">
-                <button class="map-toggle-btn active" id="btnToggleLines" onclick="setMapMode('lines')">🔀 Görünüm</button>
-                <button class="map-toggle-btn" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
-            </div>
-
-            <!-- Toggle basemap -->
-            <div class="map-toggle-group">
-                <button class="map-toggle-btn active" id="btnBaseOsm" onclick="setBasemap('osm')">🗺️ Sokak</button>
-                <button class="map-toggle-btn" id="btnBaseSat" onclick="setBasemap('satellite')">🛰️ Uydu</button>
-            </div>
-
-            <!-- Toggle Info panel -->
-            <button class="info-toggle-btn" id="btnToggleInfo" onclick="toggleInfoCard()">
-                <span>ℹ️</span> <span>Bilgi & Lejant</span>
-            </button>
-        </div>
+        <button class="header-info-btn" id="btnToggleInfoDesktop" onclick="toggleInfoCard()" title="Bilgi & Lejant">
+            <span>ℹ️</span> <span style="font-size: 11px; font-weight: 700; font-family: inherit;">Bilgi / Lejant</span>
+        </button>
     </div>
 
-    <!-- Floating Info Panel / Slide-up Bottom Sheet -->
-    <div class="floating-info-card" id="infoCard">
+    <!-- Collapsible Floating Basemap Switcher on the Right -->
+    <div class="basemap-floating-container">
+        <button class="basemap-floating-btn" onclick="toggleBasemapDropdown(event)" title="Harita Altlığı Seç">🗺️</button>
+        <div class="basemap-dropdown" id="basemapDropdown">
+            <button class="basemap-item-btn active" id="btnBaseRoadmap" onclick="setBasemap('roadmap'); toggleBasemapDropdown(event);">🗺️ Sokak</button>
+            <button class="basemap-item-btn" id="btnBaseSatellite" onclick="setBasemap('satellite'); toggleBasemapDropdown(event);">🛰️ Uydu</button>
+            <button class="basemap-item-btn" id="btnBaseHybrid" onclick="setBasemap('hybrid'); toggleBasemapDropdown(event);">🌐 Hibrit</button>
+            <button class="basemap-item-btn" id="btnBaseOsm" onclick="setBasemap('osm'); toggleBasemapDropdown(event);">🌍 OSM</button>
+        </div>
+        <!-- Location Button inside the container, flows directly under map button -->
+        <button class="floating-circle-btn desktop-only-location-btn" onclick="locateUser(event)" title="Konumuma Odaklan" style="margin-top: 10px;">📍</button>
+    </div>
+
+    <!-- Unified Info Panel / Slide-up Bottom Sheet -->
+    <div class="info-card-panel" id="infoCard">
+        <div class="bottom-sheet-handle"></div>
         <button class="info-card-close" onclick="toggleInfoCard(false)">✕</button>
-        <div class="info-card-title">📉 Günden Güne Azalan Koruma Süreci</div>
-        <div class="info-item">
-            Sivas genelinde haşerelerle mücadele amacıyla caddelerimiz <b>misblower ve ULV cihazlarıyla</b> düzenli olarak ilaçlanmaktadır.
-        </div>
-        <div class="info-item" style="margin-bottom: 12px;">
-            Kullanılan ilaçların koruma etkisi, açık hava koşulları ve doğal biyolojik çözünme sebebiyle <b>30 gün boyunca günden güne azalarak</b> devam eder.
-        </div>
-
-        <!-- Efficacy Decay Progress Visualization -->
-        <div class="decay-bar-container">
-            <div class="decay-bar-title">
-                <span>İlaçlama Koruma Seviyesi</span>
-                <span style="color: #60a5fa; font-weight: 800;">30 Günlük Akış</span>
-            </div>
-            <div class="decay-bar"></div>
-            <div class="decay-bar-labels">
-                <span>1. Gün (%100)</span>
-                <span>15. Gün (%50)</span>
-                <span>30. Gün (%0)</span>
-            </div>
-        </div>
-
-        <!-- Future Simulation Slider -->
-        <div class="simulation-container">
-            <div class="simulation-title">
-                <span>🔮 Gelecek Simülasyonu</span>
-                <span id="simulationValue" style="color: #10b981; font-weight: 800;">Bugün (0. Gün)</span>
-            </div>
-            <input type="range" id="simulationSlider" min="0" max="30" value="0" step="1" oninput="runEfficacySimulation(this.value)">
-            <div class="simulation-labels">
-                <span>Bugün</span>
-                <span>15 Gün Sonra</span>
-                <span>30 Gün Sonra</span>
-            </div>
-        </div>
+        <div class="info-card-title">📉 İlaçlama Koruma Durumu</div>
         
+        <div class="info-item">
+            Sivas genelinde haşerelerle mücadele amacıyla caddelerimiz düzenli olarak ilaçlanmaktadır. İlaçların koruma etkisi <b>30 gün boyunca</b> azalarak devam eder.
+        </div>
+
+        <div class="control-label">Harita Modu</div>
+        <div class="segmented-control" id="mapModeControl">
+            <button class="segment-btn active" id="btnToggleLines" onclick="setMapMode('lines')">🔀 Çizgi Rota</button>
+            <button class="segment-btn" id="btnToggleHeatmap" onclick="setMapMode('heatmap')">🔥 Yoğunluk</button>
+        </div>
+
+
+        
+        <div class="control-label">Koruma Dereceleri Lejantı</div>
         <div class="legend-container">
             <div class="legend-row">
                 <div class="legend-color" style="background:#10b981"></div>
@@ -821,29 +942,33 @@
             <div class="legend-row">
                 <div class="legend-color" style="background:#6b7280; border: 1px dashed rgba(255,255,255,0.4);"></div>
                 <div class="legend-text-container">
-                    <span class="legend-title">30+ Gün (Etki Tamamen Bitti)</span>
-                    <span class="legend-desc">Koruma süresi dolmuş, etkisiz hatlar: %0</span>
+                    <span class="legend-title">30+ Gün (Etkisiz)</span>
+                    <span class="legend-desc">Koruma süresi dolmuş hatlar: %0</span>
                 </div>
             </div>
         </div>
+
+        <!-- Admin Login Link -->
+        <div class="admin-link-container" style="margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
+            <a href="/" class="admin-link">🔑 Yönetici Girişi</a>
+        </div>
     </div>
 
-    <!-- Floating GPS Locate Button -->
-    <button class="gps-locate-btn" onclick="locateUser()" title="Konumuma Odaklan">
-        🎯
-    </button>
+    <!-- Floating Actions on the Bottom Right (Desktop Only) -->
+    <div class="desktop-floating-actions">
+        <a href="/ihbar" class="floating-pill-btn">
+            <span>🚨</span> <span>HAŞERE İHBARI GÖNDER</span>
+        </a>
+    </div>
 
-    <!-- Floating Admin Login Button -->
-    <a href="/" class="admin-login-btn">
-        <span>🔑</span>
-        <span>YÖNETİCİ GİRİŞİ</span>
-    </a>
-
-    <!-- Floating Action Button -->
-    <a href="/ihbar" class="floating-action-btn">
-        <span>🚨</span>
-        <span>HAŞERE İHBARI GÖNDER</span>
-    </a>
+    <!-- Mobile Bottom Dock -->
+    <div class="bottom-dock">
+        <button class="dock-circle-btn" onclick="locateUser(event)" title="Konumuma Odaklan">🎯</button>
+        <a href="/ihbar" class="dock-primary-btn">
+            <span>🚨</span> <span>İhbar Gönder</span>
+        </a>
+        <button class="dock-circle-btn" id="btnToggleInfo" onclick="toggleInfoCard()" title="Bilgi & Lejant">ℹ️</button>
+    </div>
 
     <!-- Map Area -->
     <div id="publicMap"></div>
@@ -856,54 +981,78 @@
         let sprayedLinesGroup;
         let sprayedHeatmapGroup;
         let activeMode = 'lines'; // 'heatmap' or 'lines'
-        let osmLayer;
+        let roadmapLayer;
         let satelliteLayer;
+        let hybridLayer;
+        let osmLayer;
         let isInfoOpen = false;
-        let isHeaderExpanded = false;
+        let isBasemapOpen = false;
 
-        function toggleHeaderControls(forceState) {
-            const header = document.getElementById('floatingHeader');
-            const chevron = document.getElementById('expandChevron');
-            
-            if (typeof forceState === 'boolean') {
-                isHeaderExpanded = forceState;
-            } else {
-                isHeaderExpanded = !isHeaderExpanded;
-            }
-
-            header.classList.toggle('expanded', isHeaderExpanded);
-            chevron.innerHTML = isHeaderExpanded ? "▲" : "▼";
+        function toggleBasemapDropdown(e) {
+            if (e) e.stopPropagation();
+            const dropdown = document.getElementById('basemapDropdown');
+            isBasemapOpen = !isBasemapOpen;
+            dropdown.classList.toggle('active', isBasemapOpen);
         }
 
+        // Close dropdown on click outside
+        document.addEventListener('click', (e) => {
+            const container = document.querySelector('.basemap-floating-container');
+            if (isBasemapOpen && container && !container.contains(e.target)) {
+                toggleBasemapDropdown();
+            }
+        });
+
         function initMap() {
-            // Default center Sivas Municipality coordinates
+            // Default center Sivas coordinates
             map = L.map('publicMap', { zoomControl: false }).setView([39.7477, 37.0179], 13);
 
-            // Google Maps as default basemap
-            osmLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                attribution: '© Google Maps | Sivas Belediyesi Vektör Kontrol',
+            // Google Maps Roadmap
+            roadmapLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps | Sivas Belediyesi Haşere ile Mücadele',
                 maxZoom: 22
             }).addTo(map);
 
-            satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            // Google Maps Satellite
+            satelliteLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
                 attribution: '© Google Maps',
                 maxZoom: 22
             });
 
-            L.control.zoom({ position: 'topright' }).addTo(map);
+            // Google Maps Hybrid
+            hybridLayer = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                attribution: '© Google Maps',
+                maxZoom: 22
+            });
+
+            // OpenStreetMap
+            osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            });
+
+            L.control.zoom({ position: 'topleft' }).addTo(map);
+
+            // Close panels when map is clicked
+            map.on('click', () => {
+                if (isBasemapOpen) {
+                    toggleBasemapDropdown();
+                }
+                if (isInfoOpen && window.innerWidth <= 768) {
+                    toggleInfoCard(false);
+                }
+            });
 
             sprayedLinesGroup = L.layerGroup().addTo(map); 
             sprayedHeatmapGroup = L.layerGroup();
             
             loadSprayedData();
 
-            // Set default drawer and header state based on device viewport
+            // Set default drawer state based on device viewport
             if (window.innerWidth > 768) {
                 toggleInfoCard(true);
-                toggleHeaderControls(true);
             } else {
                 toggleInfoCard(false);
-                toggleHeaderControls(false);
             }
         }
 
@@ -943,7 +1092,7 @@
                             const remaining = s.days_remaining || 0;
                             const style = getSprayStyle(remaining);
                             
-                            // 1. Çizgi Katmanı oluştur
+                            // 1. Line Layer
                             const layer = L.geoJSON(geom, { style: () => style });
                             layer.originalDaysRemaining = remaining;
                             const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
@@ -953,19 +1102,19 @@
                             
                             layer.bindPopup(`
                                 <div style="font-family: inherit; font-size: 12px; line-height: 1.4; color: #fff;">
-                                    <b style="font-size: 13px; color: #60a5fa;">📍 ${s.street_name || 'İlaçlama Hattı'}</b><br>
+                                    <b style="font-size: 13px; color: #38bdf8;">📍 ${s.street_name || 'İlaçlama Hattı'}</b><br>
                                     🏘️ <b>Mahalle:</b> ${s.neighborhood || '-'}<br>
                                     🕐 <b>İlaçlama Saati:</b> ${sprayedStr}<br>
-                                    📅 <b>Eritme/Bitiş Tarihi:</b> ${expiresStr}<br>
-                                    ⏳ <b>Erişim/Etki:</b> ${daysText}<br>
+                                    📅 <b>Bitiş Tarihi:</b> ${expiresStr}<br>
+                                    ⏳ <b>Etki Durumu:</b> ${daysText}<br>
                                     🧪 <b>Uygulanan İlaç:</b> ${s.chemical_name || '-'}
                                 </div>
                             `);
                             sprayedLinesGroup.addLayer(layer);
 
-                            // 2. Heatmap Noktalarını topla (Yalnızca aktif/koruyuculuğu olan ilaçlamaları heatmap yapalım)
+                            // 2. Heatmap points
                             if (remaining > 0) {
-                                const intensity = remaining / 30; // Etki gün sayısına göre yoğunluk gücü verelim
+                                const intensity = remaining / 30;
                                 const geometry = geom.type === 'Feature' ? geom.geometry : geom;
                                 if (geometry) {
                                     if (geometry.type === 'LineString') {
@@ -987,7 +1136,7 @@
                     }
                 });
 
-                // 3. Heatmap Katmanını kur
+                // 3. Setup Heatmap Layer
                 if (heatPoints.length > 0) {
                     const heatLayer = L.heatLayer(heatPoints, {
                         radius: 20,
@@ -999,7 +1148,7 @@
                     sprayedHeatmapGroup.addLayer(heatLayer);
                 }
 
-                // Simülasyon aktifse yeni gelen verilere de uygula
+                // Apply simulation if slider has value > 0
                 const simSlider = document.getElementById('simulationSlider');
                 if (simSlider && simSlider.value > 0) {
                     runEfficacySimulation(simSlider.value);
@@ -1012,8 +1161,13 @@
 
         function setMapMode(mode) {
             activeMode = mode;
-            document.getElementById('btnToggleLines').classList.toggle('active', mode === 'lines');
-            document.getElementById('btnToggleHeatmap').classList.toggle('active', mode === 'heatmap');
+            const btnLines = document.getElementById('btnToggleLines');
+            const btnHeat = document.getElementById('btnToggleHeatmap');
+            const control = document.getElementById('mapModeControl');
+            
+            if (btnLines) btnLines.classList.toggle('active', mode === 'lines');
+            if (btnHeat) btnHeat.classList.toggle('active', mode === 'heatmap');
+            if (control) control.classList.toggle('slide-right', mode === 'heatmap');
 
             if (mode === 'lines') {
                 map.removeLayer(sprayedHeatmapGroup);
@@ -1025,22 +1179,25 @@
         }
 
         function setBasemap(type) {
+            document.getElementById('btnBaseRoadmap').classList.toggle('active', type === 'roadmap');
+            document.getElementById('btnBaseSatellite').classList.toggle('active', type === 'satellite');
+            document.getElementById('btnBaseHybrid').classList.toggle('active', type === 'hybrid');
             document.getElementById('btnBaseOsm').classList.toggle('active', type === 'osm');
-            document.getElementById('btnBaseSat').classList.toggle('active', type === 'satellite');
 
-            if (type === 'osm') {
-                map.removeLayer(satelliteLayer);
-                map.addLayer(osmLayer);
-            } else {
-                map.removeLayer(osmLayer);
-                map.addLayer(satelliteLayer);
-            }
+            map.removeLayer(roadmapLayer);
+            map.removeLayer(satelliteLayer);
+            map.removeLayer(hybridLayer);
+            map.removeLayer(osmLayer);
+
+            if (type === 'roadmap') map.addLayer(roadmapLayer);
+            if (type === 'satellite') map.addLayer(satelliteLayer);
+            if (type === 'hybrid') map.addLayer(hybridLayer);
+            if (type === 'osm') map.addLayer(osmLayer);
         }
 
         function runEfficacySimulation(daysAhead) {
             daysAhead = parseFloat(daysAhead);
             
-            // Simülasyon değerini arayüzde güncelle
             const simVal = document.getElementById('simulationValue');
             if (simVal) {
                 if (daysAhead === 0) {
@@ -1048,11 +1205,10 @@
                     simVal.style.color = "#10b981";
                 } else {
                     simVal.innerHTML = `+${daysAhead} Gün Sonra`;
-                    simVal.style.color = "#3b82f6";
+                    simVal.style.color = "#38bdf8";
                 }
             }
 
-            // Harita üzerindeki çizgileri simüle et
             sprayedLinesGroup.eachLayer(layer => {
                 if (typeof layer.originalDaysRemaining !== 'undefined') {
                     const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
@@ -1064,7 +1220,8 @@
 
         function toggleInfoCard(forceState) {
             const card = document.getElementById('infoCard');
-            const btn = document.getElementById('btnToggleInfo');
+            const btnMobile = document.getElementById('btnToggleInfo');
+            const btnDesktop = document.getElementById('btnToggleInfoDesktop');
             
             if (typeof forceState === 'boolean') {
                 isInfoOpen = forceState;
@@ -1072,30 +1229,35 @@
                 isInfoOpen = !isInfoOpen;
             }
 
-            card.classList.toggle('active', isInfoOpen);
-            btn.classList.toggle('active', isInfoOpen);
+            if (card) card.classList.toggle('active', isInfoOpen);
+            if (btnMobile) btnMobile.classList.toggle('active', isInfoOpen);
+            if (btnDesktop) btnDesktop.classList.toggle('active', isInfoOpen);
         }
 
         let userLocationMarker = null;
 
-        function locateUser() {
+        function locateUser(e) {
             if (!navigator.geolocation) {
                 alert("Tarayıcınız konum servislerini desteklemiyor.");
                 return;
             }
 
-            const gpsBtn = document.querySelector('.gps-locate-btn');
-            const originalContent = gpsBtn.innerHTML;
-            gpsBtn.innerHTML = "⏳";
-            gpsBtn.style.pointerEvents = "none";
+            let clickedBtn = e ? e.currentTarget : null;
+            let originalContent = clickedBtn ? clickedBtn.innerHTML : null;
+            if (clickedBtn) {
+                clickedBtn.innerHTML = "⏳";
+                clickedBtn.style.pointerEvents = "none";
+            }
 
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
 
-                    gpsBtn.innerHTML = originalContent;
-                    gpsBtn.style.pointerEvents = "auto";
+                    if (clickedBtn) {
+                        clickedBtn.innerHTML = originalContent;
+                        clickedBtn.style.pointerEvents = "auto";
+                    }
 
                     if (userLocationMarker) {
                         map.removeLayer(userLocationMarker);
@@ -1103,7 +1265,7 @@
 
                     userLocationMarker = L.circleMarker([lat, lng], {
                         radius: 8,
-                        fillColor: '#3b82f6',
+                        fillColor: '#38bdf8',
                         color: '#fff',
                         weight: 2,
                         opacity: 1,
@@ -1120,8 +1282,10 @@
                     map.setView([lat, lng], 15, { animate: true });
                 },
                 (error) => {
-                    gpsBtn.innerHTML = originalContent;
-                    gpsBtn.style.pointerEvents = "auto";
+                    if (clickedBtn) {
+                        clickedBtn.innerHTML = originalContent;
+                        clickedBtn.style.pointerEvents = "auto";
+                    }
                     
                     let msg = "Konumunuza erişilemedi.";
                     if (error.code === error.PERMISSION_DENIED) {
@@ -1134,8 +1298,6 @@
         }
 
         initMap();
-        
-        // Her 2 dakikada bir ilaçlama verilerini arka planda otomatik yenile
         setInterval(loadSprayedData, 120000);
     </script>
 </body>

@@ -530,6 +530,7 @@ function renderTable(reports) {
                 <select class="form-select" style="width:130px;padding:4px 6px;font-size:11px;" onchange="assignReport(${r.id}, this.value)">
                     ${personnelOptions}
                 </select>
+                ${r.planned_date ? `<div style="font-size:10px;color:var(--text-muted);margin-top:4px;">🗓️ ${new Date(r.planned_date).toLocaleDateString('tr-TR')}</div>` : ''}
             </td>
             <td style="font-size:11px;font-weight:600;">${durationText}</td>
             <td><span class="badge ${prBadge}">${r.priority}</span></td>
@@ -711,6 +712,7 @@ function openDetailPanel(reportId) {
             <div class="detail-field">
                 <div class="detail-label">Atanan Personel</div>
                 <select class="form-select" style="width:100%;" onchange="assignReport(${r.id}, this.value)">${personnelOptions}</select>
+                ${r.planned_date ? `<div style="font-size:11px;color:var(--text-muted);margin-top:6px;">🗓️ <b>Görevlendirme Tarihi:</b> ${new Date(r.planned_date).toLocaleDateString('tr-TR')}</div>` : ''}
             </div>
             <div class="detail-field">
                 <div class="detail-label">Yönetici Notu</div>
@@ -891,9 +893,25 @@ async function updateReport(id, status) {
 
 async function assignReport(id, userId) {
     const assigned_user_id = userId ? parseInt(userId) : null;
-    await api(`/api/citizen-reports/${id}`, { method: 'PUT', body: JSON.stringify({ assigned_user_id }) });
+    let planned_date = null;
+    if (assigned_user_id) {
+        planned_date = prompt("Bu ihbar için görevlendirme tarihi girin (YYYY-MM-DD):", new Date().toLocaleDateString('en-CA'));
+        if (planned_date === null) {
+            // Cancelled
+            loadReports();
+            return;
+        }
+    }
+    await api(`/api/citizen-reports/${id}`, { 
+        method: 'PUT', 
+        body: JSON.stringify({ assigned_user_id, planned_date }) 
+    });
     toast('İhbar görevlendirmesi güncellendi', 'success');
-    loadReports();
+    loadReports().then(() => {
+        if (selectedReportId === id) {
+            openDetailPanel(id);
+        }
+    });
 }
 
 async function saveAdminNote(reportId) {

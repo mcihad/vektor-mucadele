@@ -23,7 +23,14 @@ module.exports = function(io) {
         const params = [];
         if (status) { sql += " AND r.status = ?"; params.push(status); }
         if (priority) { sql += " AND r.priority = ?"; params.push(priority); }
-        if (assigned_user_id) { sql += " AND r.assigned_user_id = ?"; params.push(assigned_user_id); }
+        if (assigned_user_id) {
+            sql += " AND r.assigned_user_id = ?";
+            params.push(assigned_user_id);
+            // If requested by a field user, only show tasks planned for today or past
+            if (req.user && req.user.role === 'field') {
+                sql += " AND (r.planned_date IS NULL OR r.planned_date <= CURRENT_DATE)";
+            }
+        }
         if (search) {
             sql += " AND (LOWER(r.description) LIKE LOWER(?) OR LOWER(r.neighborhood) LIKE LOWER(?) OR LOWER(r.address) LIKE LOWER(?) OR LOWER(r.reporter_name) LIKE LOWER(?) OR LOWER(COALESCE(u.full_name,'')) LIKE LOWER(?))";
             const s = `%${search}%`;
@@ -88,7 +95,7 @@ module.exports = function(io) {
 
     // Update report status / assignment / work area
     router.put('/:id', authMiddleware, async (req, res) => {
-        const { status, assigned_session_id, priority, assigned_user_id, work_area_geojson, admin_notes } = req.body;
+        const { status, assigned_session_id, priority, assigned_user_id, work_area_geojson, admin_notes, planned_date } = req.body;
         const db = getDb();
         let sql = "UPDATE citizen_reports SET";
         const sets = [];
@@ -109,6 +116,13 @@ module.exports = function(io) {
                 sets.push(" admin_notes = NULL");
             } else {
                 sets.push(" admin_notes = ?"); params.push(admin_notes);
+            }
+        }
+        if (planned_date !== undefined) {
+            if (planned_date === null || planned_date === '') {
+                sets.push(" planned_date = NULL");
+            } else {
+                sets.push(" planned_date = ?"); params.push(planned_date);
             }
         }
         if (assigned_user_id !== undefined) {
