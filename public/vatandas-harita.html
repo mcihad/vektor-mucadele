@@ -1096,10 +1096,10 @@
             return {
                 color: color,
                 weight: 1,
-                opacity: 0.35,
+                opacity: 0.45,
                 dashArray: '3 3',
                 fillColor: color,
-                fillOpacity: 0.12,
+                fillOpacity: 0.18,
                 interactive: false
             };
         }
@@ -1121,10 +1121,10 @@
                             const remaining = s.days_remaining || 0;
                             const style = getSprayStyle(remaining);
                             
-                            // 1a. Buffer Area Layer (15m left & 15m right)
+                            // 1a. Buffer Area Layer (17m left & 17m right)
                             if (remaining > 0 && typeof turf !== 'undefined') {
                                 try {
-                                    const buffered = turf.buffer(geom, 15, { units: 'meters' });
+                                    const buffered = turf.buffer(geom, 17, { units: 'meters' });
                                     const bufferStyle = getBufferStyle(remaining);
                                     const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
                                     bufferLayer.originalDaysRemaining = remaining;
