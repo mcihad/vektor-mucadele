@@ -984,6 +984,8 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <!-- Leaflet Heatmap Plugin -->
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <!-- Turf.js for Buffer calculations -->
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
     <script>
         let map;
         let sprayedLinesGroup;
@@ -1083,6 +1085,25 @@
             return { color: '#10b981', opacity: 0.8, weight: 5.5, className: 'flow-line-fresh' };
         }
 
+        function getBufferStyle(daysRemaining) {
+            let color = '#10b981';
+            if (daysRemaining <= 0) color = '#6b7280';
+            else if (daysRemaining <= 10) color = '#ef4444';
+            else if (daysRemaining <= 15) color = '#f97316';
+            else if (daysRemaining <= 20) color = '#f59e0b';
+            else if (daysRemaining <= 25) color = '#84cc16';
+            
+            return {
+                color: color,
+                weight: 1,
+                opacity: 0.35,
+                dashArray: '3 3',
+                fillColor: color,
+                fillOpacity: 0.12,
+                interactive: false
+            };
+        }
+
         async function loadSprayedData() {
             try {
                 const res = await fetch('/api/reports/public/expiry-map');
@@ -1100,9 +1121,24 @@
                             const remaining = s.days_remaining || 0;
                             const style = getSprayStyle(remaining);
                             
-                            // 1. Line Layer
+                            // 1a. Buffer Area Layer (15m left & 15m right)
+                            if (remaining > 0 && typeof turf !== 'undefined') {
+                                try {
+                                    const buffered = turf.buffer(geom, 15, { units: 'meters' });
+                                    const bufferStyle = getBufferStyle(remaining);
+                                    const bufferLayer = L.geoJSON(buffered, { style: () => bufferStyle });
+                                    bufferLayer.originalDaysRemaining = remaining;
+                                    bufferLayer.isBuffer = true;
+                                    sprayedLinesGroup.addLayer(bufferLayer);
+                                } catch (bufErr) {
+                                    console.error("Turf buffer error:", bufErr);
+                                }
+                            }
+                            
+                            // 1b. Central Line Layer
                             const layer = L.geoJSON(geom, { style: () => style });
                             layer.originalDaysRemaining = remaining;
+                            layer.isBuffer = false;
                             const daysText = remaining <= 0 ? '<b style="color:#ef4444">KORUMA SÜRESİ DOLMUŞ</b>' : `<b>${Math.round(remaining)} gün</b> koruyuculuk kaldı`;
                             const sprayedDate = new Date(s.sprayed_at);
                             const sprayedStr = sprayedDate.toLocaleString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -1220,8 +1256,11 @@
             sprayedLinesGroup.eachLayer(layer => {
                 if (typeof layer.originalDaysRemaining !== 'undefined') {
                     const simulatedRemaining = layer.originalDaysRemaining - daysAhead;
-                    const newStyle = getSprayStyle(simulatedRemaining);
-                    layer.setStyle(newStyle);
+                    if (layer.isBuffer) {
+                        layer.setStyle(getBufferStyle(simulatedRemaining));
+                    } else {
+                        layer.setStyle(getSprayStyle(simulatedRemaining));
+                    }
                 }
             });
         }
