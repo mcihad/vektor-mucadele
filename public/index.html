@@ -181,7 +181,7 @@
         
         <!-- Sivas Belediyesi Circular Logo -->
         <div style="text-align:center;margin-bottom:20px;">
-            <img src="/icons/sivas_logo.jpg" alt="Sivas Belediyesi" style="width:110px;height:110px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:2.5px solid #1e3a8a;object-fit:contain;">
+            <img id="sivasLogo" src="/icons/sivas_logo.jpg" alt="Sivas Belediyesi" style="width:110px;height:110px;border-radius:50%;background:#fff;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,0.3);border:2.5px solid #1e3a8a;object-fit:contain;cursor:pointer;">
         </div>
         <h1 style="font-size:22px; font-weight:800; letter-spacing:-0.5px; line-height:1.2; margin-bottom:2px; text-align:center;">SİVAS BELEDİYESİ</h1>
         <h2 style="font-size:13.5px; font-weight:700; color:var(--accent); margin-bottom:6px; letter-spacing:0.2px; text-align:center;">Veteriner İşleri Müdürlüğü</h2>
@@ -364,6 +364,23 @@ window.addEventListener('pageshow', (event) => {
         localStorage.setItem('vms_device_uuid', deviceUuid);
     }
     console.log('[Anonim Takip] Cihaz Kodu:', deviceUuid);
+
+    // Sivas Belediyesi logosuna 5 kez tıklayınca kodu gösteren gizli kısayol
+    let logoClicks = 0;
+    let logoClickTimeout;
+    const logoEl = document.getElementById('sivasLogo');
+    if (logoEl) {
+        logoEl.addEventListener('click', () => {
+            logoClicks++;
+            clearTimeout(logoClickTimeout);
+            logoClickTimeout = setTimeout(() => { logoClicks = 0; }, 2000);
+            
+            if (logoClicks >= 5) {
+                logoClicks = 0;
+                alert(`📡 CİHAZ TAKİP KODU\n\n${deviceUuid}\n\nBu kodu Yönetici Panelindeki Araç Düzenleme ekranında tanımlayabilirsiniz.`);
+            }
+        });
+    }
 
     if (localStorage.getItem('vms_token')) {
         return;
