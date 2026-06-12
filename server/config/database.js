@@ -578,6 +578,41 @@ async function createPgTables() {
     } catch(e) {
         console.log('Error creating idx_vehicle_comments_unique index:', e.message);
     }
+
+    // Araç konum geçmişi tablosu - oturum bağımsız ve oturumlu tüm araç konum güncellemeleri
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS vehicle_location_log (
+            id SERIAL PRIMARY KEY,
+            vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE CASCADE,
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL,
+            speed_kmh DOUBLE PRECISION DEFAULT 0,
+            is_spraying INTEGER DEFAULT 0,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    try {
+        await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_vehicle_location_log_time ON vehicle_location_log (vehicle_id, timestamp DESC)`);
+    } catch(e) {
+        console.log('Error creating vehicle_location_log index:', e.message);
+    }
+
+    // Backfill from route_points
+    try {
+        await dbConnection.query(`
+            INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying, timestamp)
+            SELECT s.vehicle_id, r.latitude, r.longitude, r.speed_kmh, COALESCE(r.is_spraying, 1), r.timestamp
+            FROM route_points r
+            JOIN spray_sessions s ON r.session_id = s.id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM vehicle_location_log vll 
+                WHERE vll.vehicle_id = s.vehicle_id AND vll.timestamp = r.timestamp
+            )
+        `);
+    } catch(e) {
+        console.log('Error backfilling vehicle_location_log:', e.message);
+    }
 }
 
 async function seedPgData() {

@@ -799,6 +799,9 @@ module.exports = function(io) {
                 vehicleId = session[0].vehicle_id;
                 await db.run("UPDATE vehicles SET last_lat = ?, last_lng = ?, last_location_time = datetime('now') WHERE id = ?",
                     [latitude, longitude, vehicleId]);
+                // Log to vehicle_location_log
+                await db.run("INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying) VALUES (?,?,?,?,?)",
+                    [vehicleId, latitude, longitude, speed_kmh || 0, is_spraying !== undefined ? is_spraying : 1]);
             }
 
             if (io) {
@@ -826,9 +829,16 @@ module.exports = function(io) {
 
         const db = getDb();
         try {
+            const session = rowsToObjects(await db.exec("SELECT vehicle_id FROM spray_sessions WHERE id = ?", [req.params.id]));
+            const vehicleId = session.length > 0 ? session[0].vehicle_id : null;
+
             for (const p of points) {
                 await db.run("INSERT INTO route_points (session_id, latitude, longitude, speed_kmh, timestamp, is_spraying) VALUES (?,?,?,?,?,?)",
                     [req.params.id, p.latitude, p.longitude, p.speed_kmh || 0, p.timestamp || new Date().toISOString(), p.is_spraying !== undefined ? p.is_spraying : 1]);
+                if (vehicleId) {
+                    await db.run("INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying, timestamp) VALUES (?,?,?,?,?,?)",
+                        [vehicleId, p.latitude, p.longitude, p.speed_kmh || 0, p.is_spraying !== undefined ? p.is_spraying : 1, p.timestamp || new Date().toISOString()]);
+                }
             }
             saveDatabase();
             res.json({ message: `${points.length} konum kaydedildi` });

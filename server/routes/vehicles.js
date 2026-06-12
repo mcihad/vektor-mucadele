@@ -428,6 +428,11 @@ router.post('/device-ping', async (req, res) => {
             "UPDATE vehicles SET last_lat = ?, last_lng = ?, last_location_time = datetime('now') WHERE id = ?",
             [latitude, longitude, vehicle.id]
         );
+        // Log to vehicle_location_log
+        await db.run(
+            "INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying) VALUES (?,?,?,?,0)",
+            [vehicle.id, latitude, longitude, speed || 0]
+        );
         saveDatabase();
 
         const io = req.app.get('io');
@@ -442,6 +447,24 @@ router.post('/device-ping', async (req, res) => {
             });
         }
         res.json({ ok: true, vehicle: vehicle.plate });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get vehicle location history with datetime filters
+router.get('/:id/history', authMiddleware, async (req, res) => {
+    const db = getDb();
+    const { date_from, date_to } = req.query;
+    if (!date_from || !date_to) {
+        return res.status(400).json({ error: 'Başlangıç ve bitiş tarih/saat bilgileri zorunludur' });
+    }
+    try {
+        const result = await db.exec(
+            "SELECT * FROM vehicle_location_log WHERE vehicle_id = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC",
+            [req.params.id, date_from, date_to]
+        );
+        res.json(rowsToObjects(result));
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

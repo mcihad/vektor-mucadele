@@ -499,6 +499,7 @@
             📡 Araç Takip Sistemi
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
+            <button class="vt-export-btn" style="background:linear-gradient(135deg, #3b82f6, #6366f1);border:none;" onclick="openHistoryReplayModal()">📍 Güzergah Geçmişi</button>
             <button class="vt-export-btn" onclick="exportReport()">📥 Rapor İndir</button>
         </div>
     </header>
@@ -637,6 +638,121 @@
         <div class="vt-timeline" id="detailTimeline">
             <div class="vt-no-data" style="padding:20px;">
                 <div class="desc">Aktivite bulunamadı</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Araç Geçmiş Rota / Güzergah Modalı -->
+<div class="vt-detail-modal" id="historyReplayModal">
+    <div class="vt-detail-content" style="max-width: 1200px; height: 90vh; display: flex; flex-direction: column; padding: 24px;">
+        <div class="vt-detail-header" style="margin-bottom: 16px; flex-shrink: 0;">
+            <div>
+                <div style="font-size:22px;font-weight:800;color:#fff;">📍 Geçmiş Güzergah & Rota İzleme</div>
+                <div style="font-size:13px;color:var(--text-secondary);">Araçların seçilen tarih ve saat aralığındaki tüm hareketleri</div>
+            </div>
+            <button class="vt-detail-close" onclick="closeHistoryReplayModal()">✕</button>
+        </div>
+        
+        <!-- Filtre ve Kontrol Paneli -->
+        <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; background: rgba(17,24,39,0.4); padding: 12px; border-radius: 12px; border: 1px solid var(--border); flex-shrink: 0;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">ARAÇ SEÇİN</label>
+                <select id="historyVehicleSelect" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none; min-width: 160px;"></select>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">BAŞLANGIÇ TARİHİ & SAATİ</label>
+                <input type="datetime-local" id="historyDateFrom" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 11px; color: var(--text-muted); font-weight: 600;">BİTİŞ TARİHİ & SAATİ</label>
+                <input type="datetime-local" id="historyDateTo" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 13px; outline: none;">
+            </div>
+            <div style="display: flex; align-self: flex-end; gap: 8px;">
+                <button class="btn btn-primary" onclick="loadVehicleHistory()" style="padding: 8px 16px; font-size: 13px; font-weight: 700; height: 38px;">Sorgula</button>
+            </div>
+        </div>
+
+        <!-- Ana Görünüm: Harita + Bilgi Paneli -->
+        <div style="display: grid; grid-template-columns: 3fr 1fr; gap: 16px; flex-grow: 1; min-height: 0; margin-bottom: 16px;">
+            <!-- Harita Alanı -->
+            <div style="position: relative; border-radius: 12px; overflow: hidden; border: 1px solid var(--border); height: 100%;">
+                <div id="historyMap" style="height: 100%; width: 100%;"></div>
+                
+                <!-- Oynatma Kontrolleri -->
+                <div id="playbackControls" style="display: none; position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); background: rgba(10,14,26,0.95); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 30px; padding: 8px 24px; z-index: 1000; align-items: center; gap: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+                    <button onclick="togglePlayback()" id="playBtn" style="background: var(--accent); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;"><span id="playIcon" style="font-size: 14px;">▶</span></button>
+                    <button onclick="stopPlayback()" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); color: #fff; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;">⏹</button>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 2px; min-width: 140px;">
+                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;" id="playbackTimeLabel">Saat: --:--:--</div>
+                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700;" id="playbackSpeedLabel">Hız: 0 km/s</div>
+                        <div style="width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; position: relative; overflow: hidden; margin-top: 4px;">
+                            <div id="playbackProgressBar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.1s linear;"></div>
+                        </div>
+                    </div>
+
+                    <select id="playbackSpeedSelect" style="background: var(--bg-card); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 11px; outline: none; cursor: pointer;">
+                        <option value="1">1x Hız</option>
+                        <option value="5">5x Hız</option>
+                        <option value="10" selected>10x Hız</option>
+                        <option value="25">25x Hız</option>
+                        <option value="50">50x Hız</option>
+                        <option value="100">100x Hız</option>
+                    </select>
+                </div>
+
+                <!-- Legend -->
+                <div style="position: absolute; top: 16px; left: 16px; background: rgba(10,14,26,0.9); backdrop-filter: blur(12px); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; font-size: 11px;">
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff;"><div style="width: 16px; height: 3px; background: #ef4444; border-radius: 2px;"></div>🔴 İlaçlama Aktif</div>
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff;"><div style="width: 16px; height: 3px; background: #3b82f6; border-radius: 2px;"></div>🔵 İlaçlama Yok (Boş Gitme)</div>
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff;">🟢 Rota Başlangıcı</div>
+                    <div style="display: flex; align-items: center; gap: 8px; color: #fff;">🏁 Rota Bitişi</div>
+                </div>
+            </div>
+
+            <!-- Sağ İstatistik / Rota Detay Paneli -->
+            <div style="display: flex; flex-direction: column; gap: 16px; background: rgba(17,24,39,0.3); border: 1px solid var(--border); border-radius: 12px; padding: 16px; overflow-y: auto;">
+                <h4 style="margin: 0; font-size: 14px; font-weight: 700; color: #fff;">📊 Güzergah İstatistikleri</h4>
+                
+                <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">TOPLAM MESAFE</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #fff;" id="histTotalDistance">0.0 km</div>
+                    </div>
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">İLAÇLAMA MESAFESİ</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #ef4444;" id="histSprayDistance">0.0 km</div>
+                    </div>
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">ORTALAMA HIZ</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #3b82f6;" id="histAvgSpeed">0 km/s</div>
+                    </div>
+                    <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 10px;">
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600;">TOPLAM NOKTA</div>
+                        <div style="font-size: 18px; font-weight: 800; color: #10b981;" id="histDataPointsCount">0 nokta</div>
+                    </div>
+                </div>
+
+                <div style="flex-grow: 1; display: flex; flex-direction: column; gap: 8px; min-height: 200px;">
+                    <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: #fff;">⏱️ Rota Noktaları</h4>
+                    <div style="flex-grow: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; background: rgba(0,0,0,0.2);">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: var(--text-secondary);">
+                            <thead style="position: sticky; top: 0; background: var(--bg-card); z-index: 10;">
+                                <tr>
+                                    <th style="padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border);">Saat</th>
+                                    <th style="padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border);">Hız</th>
+                                    <th style="padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border);">İlaç</th>
+                                </tr>
+                            </thead>
+                            <tbody id="historyPointsTableBody">
+                                <tr>
+                                    <td colspan="3" style="text-align: center; padding: 20px; color: var(--text-muted);">Veri yok</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -960,7 +1076,10 @@ function renderVehicleCards(vehicles) {
             </div>
             <div class="vt-card-footer">
                 <div class="vt-last-seen">📍 Son görülme: ${lastSeen}</div>
-                <button class="vt-detail-btn" onclick="showVehicleDetail(${v.id})">Detay →</button>
+                <div style="display:flex;gap:6px;">
+                    <button class="vt-detail-btn" style="border-color:var(--accent);color:var(--accent);" onclick="openHistoryReplayModal(${v.id})">📍 Rota Geçmişi</button>
+                    <button class="vt-detail-btn" onclick="showVehicleDetail(${v.id})">Detay →</button>
+                </div>
             </div>
         </div>`;
     }).join('');
@@ -1270,6 +1389,324 @@ document.addEventListener('DOMContentLoaded', () => {
 document.getElementById('detailModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('detailModal')) closeDetailModal();
 });
+document.getElementById('historyReplayModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('historyReplayModal')) closeHistoryReplayModal();
+});
+
+// ── Araç Geçmiş Güzergah & Rota Oynatma Mantığı ──
+let historyMap = null;
+let historyPolylines = [];
+let startMarker = null;
+let endMarker = null;
+let playbackMarker = null;
+let playbackInterval = null;
+let playbackIndex = 0;
+let historyPoints = [];
+
+function initHistoryMap() {
+    if (historyMap) return;
+
+    const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 22
+    });
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 22
+    });
+    const darkBasemap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19
+    });
+
+    historyMap = L.map('historyMap', { 
+        zoomControl: false,
+        layers: [darkBasemap]
+    }).setView([39.7477, 37.0179], 12);
+
+    const baseMaps = {
+        "Koyu Tema (Dark)": darkBasemap,
+        "Google Harita": googleRoadmap,
+        "Google Uydu + Hibrit": googleHybrid
+    };
+
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(historyMap);
+    L.control.zoom({ position: 'topright' }).addTo(historyMap);
+}
+
+function populateHistoryVehicleSelect() {
+    const sel = document.getElementById('historyVehicleSelect');
+    sel.innerHTML = '';
+    allVehicles.forEach(v => {
+        sel.innerHTML += `<option value="${v.id}">${v.plate} - ${v.machine_name}</option>`;
+    });
+}
+
+function setDefaultHistoryDates() {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    document.getElementById('historyDateFrom').value = `${todayStr}T00:00`;
+    document.getElementById('historyDateTo').value = `${todayStr}T23:59`;
+}
+function openHistoryReplayModal(vehicleId = null) {
+    document.getElementById('historyReplayModal').classList.add('open');
+    initHistoryMap();
+    populateHistoryVehicleSelect();
+    setDefaultHistoryDates();
+    
+    if (vehicleId) {
+        document.getElementById('historyVehicleSelect').value = vehicleId;
+        document.getElementById('historyVehicleSelect').disabled = true;
+        loadVehicleHistory();
+    } else {
+        document.getElementById('historyVehicleSelect').disabled = false;
+    }
+    
+    setTimeout(() => {
+        if (historyMap) {
+            historyMap.invalidateSize();
+        }
+    }, 300);
+}
+
+function closeHistoryReplayModal() {
+    stopPlayback();
+    clearHistoryMap();
+    document.getElementById('historyReplayModal').classList.remove('open');
+}
+
+function clearHistoryMap() {
+    historyPolylines.forEach(p => historyMap.removeLayer(p));
+    historyPolylines = [];
+    if (startMarker) { historyMap.removeLayer(startMarker); startMarker = null; }
+    if (endMarker) { historyMap.removeLayer(endMarker); endMarker = null; }
+    if (playbackMarker) { historyMap.removeLayer(playbackMarker); playbackMarker = null; }
+}
+
+function drawHistoryRoute(points) {
+    clearHistoryMap();
+    if (points.length === 0) return;
+
+    let currentSegment = [];
+    let currentStatus = points[0].is_spraying;
+
+    for (let i = 0; i < points.length; i++) {
+        const p = points[i];
+        currentSegment.push([p.latitude, p.longitude]);
+
+        if (p.is_spraying !== currentStatus || i === points.length - 1) {
+            const color = currentStatus === 1 ? '#ef4444' : '#3b82f6';
+            const polyline = L.polyline(currentSegment, {
+                color: color,
+                weight: 5,
+                opacity: 0.85
+            }).addTo(historyMap);
+            
+            historyPolylines.push(polyline);
+
+            currentSegment = [[p.latitude, p.longitude]];
+            currentStatus = p.is_spraying;
+        }
+    }
+
+    const startPoint = points[0];
+    const endPoint = points[points.length - 1];
+
+    startMarker = L.marker([startPoint.latitude, startPoint.longitude], {
+        icon: L.divIcon({
+            className: '',
+            html: `<div style="width:24px;height:24px;background:#10b981;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.5);">BAŞ</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        })
+    }).addTo(historyMap).bindPopup(`<b>Başlangıç</b><br>${new Date(startPoint.timestamp).toLocaleString('tr-TR')}`);
+
+    endMarker = L.marker([endPoint.latitude, endPoint.longitude], {
+        icon: L.divIcon({
+            className: '',
+            html: `<div style="width:24px;height:24px;background:#3b82f6;border:2px solid #fff;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:10px;font-weight:bold;box-shadow:0 2px 5px rgba(0,0,0,0.5);">BİT</div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        })
+    }).addTo(historyMap).bindPopup(`<b>Bitiş</b><br>${new Date(endPoint.timestamp).toLocaleString('tr-TR')}`);
+
+    const allCoords = points.map(p => [p.latitude, p.longitude]);
+    historyMap.fitBounds(allCoords, { padding: [40, 40] });
+}
+
+function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+}
+
+async function loadVehicleHistory() {
+    const vehicleId = document.getElementById('historyVehicleSelect').value;
+    const dateFrom = document.getElementById('historyDateFrom').value;
+    const dateTo = document.getElementById('historyDateTo').value;
+    
+    if (!vehicleId || !dateFrom || !dateTo) {
+        toast('Lütfen tüm filtre alanlarını doldurun', 'error');
+        return;
+    }
+    
+    stopPlayback();
+    clearHistoryMap();
+    
+    document.getElementById('playbackControls').style.display = 'none';
+    document.getElementById('historyPointsTableBody').innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted);">Yükleniyor...</td></tr>`;
+    
+    try {
+        const url = `/api/vehicles/${vehicleId}/history?date_from=${new Date(dateFrom).toISOString()}&date_to=${new Date(dateTo).toISOString()}`;
+        const points = await api(url);
+        
+        historyPoints = points || [];
+        
+        document.getElementById('histDataPointsCount').textContent = `${historyPoints.length} nokta`;
+        
+        if (historyPoints.length === 0) {
+            document.getElementById('historyPointsTableBody').innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--text-muted);">Bu tarih aralığında hareket kaydı bulunamadı</td></tr>`;
+            document.getElementById('histTotalDistance').textContent = '0.0 km';
+            document.getElementById('histSprayDistance').textContent = '0.0 km';
+            document.getElementById('histAvgSpeed').textContent = '0 km/s';
+            toast('Kayıt bulunamadı', 'info');
+            return;
+        }
+        
+        let totalD = 0;
+        let sprayD = 0;
+        let speedSum = 0;
+        
+        for (let i = 1; i < historyPoints.length; i++) {
+            const p1 = historyPoints[i-1];
+            const p2 = historyPoints[i];
+            const d = haversine(p1.latitude, p1.longitude, p2.latitude, p2.longitude);
+            totalD += d;
+            if (p2.is_spraying === 1) {
+                sprayD += d;
+            }
+            speedSum += p2.speed_kmh || 0;
+        }
+        
+        const avgSpeed = speedSum / (historyPoints.length - 1 || 1);
+        
+        document.getElementById('histTotalDistance').textContent = `${(totalD / 1000).toFixed(2)} km`;
+        document.getElementById('histSprayDistance').textContent = `${(sprayD / 1000).toFixed(2)} km`;
+        document.getElementById('histAvgSpeed').textContent = `${avgSpeed.toFixed(1)} km/s`;
+        
+        const html = historyPoints.map((pt, idx) => {
+            const timeStr = new Date(pt.timestamp).toLocaleTimeString('tr-TR');
+            const speed = pt.speed_kmh ? `${pt.speed_kmh} km/s` : '0';
+            const sprayText = pt.is_spraying === 1 ? '<span style="color:#ef4444;font-weight:bold;">Evet</span>' : '<span style="color:#3b82f6;">Hayır</span>';
+            return `<tr onclick="jumpToPlaybackIndex(${idx})" style="cursor:pointer; transition: background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.05)'" onmouseout="this.style.background='transparent'">
+                <td style="padding:6px 8px;border-bottom:1px solid var(--border);">${timeStr}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid var(--border);">${speed}</td>
+                <td style="padding:6px 8px;border-bottom:1px solid var(--border);">${sprayText}</td>
+            </tr>`;
+        }).join('');
+        document.getElementById('historyPointsTableBody').innerHTML = html;
+        
+        drawHistoryRoute(historyPoints);
+        
+        document.getElementById('playbackControls').style.display = 'flex';
+        playbackIndex = 0;
+        updatePlaybackPosition();
+        
+    } catch(err) {
+        console.error('Geçmiş yükleme hatası:', err);
+        document.getElementById('historyPointsTableBody').innerHTML = `<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--danger);">Yükleme hatası!</td></tr>`;
+        toast('Geçmiş yüklenirken hata oluştu', 'error');
+    }
+}
+
+function jumpToPlaybackIndex(idx) {
+    pausePlayback();
+    playbackIndex = idx;
+    updatePlaybackPosition();
+}
+
+function togglePlayback() {
+    if (playbackInterval) {
+        pausePlayback();
+    } else {
+        startPlayback();
+    }
+}
+
+function pausePlayback() {
+    if (playbackInterval) {
+        clearInterval(playbackInterval);
+        playbackInterval = null;
+    }
+    document.getElementById('playIcon').textContent = '▶';
+}
+
+function stopPlayback() {
+    pausePlayback();
+    playbackIndex = 0;
+    updatePlaybackPosition();
+}
+
+function startPlayback() {
+    if (historyPoints.length === 0) return;
+    document.getElementById('playIcon').textContent = '⏸';
+
+    const speedSelect = document.getElementById('playbackSpeedSelect');
+    
+    function tick() {
+        if (playbackIndex >= historyPoints.length) {
+            stopPlayback();
+            return;
+        }
+        updatePlaybackPosition();
+        
+        const step = parseInt(speedSelect.value) || 1;
+        playbackIndex += step;
+    }
+
+    playbackInterval = setInterval(tick, 200);
+}
+
+function updatePlaybackPosition() {
+    if (historyPoints.length === 0) return;
+    if (playbackIndex >= historyPoints.length) playbackIndex = historyPoints.length - 1;
+    if (playbackIndex < 0) playbackIndex = 0;
+
+    const pt = historyPoints[playbackIndex];
+    const latlng = [pt.latitude, pt.longitude];
+
+    if (!playbackMarker) {
+        playbackMarker = L.marker(latlng, {
+            icon: L.divIcon({
+                className: '',
+                html: `<div style="
+                    width:32px;height:32px;border-radius:50%;
+                    background:#f59e0b;
+                    border:3px solid #fff;
+                    display:flex;align-items:center;justify-content:center;
+                    font-size:14px;
+                    box-shadow:0 4px 10px rgba(0,0,0,0.5);
+                    animation: vtPulse 1.5s infinite;
+                ">🚐</div>`,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            })
+        }).addTo(historyMap);
+    } else {
+        playbackMarker.setLatLng(latlng);
+    }
+
+    historyMap.panTo(latlng);
+
+    const tStr = new Date(pt.timestamp).toLocaleTimeString('tr-TR');
+    document.getElementById('playbackTimeLabel').textContent = `Saat: ${tStr}`;
+    document.getElementById('playbackSpeedLabel').textContent = `Hız: ${pt.speed_kmh} km/s`;
+    
+    const progress = (playbackIndex / (historyPoints.length - 1)) * 100;
+    document.getElementById('playbackProgressBar').style.width = `${progress}%`;
+}
 </script>
 <script src="/admin/admin-notifications.js"></script>
 </body>

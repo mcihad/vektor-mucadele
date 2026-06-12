@@ -319,6 +319,11 @@ io.on('connection', (socket) => {
                     "UPDATE vehicles SET last_lat = $1, last_lng = $2, last_location_time = NOW() WHERE id = $3",
                     [data.latitude, data.longitude, data.vehicle_id]
                 );
+                // Log to vehicle_location_log
+                await db.run(
+                    "INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying) VALUES ($1, $2, $3, $4, $5)",
+                    [data.vehicle_id, data.latitude, data.longitude, data.speed_kmh || data.speed || 0, data.is_spraying !== undefined ? data.is_spraying : 0]
+                );
                 saveDatabase();
             } catch(e) {
                 console.error('[Vehicle Location DB] Hata:', e.message);
@@ -340,6 +345,11 @@ io.on('connection', (socket) => {
                 await db.run(
                     "UPDATE vehicles SET last_lat = $1, last_lng = $2, last_location_time = NOW() WHERE id = $3",
                     [data.latitude, data.longitude, vehicle.id]
+                );
+                // Log to vehicle_location_log
+                await db.run(
+                    "INSERT INTO vehicle_location_log (vehicle_id, latitude, longitude, speed_kmh, is_spraying) VALUES ($1, $2, $3, $4, 0)",
+                    [vehicle.id, data.latitude, data.longitude, data.speed || 0]
                 );
                 saveDatabase();
 
