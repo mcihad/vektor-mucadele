@@ -191,6 +191,14 @@ async function createPgTables() {
         )
     `);
 
+    try {
+        await dbConnection.query(`
+            ALTER TABLE vehicles ADD COLUMN IF NOT EXISTS device_id VARCHAR(100) UNIQUE
+        `);
+    } catch(err) {
+        console.error('[Migration] vehicles tablosuna device_id kolonu eklenirken hata oluştu:', err.message);
+    }
+
     await dbConnection.query(`
         CREATE TABLE IF NOT EXISTS planned_routes (
             id SERIAL PRIMARY KEY,

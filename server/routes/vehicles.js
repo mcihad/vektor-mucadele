@@ -381,12 +381,12 @@ router.post('/:id/location', authMiddleware, async (req, res) => {
 
 // Update vehicle
 router.put('/:id', authMiddleware, async (req, res) => {
-    const { machine_name, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active } = req.body;
+    const { machine_name, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active, device_id } = req.body;
     const db = getDb();
     try {
         await db.run(`UPDATE vehicles SET machine_name=?, tank_capacity_lt=?, consumption_info=?, 
-                spray_width_mt=?, usage_type=?, is_active=? WHERE id=?`,
-            [machine_name, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active ? 1 : 0, req.params.id]);
+                spray_width_mt=?, usage_type=?, is_active=?, device_id=? WHERE id=?`,
+            [machine_name, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active ? 1 : 0, device_id || null, req.params.id]);
         saveDatabase();
         res.json({ message: 'Araç güncellendi' });
     } catch (err) {
@@ -396,14 +396,52 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 // Create new vehicle
 router.post('/', authMiddleware, async (req, res) => {
-    const { plate, machine_name, machine_type, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active } = req.body;
+    const { plate, machine_name, machine_type, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active, device_id } = req.body;
     const db = getDb();
     try {
-        await db.run(`INSERT INTO vehicles (plate, machine_name, machine_type, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active)
-                VALUES (?,?,?,?,?,?,?,?)`,
-            [plate, machine_name, machine_type || 'ulv', tank_capacity_lt, consumption_info, spray_width_mt || 10, usage_type, is_active ? 1 : 0]);
+        await db.run(`INSERT INTO vehicles (plate, machine_name, machine_type, tank_capacity_lt, consumption_info, spray_width_mt, usage_type, is_active, device_id)
+                VALUES (?,?,?,?,?,?,?,?,?)`,
+            [plate, machine_name, machine_type || 'ulv', tank_capacity_lt, consumption_info, spray_width_mt || 10, usage_type, is_active ? 1 : 0, device_id || null]);
         saveDatabase();
         res.json({ message: 'Araç başarıyla eklendi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Device anonymous location ping (Public)
+router.post('/device-ping', async (req, res) => {
+    const { device_uuid, latitude, longitude, speed } = req.body;
+    if (!device_uuid || !latitude || !longitude) {
+        return res.status(400).json({ error: 'Eksik konum veya cihaz parametreleri' });
+    }
+    const db = getDb();
+    try {
+        const result = await db.exec("SELECT id, plate FROM vehicles WHERE device_id = ?", [device_uuid]);
+        const vehicles = rowsToObjects(result);
+        if (vehicles.length === 0) {
+            return res.status(404).json({ error: 'Bu cihaz koduna atanmış bir araç bulunamadı' });
+        }
+        const vehicle = vehicles[0];
+
+        await db.run(
+            "UPDATE vehicles SET last_lat = ?, last_lng = ?, last_location_time = datetime('now') WHERE id = ?",
+            [latitude, longitude, vehicle.id]
+        );
+        saveDatabase();
+
+        const io = req.app.get('io');
+        if (io) {
+            io.emit('vehicle-update', {
+                vehicle_id: vehicle.id,
+                plate: vehicle.plate,
+                latitude: parseFloat(latitude),
+                longitude: parseFloat(longitude),
+                speed: parseFloat(speed) || 0,
+                is_spraying: 0
+            });
+        }
+        res.json({ ok: true, vehicle: vehicle.plate });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

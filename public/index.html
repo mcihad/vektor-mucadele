@@ -214,7 +214,6 @@
             <b>Saha Personeli:</b> ufuk, ahmet, kamil, alperen, samet, tolga, koray, enes, onur<br>
             <b>Saha Şifre:</b> sivas2024
         </div>
-        
 
     </div>
 </div>
@@ -356,6 +355,58 @@ window.addEventListener('pageshow', (event) => {
         btn.textContent = 'Giriş Yap';
     }
 });
+
+// --- Cihaz Kimliği ve Anonim Konum Takibi ---
+(function initAnonymousTracking() {
+    let deviceUuid = localStorage.getItem('vms_device_uuid');
+    if (!deviceUuid) {
+        deviceUuid = 'vms_dev_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+        localStorage.setItem('vms_device_uuid', deviceUuid);
+    }
+    console.log('[Anonim Takip] Cihaz Kodu:', deviceUuid);
+
+    if (localStorage.getItem('vms_token')) {
+        return;
+    }
+
+    let lastSendTime = 0;
+    
+    if (navigator.geolocation) {
+        navigator.geolocation.watchPosition(
+            (position) => {
+                const now = Date.now();
+                if (now - lastSendTime >= 5000) {
+                    lastSendTime = now;
+                    const payload = {
+                        device_uuid: deviceUuid,
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude,
+                        speed: position.coords.speed || 0
+                    };
+                    
+                    fetch('/api/vehicles/device-ping', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log('[Anonim Takip] Konum gönderildi:', data);
+                    })
+                    .catch(err => {
+                        console.warn('[Anonim Takip] Gönderim hatası:', err.message);
+                    });
+                }
+            },
+            (error) => {
+                console.warn('[Anonim Takip] Konum alınamadı:', error.message);
+            },
+            { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+        );
+    } else {
+        console.warn('[Anonim Takip] Geolocation tarayıcı tarafından desteklenmiyor.');
+    }
+})();
 </script>
 </body>
 </html>

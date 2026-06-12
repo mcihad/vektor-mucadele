@@ -27,6 +27,7 @@ const pushSubscriptions = new Map(); // user_id -> subscription
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+app.set('io', io);
 
 // Middleware
 app.use(cors());
@@ -325,6 +326,35 @@ io.on('connection', (socket) => {
         }
         // Broadcast vehicle location to all admin clients
         io.emit('vehicle-update', data);
+    });
+
+    socket.on('device-location', async (data) => {
+        if (!data.device_uuid || !data.latitude || !data.longitude) return;
+        try {
+            const db = getDb();
+            const vehicleResult = rowsToObjects(await db.exec("SELECT id, plate FROM vehicles WHERE device_id = $1", [data.device_uuid]));
+            if (vehicleResult.length > 0) {
+                const vehicle = vehicleResult[0];
+                checkVehicleMovement(vehicle.id, data.latitude, data.longitude);
+                
+                await db.run(
+                    "UPDATE vehicles SET last_lat = $1, last_lng = $2, last_location_time = NOW() WHERE id = $3",
+                    [data.latitude, data.longitude, vehicle.id]
+                );
+                saveDatabase();
+
+                io.emit('vehicle-update', {
+                    vehicle_id: vehicle.id,
+                    plate: vehicle.plate,
+                    latitude: data.latitude,
+                    longitude: data.longitude,
+                    speed: data.speed || 0,
+                    is_spraying: 0
+                });
+            }
+        } catch(e) {
+            console.error('[Device Location Socket] Hata:', e.message);
+        }
     });
 
     // ─── Kullanıcı Konum Takibi (Oturum Bağımsız) ───

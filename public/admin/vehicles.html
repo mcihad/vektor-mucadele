@@ -50,7 +50,7 @@
             <div class="card-header"><span class="card-title">Kayıtlı Araçlar</span></div>
             <div class="table-container">
                 <table id="vehiclesExcelTable">
-                    <thead><tr><th>Plaka</th><th>Makine</th><th>Tank</th><th>Tüketim</th><th>Genişlik</th><th>Kullanım</th><th>İşlemler</th></tr></thead>
+                    <thead><tr><th>Plaka</th><th>Makine</th><th>Tank</th><th>Tüketim</th><th>Genişlik</th><th>Cihaz Kodu</th><th>Kullanım</th><th>İşlemler</th></tr></thead>
                     <tbody id="vehicleTable"></tbody>
                 </table>
             </div>
@@ -104,9 +104,15 @@
                     </select>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Tüketim Açıklaması</label>
-                <input type="text" class="form-input" id="vConsumptionInfo" placeholder="Örn: 100lt tankı 22.5 dk'da boşaltır">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Tüketim Açıklaması</label>
+                    <input type="text" class="form-input" id="vConsumptionInfo" placeholder="Örn: 100lt tankı 22.5 dk'da boşaltır">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tablet Cihaz Kimliği (Takip Kodu)</label>
+                    <input type="text" class="form-input" id="vDeviceId" placeholder="Örn: vms_dev_xyz">
+                </div>
             </div>
             <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:16px;">
                 <button type="button" class="btn btn-outline" onclick="closeModal()">İptal</button>
@@ -181,13 +187,14 @@ async function load() {
                 <td>${v.tank_capacity_lt} lt</td>
                 <td style="font-size:11px;">${v.consumption_info || '-'}</td>
                 <td>${v.spray_width_mt}m</td>
+                <td><code style="background:var(--bg-card);padding:2px 6px;border-radius:4px;font-size:11px;">${v.device_id || '-'}</code></td>
                 <td><span class="badge ${v.usage_type==='sokak_ilacalama'?'badge-info':'badge-warning'}">${v.usage_type==='sokak_ilacalama'?'Sokak':'Larva/Gübre'}</span></td>
                 <td>
                     <button class="btn btn-sm btn-outline" style="padding:2px 6px;margin-right:4px;" onclick="openEditVehicle(${v.id})">✏️ Düzenle</button>
                     <button class="btn btn-sm btn-outline btn-danger" style="padding:2px 6px;color:var(--danger);border-color:rgba(239,68,68,0.2)" onclick="deleteVehicle(${v.id})">🗑️ Sil</button>
                 </td>
             </tr>
-        `).join('') || '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted)">Kayıtlı araç bulunamadı.</td></tr>';
+        `).join('') || '<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted)">Kayıtlı araç bulunamadı.</td></tr>';
     } catch(err) {
         toast('Araçlar yüklenirken hata oluştu: ' + err.message, 'error');
     }
@@ -214,6 +221,7 @@ function openEditVehicle(id) {
     document.getElementById('vSprayWidth').value = v.spray_width_mt;
     document.getElementById('vUsageType').value = v.usage_type;
     document.getElementById('vConsumptionInfo').value = v.consumption_info || '';
+    document.getElementById('vDeviceId').value = v.device_id || '';
     document.getElementById('vehicleModal').classList.add('active');
 }
 
@@ -232,7 +240,8 @@ document.getElementById('vehicleForm').addEventListener('submit', async (e) => {
         spray_width_mt: parseFloat(document.getElementById('vSprayWidth').value) || 10,
         usage_type: document.getElementById('vUsageType').value,
         is_active: true,
-        consumption_info: document.getElementById('vConsumptionInfo').value
+        consumption_info: document.getElementById('vConsumptionInfo').value,
+        device_id: document.getElementById('vDeviceId').value.trim() || null
     };
 
     try {
