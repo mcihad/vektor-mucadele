@@ -6,6 +6,7 @@
     <title>VMS - Raporlar</title>
     <link rel="stylesheet" href="/css/main.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -26,6 +27,7 @@
         <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
         <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <a href="/admin/fuel-tracking" class="nav-item"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/vehicle-tracking" class="nav-item"><span class="icon">📡</span> Araç Takip</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item active"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -100,8 +102,6 @@
                     <div class="form-group" style="margin:0;"><label class="form-label">Bitiş Tarihi</label><input type="date" class="form-input" id="monthlyDateTo" onchange="loadMonthly()"></div>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button class="btn btn-outline btn-sm" onclick="exportMonthlyVehiclesExcel()" style="border-color:#10b981;color:#10b981;margin:0;">🚐 Araç Raporu Excel</button>
-                    <button class="btn btn-outline btn-sm" onclick="exportMonthlyPersonnelExcel()" style="border-color:#8b5cf6;color:#8b5cf6;margin:0;">👥 Personel Raporu Excel</button>
                     <button class="btn btn-outline btn-sm" onclick="exportMonthlyTrendExcel()" style="border-color:#3b82f6;color:#3b82f6;margin:0;">📅 Trend Raporu Excel</button>
                 </div>
             </div>
@@ -173,6 +173,40 @@
                         </thead>
                         <tbody id="vehTableBody"></tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- Araç Ortalama Yakıt Tüketim Raporu -->
+            <div style="margin-top:30px; margin-bottom: 12px; display:flex; justify-content:space-between; align-items:center;">
+                <div style="font-size: 16px; font-weight: bold; color: var(--text-primary);">⛽ Araç Ortalama Yakıt Tüketimi</div>
+                <button class="btn btn-outline btn-sm" onclick="exportFuelConsumptionExcel()" style="border-color:#10b981;color:#10b981;margin:0;display:flex;align-items:center;gap:6px;">🟢 Yakıt Raporunu Excel'e Aktar</button>
+            </div>
+            
+            <div class="grid-2" style="gap: 20px;">
+                <div class="card" style="margin: 0;">
+                    <div class="card-title">📊 Ortalama Yakıt Tüketim Grafiği (lt/100 km)</div>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="fuelConsumptionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card" style="margin: 0;">
+                    <div class="card-title">📋 Yakıt Tüketim Listesi</div>
+                    <div class="table-container" style="max-height: 300px; overflow-y: auto;">
+                        <table id="fuelConsumptionExcelTable">
+                            <thead>
+                                <tr>
+                                    <th>Plaka</th>
+                                    <th style="text-align: center;">Dolum Sayısı</th>
+                                    <th style="text-align: center;">Mesafe (km)</th>
+                                    <th style="text-align: center;">Ortalama Tüketim</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fuelConsumptionTableBody">
+                                <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -631,147 +665,15 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
     // Clone the table to avoid styling the actual UI table
     const clone = table.cloneNode(true);
     
-    // Set basic properties for Excel borders
-    clone.setAttribute('border', '1');
-    clone.style.borderCollapse = 'collapse';
-    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-    clone.style.background = '#ffffff';
-    
-    // Process headers
-    const ths = clone.querySelectorAll('th');
-    ths.forEach(th => {
-        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
-        th.style.color = '#ffffff';
-        th.style.fontWeight = 'bold';
-        th.style.padding = '8px';
-        th.style.border = '1px solid #cbd5e1';
-    });
-    
-    // Process rows
-    const trs = clone.querySelectorAll('tr');
-    trs.forEach(tr => {
-        tr.removeAttribute('class');
-        
-        // Check if it's a vehicle header row (light blue background in UI)
-        const isVehicleRow = tr.style.fontWeight === 'bold' || 
-                             (tr.style.background && tr.style.background.includes('rgba(59')) || 
-                             (tr.style.backgroundColor && tr.style.backgroundColor.includes('rgba(59'));
-        
-        // Check if it's the grand total row (light green background in UI)
-        const isGrandTotalRow = (tr.textContent && tr.textContent.includes('GENEL TOPLAM')) ||
-                                (tr.style.background && tr.style.background.includes('rgba(16')) ||
-                                (tr.style.backgroundColor && tr.style.backgroundColor.includes('rgba(16'));
-
-        tr.removeAttribute('style'); // Clear all inline style on tr to prevent leak
-        
-        if (isGrandTotalRow) {
-            tr.style.backgroundColor = '#ecfdf5';
-            tr.style.fontWeight = 'bold';
-        } else if (isVehicleRow) {
-            tr.style.backgroundColor = '#f0f6ff';
-            tr.style.fontWeight = 'bold';
-        } else {
-            tr.style.backgroundColor = '#ffffff';
-        }
-        
-        const tds = tr.querySelectorAll('td');
-        tds.forEach(td => {
-            td.removeAttribute('class');
-            
-            // Keep important inline style values before removing all styles
-            const originalColor = td.style.color;
-            const originalPaddingLeft = td.style.paddingLeft;
-            
-            td.removeAttribute('style');
-            
-            // Apply standard Excel cell styles
-            td.style.border = '1px solid #cbd5e1';
-            td.style.padding = '6px 8px';
-            if (originalPaddingLeft) {
-                td.style.paddingLeft = originalPaddingLeft;
-            }
-            if (isGrandTotalRow) {
-                td.style.backgroundColor = '#ecfdf5';
-                td.style.fontWeight = 'bold';
-            } else if (isVehicleRow) {
-                td.style.backgroundColor = '#f0f6ff';
-                td.style.fontWeight = 'bold';
-            }
-            
-            // Clean up text colors for Excel readability
-            if (originalColor) {
-                if (originalColor.includes('var(--text-secondary)')) {
-                    td.style.color = '#475569';
-                } else if (originalColor.includes('var(--text-muted)')) {
-                    td.style.color = '#64748b';
-                } else if (originalColor.includes('rgb(96, 165, 250)') || originalColor.includes('#60a5fa')) {
-                    td.style.color = '#1d4ed8'; // Dark blue plate text for contrast
-                } else {
-                    td.style.color = originalColor;
-                }
-            }
-        });
-    });
-
-    // Also style any status badges in coverageExcelTable cleanly for Excel
-    clone.querySelectorAll('.badge').forEach(badge => {
-        badge.style.padding = '2px 6px';
-        badge.style.borderRadius = '4px';
-        badge.style.fontWeight = 'bold';
-        badge.style.fontSize = '10px';
-        if (badge.classList.contains('badge-danger')) {
-            badge.style.backgroundColor = '#fee2e2';
-            badge.style.color = '#dc2626';
-        } else if (badge.classList.contains('badge-warning')) {
-            badge.style.backgroundColor = '#fef3c7';
-            badge.style.color = '#d97706';
-        } else if (badge.classList.contains('badge-success')) {
-            badge.style.backgroundColor = '#dcfce7';
-            badge.style.color = '#16a34a';
-        }
-    });
-    
-    // Turkish character support with UTF-8 BOM
-    const BOM = '\uFEFF';
-    const html = BOM + clone.outerHTML;
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.table_to_book(clone, { raw: true });
+    XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 function exportDataToExcel(headers, rows, filename = 'rapor') {
-    let html = '<table border="1" style="border-collapse:collapse;font-family:Segoe UI,sans-serif;">';
-    html += '<thead><tr style="background:#1e3a8a;color:#fff;font-weight:bold;">' + 
-            headers.map(h => `<th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">${h}</th>`).join('') + '</tr></thead>';
-    html += '<tbody>';
-    rows.forEach(row => {
-        const isTotal = row[0] === "GENEL TOPLAM";
-        html += '<tr>' + row.map(cell => {
-            const tdStyle = isTotal ? 'padding:6px 8px;border:1px solid #cbd5e1;background:#ecfdf5;font-weight:bold;' : 'padding:6px 8px;border:1px solid #cbd5e1;';
-            return `<td style="${tdStyle}">${cell}</td>`;
-        }).join('') + '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rapor");
+    XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 function exportDailyExcel() {
@@ -784,61 +686,6 @@ function exportCoverageExcel() {
     const from = document.getElementById('coverageDateFrom').value;
     const to = document.getElementById('coverageDateTo').value;
     exportHtmlTableToExcel('coverageExcelTable', `Mahalle_Kapsam_Raporu_${from}_${to}`);
-}
-
-function exportMonthlyVehiclesExcel() {
-    if (!currentMonthlyData || !currentMonthlyData.by_vehicle) {
-        alert("Lütfen önce verilerin yüklenmesini bekleyin.");
-        return;
-    }
-    const headers = ["Araç Plakası", "Toplam Oturum Sayısı", "Toplam Mesafe (km)", "Toplam İlaç (lt)"];
-    const rows = currentMonthlyData.by_vehicle.map(v => [
-        v.plate,
-        v.sessions,
-        Number(v.km || 0).toFixed(1),
-        Number(v.chemical || 0).toFixed(1)
-    ]);
-    
-    // Append grand total row
-    const totalSessions = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.sessions || 0), 0);
-    const totalKm = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.km || 0), 0);
-    const totalChemical = currentMonthlyData.by_vehicle.reduce((sum, v) => sum + Number(v.chemical || 0), 0);
-    rows.push([
-        "GENEL TOPLAM",
-        totalSessions,
-        totalKm.toFixed(1),
-        totalChemical.toFixed(1)
-    ]);
-    
-    const from = document.getElementById('monthlyDateFrom').value;
-    const to = document.getElementById('monthlyDateTo').value;
-    exportDataToExcel(headers, rows, `Performans_Arac_Raporu_${from}_${to}`);
-}
-
-function exportMonthlyPersonnelExcel() {
-    if (!currentMonthlyData || !currentMonthlyData.by_personnel) {
-        alert("Lütfen önce verilerin yüklenmesini bekleyin.");
-        return;
-    }
-    const headers = ["Personel Adı", "Toplam Oturum Sayısı", "Toplam Mesafe (km)"];
-    const rows = currentMonthlyData.by_personnel.map(p => [
-        p.name,
-        p.sessions,
-        Number(p.km || 0).toFixed(1)
-    ]);
-    
-    // Append grand total row
-    const totalSessions = currentMonthlyData.by_personnel.reduce((sum, p) => sum + Number(p.sessions || 0), 0);
-    const totalKm = currentMonthlyData.by_personnel.reduce((sum, p) => sum + Number(p.km || 0), 0);
-    rows.push([
-        "GENEL TOPLAM",
-        totalSessions,
-        totalKm.toFixed(1)
-    ]);
-    
-    const from = document.getElementById('monthlyDateFrom').value;
-    const to = document.getElementById('monthlyDateTo').value;
-    exportDataToExcel(headers, rows, `Performans_Personel_Raporu_${from}_${to}`);
 }
 
 function exportMonthlyTrendExcel() {
@@ -1378,11 +1225,179 @@ function exportVehicleExcel() {
     exportHtmlTableToExcel('vehExcelTable', filename);
 }
 
+let fuelChartInstance = null;
+
+async function loadFuelConsumptionReport() {
+    try {
+        const [vehicles, fuelLogs] = await Promise.all([
+            api('/api/vehicles'),
+            api('/api/vehicles/fuel/logs')
+        ]);
+        
+        // Group fuel logs by vehicle_id
+        const logsByVehicle = {};
+        fuelLogs.forEach(log => {
+            if (!logsByVehicle[log.vehicle_id]) {
+                logsByVehicle[log.vehicle_id] = [];
+            }
+            logsByVehicle[log.vehicle_id].push(log);
+        });
+        
+        const reportData = [];
+        
+        vehicles.forEach(v => {
+            const vLogs = logsByVehicle[v.id] || [];
+            // Sort by odometer ascending
+            vLogs.sort((a, b) => a.odometer - b.odometer);
+            
+            let totalDistance = 0;
+            let totalLiters = vLogs.reduce((sum, l) => sum + l.fuel_liters, 0);
+            let avgConsumption = null;
+            
+            if (vLogs.length >= 2) {
+                const minOdo = vLogs[0].odometer;
+                const maxOdo = vLogs[vLogs.length - 1].odometer;
+                totalDistance = maxOdo - minOdo;
+                
+                // Exclude the first fill's liters for accurate interval consumption
+                const totalLitersAfterFirst = vLogs.slice(1).reduce((sum, l) => sum + l.fuel_liters, 0);
+                
+                if (totalDistance > 0) {
+                    avgConsumption = (totalLitersAfterFirst / totalDistance) * 100;
+                }
+            }
+            
+            reportData.push({
+                id: v.id,
+                plate: v.plate,
+                machine_name: v.machine_name,
+                total_distance: totalDistance,
+                total_liters: totalLiters,
+                avg_consumption: avgConsumption,
+                fill_count: vLogs.length
+            });
+        });
+        
+        renderFuelConsumptionChart(reportData);
+        renderFuelConsumptionTable(reportData);
+        
+    } catch (err) {
+        console.error("Yakıt tüketim raporu yüklenirken hata:", err);
+    }
+}
+
+function renderFuelConsumptionChart(data) {
+    const canvas = document.getElementById('fuelConsumptionChart');
+    if (!canvas) return;
+    
+    if (fuelChartInstance) fuelChartInstance.destroy();
+    
+    // Filter data for vehicles that have valid average consumption
+    const validData = data.filter(d => d.avg_consumption !== null);
+    
+    const labels = validData.map(d => d.plate);
+    const consumptions = validData.map(d => Number(d.avg_consumption).toFixed(2));
+    
+    fuelChartInstance = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Ortalama Yakıt Tüketimi (lt/100 km)',
+                data: consumptions,
+                backgroundColor: 'rgba(249, 115, 22, 0.75)',
+                borderColor: '#f97316',
+                borderWidth: 1,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: { color: '#94a3b8', font: { family: 'Inter', size: 11 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `Ortalama: ${context.parsed.y} lt/100 km`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' }
+                },
+                y: {
+                    ticks: { color: '#94a3b8', font: { family: 'Inter', size: 10 } },
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    title: {
+                        display: true,
+                        text: 'Tüketim (lt/100 km)',
+                        color: '#94a3b8',
+                        font: { family: 'Inter', size: 11, weight: 'bold' }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderFuelConsumptionTable(data) {
+    const tableBody = document.getElementById('fuelConsumptionTableBody');
+    if (!tableBody) return;
+    
+    window._fuelConsumptionData = data;
+    
+    let html = '';
+    data.forEach(d => {
+        const avgText = d.avg_consumption !== null 
+            ? `<strong>${Number(d.avg_consumption).toFixed(2)} lt</strong>` 
+            : '<span style="color:var(--text-muted)">Yetersiz Veri</span>';
+        
+        const distText = d.total_distance > 0 
+            ? `${Number(d.total_distance).toFixed(1)} km` 
+            : '-';
+            
+        html += `<tr>
+            <td><strong>${d.plate}</strong></td>
+            <td style="text-align: center;">${d.fill_count}</td>
+            <td style="text-align: center;">${distText}</td>
+            <td style="text-align: center; color: ${d.avg_consumption !== null ? 'var(--orange)' : 'inherit'};">${avgText}</td>
+        </tr>`;
+    });
+    
+    if (data.length === 0) {
+        html = '<tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-muted)">Kayıtlı araç bulunmamaktadır</td></tr>';
+    }
+    
+    tableBody.innerHTML = html;
+}
+
+function exportFuelConsumptionExcel() {
+    const headers = ["Plaka", "Araç / Makine", "Dolum Sayısı", "Toplam Alınan Yakıt (lt)", "Toplam Takip Mesafesi (km)", "Ortalama Tüketim (lt/100 km)"];
+    
+    const rows = (window._fuelConsumptionData || []).map(d => [
+        d.plate,
+        d.machine_name,
+        d.fill_count,
+        Number(d.total_liters).toFixed(1),
+        d.total_distance > 0 ? Number(d.total_distance).toFixed(1) : '-',
+        d.avg_consumption !== null ? Number(d.avg_consumption).toFixed(2) : 'Yetersiz Veri'
+    ]);
+    
+    exportDataToExcel(headers, rows, 'Arac_Ortalama_Yakit_Tuketim_Raporu');
+}
+
 loadDaily();
 loadMonthly();
 loadCoverage();
 initPersonnelDropdown().then(() => loadPersonnelReport());
 initVehicleDropdown().then(() => loadVehicleReport());
+loadFuelConsumptionReport();
 </script>
 <script src="/admin/admin-notifications.js"></script>
 </body>

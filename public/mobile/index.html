@@ -608,6 +608,12 @@
                         Oturum bekleniyor
                     </div>
                 </div>
+                <!-- Navigation Button for Polygon Task -->
+                <div id="tiNavContainer" style="display:none;">
+                    <button class="btn btn-sm" onclick="navigateToClosestWorkAreaCorner()" style="padding:4px 8px;font-size:10px;border-radius:6px;display:flex;align-items:center;gap:4px;background:#f59e0b;color:#fff;border:none;font-weight:700;cursor:pointer;">
+                        🗺️ Navigasyon
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -656,6 +662,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/socket.io/socket.io.js"></script>
+<script src="/capacitor.js"></script>
 <script>
 let TOKEN=localStorage.getItem('vms_token');
 let USER=JSON.parse(localStorage.getItem('vms_user')||'{}');
@@ -666,6 +673,7 @@ let map,socket,watchId;
 let isSpraying=false,sessionId=null,startTime=null,totalDistance=0,lastPos=null,pauseTime=null,timerTimeout=null;
 let routeCoords=[],routeLine=null,positionMarker=null;
 let assignedRoute=null,assignedRouteLayer=null,assignedRouteArrowsGroup=null,sprayedStreetsLayer=null,assignedSession=null,activeNeighborhoodLayer=null,activeWorkAreaLayer=null;
+let workAreaCornerMarkers=[];
 let routeSegmentsGroup=null,sessionPathPoints=[];
 let routeOffTimeout=null,sprayedAlertTimeout=null;
 let reportMarkersLayer=null,allActiveReports=[],selectedReport=null;
@@ -1110,6 +1118,12 @@ async function loadAssignedRoute(){
         try { map.removeLayer(activeWorkAreaLayer); } catch(err){}
         activeWorkAreaLayer = null;
     }
+    if (workAreaCornerMarkers) {
+        workAreaCornerMarkers.forEach(m => { try { map.removeLayer(m); } catch(err){} });
+        workAreaCornerMarkers = [];
+    }
+    const tiNav = document.getElementById('tiNavContainer');
+    if (tiNav) tiNav.style.display = 'none';
     let hasRoute = false;
     // 1. Planlanmış Rota sorgula
     try{
@@ -1329,6 +1343,12 @@ async function loadAssignedRoute(){
             if (!hasRoute) {
                 map.fitBounds(activeWorkAreaLayer.getBounds(), {padding: [50, 50]});
             }
+            
+            if (geom.type === 'Polygon') {
+                drawWorkAreaCorners(geom);
+                const tiNav = document.getElementById('tiNavContainer');
+                if (tiNav) tiNav.style.display = 'block';
+            }
         } catch(err) {
             console.error("Özel çalışma alanı çizilemedi:", err);
         }
@@ -1376,7 +1396,187 @@ function initSocket(){
     });
 }
 
+function handleLocationUpdate(latitude, longitude, speed, heading, accuracy) {
+    // Premium Navigation Arrow (Google Maps Style)
+    const arrowSvg = `<svg viewBox="0 0 24 24" width="28" height="28" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"><path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`;
+    let currentHeading = 0;
+    if (heading !== null && heading !== undefined) {
+        currentHeading = heading;
+    } else if (lastPos) {
+        const distMoved = haversine(lastPos.lat, lastPos.lng, latitude, longitude);
+        if (distMoved > 2) {
+            currentHeading = getBearing(lastPos.lat, lastPos.lng, latitude, longitude);
+        } else if (positionMarker && positionMarker._currentHeading !== undefined) {
+            currentHeading = positionMarker._currentHeading;
+        }
+    }
+    const arrowIcon = L.divIcon({
+        className: 'preview-arrow-icon',
+        html: `<div style="transform: rotate(${currentHeading}deg); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease-in-out;">${arrowSvg}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+    });
+    if(positionMarker){
+        positionMarker.setLatLng([latitude,longitude]);
+        positionMarker.setIcon(arrowIcon);
+        positionMarker._currentHeading = currentHeading;
+    }else{
+        positionMarker=L.marker([latitude,longitude],{icon:arrowIcon}).addTo(map);
+        positionMarker._currentHeading = currentHeading;
+        map.setView([latitude,longitude],16);
+    }
+    // Speed
+    const speedKmh=speed?(speed*3.6).toFixed(0):0;
+    document.getElementById('mSpeed').textContent=speedKmh;
+    
+    // Speed alerts logic
+    const speedVal = parseFloat(speedKmh) || 0;
+    if (isSpraying) {
+        if (speedVal > 25) {
+            showMobileSpeedWarning(speedVal);
+        } else {
+            hideMobileSpeedWarning();
+        }
+        if (speedVal > 40) {
+            sendSpeedViolationToManager(speedVal);
+        }
+    } else {
+        hideMobileSpeedWarning();
+    }
+    // Distance & route
+    if(sessionId){
+        const activeSpraying = isSpraying ? 1 : 0;
+        if(sessionPathPoints.length === 0){
+            sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
+            drawSessionPath();
+        } else {
+            const lastRecorded = sessionPathPoints[sessionPathPoints.length - 1];
+            const d = haversine(lastRecorded.lat, lastRecorded.lng, latitude, longitude);
+            if(d > 3){// Min 3m to avoid GPS jitter
+                if(isSpraying) {
+                    totalDistance+=d;
+                    document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
+                }
+                sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
+                drawSessionPath();
+            }
+        }
+        // ─── Route deviation & already sprayed check ───
+        if(isSpraying) {
+            checkRouteDeviation(latitude,longitude);
+            checkAlreadySprayed(latitude,longitude);
+        }
+    }
+    lastPos={lat:latitude,lng:longitude};
+    // Send to server - 3 saniyede bir gönder (throttle)
+    const now = Date.now();
+    if (!window._lastLocationSendTime || (now - window._lastLocationSendTime) >= 3000) {
+        window._lastLocationSendTime = now;
+        if(sessionId){
+            const activeSpraying = isSpraying ? 1 : 0;
+            const pointPayload = {
+                latitude: latitude,
+                longitude: longitude,
+                speed_kmh: parseFloat(speedKmh) || 0,
+                is_spraying: activeSpraying,
+                timestamp: new Date().toISOString()
+            };
+
+            fetch(`/api/sessions/${sessionId}/track`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify(pointPayload)
+            })
+            .then(res => {
+                if (res.ok) {
+                    // Başarılıysa bekleyen çevrimdışı kayıtları eşitle
+                    syncOfflineTracks();
+                } else {
+                    // Sunucudan hata alındıysa kuyruğa at (örn. kesinti başlangıcı)
+                    queueOfflineTrack(sessionId, pointPayload);
+                }
+            })
+            .catch(() => {
+                // Tamamen bağlantı yoksa (catch bloğu) kuyruğa at
+                queueOfflineTrack(sessionId, pointPayload);
+            });
+        }
+        if(socket && vehicleId){
+            const activeSpraying = isSpraying ? 1 : 0;
+            socket.emit('vehicle-location',{vehicle_id:vehicleId,plate:vehiclePlate,latitude,longitude,speed:speedKmh,is_spraying:activeSpraying});
+        }
+    }
+
+    // ─── Sürekli Kullanıcı Konum Takibi (Oturum Bağımsız) ───
+    // 5 saniyede bir kullanıcı konumunu sunucuya gönder - oturum açık olsun olmasın
+    if (!window._lastUserLocSendTime || (now - window._lastUserLocSendTime) >= 5000) {
+        window._lastUserLocSendTime = now;
+        const userLocData = {
+            user_id: USER.id,
+            latitude: latitude,
+            longitude: longitude,
+            speed: parseFloat(speedKmh) || 0,
+            accuracy: accuracy || null
+        };
+        if (socket && socket.connected) {
+            socket.emit('user-location', userLocData);
+        } else {
+            // Socket yoksa REST API ile gönder
+            fetch('/api/location/ping', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
+                body: JSON.stringify(userLocData)
+            }).catch(() => {});
+        }
+    }
+
+    if(sessionId && isSpraying) map.panTo([latitude,longitude]);
+}
+
 function startGPS(){
+    // Check if Capacitor Background Geolocation is available
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.BackgroundGeolocation) {
+        const BackgroundGeolocation = window.Capacitor.Plugins.BackgroundGeolocation;
+        
+        // Prevent starting duplicate watchPosition loops if one is already active.
+        if (window._backgroundWatcherId) {
+            console.log("Capacitor background GPS is already active with watcherId:", window._backgroundWatcherId);
+            return;
+        }
+        
+        document.getElementById('gpsStatus').textContent='📡 GPS Başlatılıyor (Arka Plan)...';
+        
+        BackgroundGeolocation.addWatcher({
+            backgroundMessage: "Vektörle Mücadele Takip Sistemi arka planda çalışıyor.",
+            backgroundTitle: "Konum Takibi Aktif",
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: 3 // meters
+        }, (location, error) => {
+            if (error) {
+                console.error("Capacitor background location watcher error:", error);
+                document.getElementById('gpsStatus').textContent='❌ GPS Arka Plan Hatası';
+                return;
+            }
+            if (location) {
+                document.getElementById('gpsStatus').textContent=`📡 GPS Aktif (Arka Plan) • Doğruluk: ${Math.round(location.accuracy)}m`;
+                handleLocationUpdate(
+                    location.latitude,
+                    location.longitude,
+                    location.speed,
+                    location.bearing,
+                    location.accuracy
+                );
+            }
+        }).then(id => {
+            window._backgroundWatcherId = id;
+            console.log("Capacitor background GPS initialized with watcherId:", id);
+        });
+        
+        return;
+    }
+
+    // Standard web browser fallback
     if(!navigator.geolocation){
         document.getElementById('gpsStatus').textContent='❌ GPS desteklenmiyor';
         return;
@@ -1390,7 +1590,7 @@ function startGPS(){
     
     // Prevent starting duplicate watchPosition loops if one is already active.
     if (watchId) {
-        console.log("GPS is already active with watchId:", watchId);
+        console.log("Web GPS is already active with watchId:", watchId);
         return;
     }
     
@@ -1404,116 +1604,7 @@ function startGPS(){
             }
             const{latitude,longitude,speed,accuracy}=pos.coords;
             document.getElementById('gpsStatus').textContent=`📡 GPS Aktif • Doğruluk: ${Math.round(accuracy)}m`;
-            // Premium Navigation Arrow (Google Maps Style)
-            const arrowSvg = `<svg viewBox="0 0 24 24" width="28" height="28" style="filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.4));"><path d="M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z" fill="#3b82f6" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></svg>`;
-            let currentHeading = 0;
-            if (pos.coords.heading !== null && pos.coords.heading !== undefined) {
-                currentHeading = pos.coords.heading;
-            } else if (lastPos) {
-                const distMoved = haversine(lastPos.lat, lastPos.lng, latitude, longitude);
-                if (distMoved > 2) {
-                    currentHeading = getBearing(lastPos.lat, lastPos.lng, latitude, longitude);
-                } else if (positionMarker && positionMarker._currentHeading !== undefined) {
-                    currentHeading = positionMarker._currentHeading;
-                }
-            }
-            const arrowIcon = L.divIcon({
-                className: 'preview-arrow-icon',
-                html: `<div style="transform: rotate(${currentHeading}deg); width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease-in-out;">${arrowSvg}</div>`,
-                iconSize: [28, 28],
-                iconAnchor: [14, 14]
-            });
-            if(positionMarker){
-                positionMarker.setLatLng([latitude,longitude]);
-                positionMarker.setIcon(arrowIcon);
-                positionMarker._currentHeading = currentHeading;
-            }else{
-                positionMarker=L.marker([latitude,longitude],{icon:arrowIcon}).addTo(map);
-                positionMarker._currentHeading = currentHeading;
-                map.setView([latitude,longitude],16);
-            }
-            // Speed
-            const speedKmh=speed?(speed*3.6).toFixed(0):0;
-            document.getElementById('mSpeed').textContent=speedKmh;
-            
-            // Speed alerts logic
-            const speedVal = parseFloat(speedKmh) || 0;
-            if (isSpraying) {
-                if (speedVal > 25) {
-                    showMobileSpeedWarning(speedVal);
-                } else {
-                    hideMobileSpeedWarning();
-                }
-                if (speedVal > 40) {
-                    sendSpeedViolationToManager(speedVal);
-                }
-            } else {
-                hideMobileSpeedWarning();
-            }
-            // Distance & route
-            if(sessionId){
-                const activeSpraying = isSpraying ? 1 : 0;
-                if(sessionPathPoints.length === 0){
-                    sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
-                    drawSessionPath();
-                } else {
-                    const lastRecorded = sessionPathPoints[sessionPathPoints.length - 1];
-                    const d = haversine(lastRecorded.lat, lastRecorded.lng, latitude, longitude);
-                    if(d > 3){// Min 3m to avoid GPS jitter
-                        if(isSpraying) {
-                            totalDistance+=d;
-                            document.getElementById('mDistance').textContent=(totalDistance/1000).toFixed(2);
-                        }
-                        sessionPathPoints.push({ lat: latitude, lng: longitude, is_spraying: activeSpraying });
-                        drawSessionPath();
-                    }
-                }
-                // ─── Route deviation & already sprayed check ───
-                if(isSpraying) {
-                    checkRouteDeviation(latitude,longitude);
-                    checkAlreadySprayed(latitude,longitude);
-                }
-            }
-            lastPos={lat:latitude,lng:longitude};
-            // Send to server - 3 saniyede bir gönder (throttle)
-            const now = Date.now();
-            if (!window._lastLocationSendTime || (now - window._lastLocationSendTime) >= 3000) {
-                window._lastLocationSendTime = now;
-                if(sessionId){
-                    const activeSpraying = isSpraying ? 1 : 0;
-                    const pointPayload = {
-                        latitude: latitude,
-                        longitude: longitude,
-                        speed_kmh: parseFloat(speedKmh) || 0,
-                        is_spraying: activeSpraying,
-                        timestamp: new Date().toISOString()
-                    };
-
-                    fetch(`/api/sessions/${sessionId}/track`, {
-                        method: 'POST',
-                        headers: { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' },
-                        body: JSON.stringify(pointPayload)
-                    })
-                    .then(res => {
-                        if (res.ok) {
-                            // Başarılıysa bekleyen çevrimdışı kayıtları eşitle
-                            syncOfflineTracks();
-                        } else {
-                            // Sunucudan hata alındıysa kuyruğa at (örn. kesinti başlangıcı)
-                            queueOfflineTrack(sessionId, pointPayload);
-                        }
-                    })
-                    .catch(() => {
-                        // Tamamen bağlantı yoksa (catch bloğu) kuyruğa at
-                        queueOfflineTrack(sessionId, pointPayload);
-                    });
-                }
-                if(socket){
-                    const activeSpraying = isSpraying ? 1 : 0;
-                    socket.emit('vehicle-location',{vehicle_id:vehicleId,plate:vehiclePlate,latitude,longitude,speed:speedKmh,is_spraying:activeSpraying});
-                }
-            }
-            if(sessionId && isSpraying) map.panTo([latitude,longitude]);
+            handleLocationUpdate(latitude, longitude, speed, pos.coords.heading, accuracy);
         },
         err=>{
             console.error("GPS Error callback:", err);
@@ -1528,7 +1619,6 @@ function startGPS(){
             document.getElementById('gpsStatus').textContent=`❌ GPS Hatası: ${errorMsg} (Yeniden denemek için dokunun)`;
             
             // If we haven't received any successful position yet, schedule a slow, safe retry (every 15s)
-            // to re-establish the watch process in case some buggy WebViews got stuck.
             if (!lastPos && !window._gpsRetryTimeout) {
                 window._gpsRetryTimeout = setTimeout(() => {
                     console.log("GPS not receiving data. Re-initializing watchPosition...");
@@ -1551,6 +1641,10 @@ function manualGPSRetry() {
     if (watchId) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
+    }
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.BackgroundGeolocation && window._backgroundWatcherId) {
+        window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: window._backgroundWatcherId });
+        window._backgroundWatcherId = null;
     }
     if (window._gpsRetryTimeout) {
         clearTimeout(window._gpsRetryTimeout);
@@ -2504,6 +2598,101 @@ function navigateToRouteStart() {
     }
 }
 
+function drawWorkAreaCorners(geojson) {
+    // Clear old corner markers
+    if (workAreaCornerMarkers) {
+        workAreaCornerMarkers.forEach(m => { try { map.removeLayer(m); } catch(err){} });
+    }
+    workAreaCornerMarkers = [];
+    
+    if (!geojson || geojson.type !== 'Polygon' || !geojson.coordinates || !geojson.coordinates[0]) return;
+    
+    const coords = geojson.coordinates[0];
+    const numCorners = coords.length - 1; // skip last coordinate (it closes the loop)
+    
+    for (let i = 0; i < numCorners; i++) {
+        const lng = coords[i][0];
+        const lat = coords[i][1];
+        
+        // Add a small marker at each vertex/corner
+        const marker = L.circleMarker([lat, lng], {
+            radius: 8,
+            color: '#f97316',
+            fillColor: '#fff',
+            fillOpacity: 0.9,
+            weight: 2
+        }).addTo(map);
+        
+        marker.bindPopup(`
+            <div style="font-size:12px; font-family:sans-serif; text-align:center; color:#fff; background:var(--bg-secondary); padding:4px;">
+                <b style="color:#f97316;">📍 Alan Köşesi (Köşe ${i + 1})</b><br>
+                <span style="opacity:0.8; font-size:10px;">${lat.toFixed(5)}, ${lng.toFixed(5)}</span><br>
+                <button onclick="openNavigationToCoords(${lat}, ${lng})" style="
+                    margin-top:8px;
+                    background:#f59e0b;
+                    color:#fff;
+                    border:none;
+                    padding:5px 10px;
+                    border-radius:4px;
+                    font-size:11px;
+                    font-weight:700;
+                    cursor:pointer;
+                    display:inline-block;
+                ">🗺️ Google Navigasyon</button>
+            </div>
+        `);
+        
+        workAreaCornerMarkers.push(marker);
+    }
+}
+
+function openNavigationToCoords(lat, lng) {
+    let origin = "";
+    if (lastPos && lastPos.lat && lastPos.lng) {
+        origin = `${lastPos.lat},${lastPos.lng}`;
+    }
+    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}` + 
+                   (origin ? `&origin=${origin}` : "") + 
+                   `&travelmode=driving`;
+    window.open(navUrl, '_blank');
+}
+
+function navigateToClosestWorkAreaCorner() {
+    if (!assignedSession || !assignedSession.work_area_geojson) {
+        alert("Atanmış görev alanı bulunamadı.");
+        return;
+    }
+    try {
+        const geojson = JSON.parse(assignedSession.work_area_geojson);
+        if (geojson.type !== 'Polygon' || !geojson.coordinates || !geojson.coordinates[0]) {
+            alert("Görev alanı çokgen (polygon) biçiminde değil.");
+            return;
+        }
+        
+        const coords = geojson.coordinates[0];
+        let closestLat = coords[0][1];
+        let closestLng = coords[0][0];
+        
+        if (lastPos && lastPos.lat && lastPos.lng) {
+            let minDist = Infinity;
+            for (let i = 0; i < coords.length - 1; i++) {
+                const lng = coords[i][0];
+                const lat = coords[i][1];
+                const dist = haversine(lastPos.lat, lastPos.lng, lat, lng);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestLat = lat;
+                    closestLng = lng;
+                }
+            }
+        }
+        
+        openNavigationToCoords(closestLat, closestLng);
+    } catch(e) {
+        alert("Navigasyon başlatılamadı: " + e.message);
+    }
+}
+
 function drawRouteDirectionArrows(coords, layerGroup) {
     if (!coords || coords.length < 2) return;
     const cosLat = 0.77; // Sivas enlemi için boylam düzeltmesi (cos(39.75 deg))
@@ -2642,6 +2831,10 @@ function haversine(lat1,lon1,lat2,lon2){
 
 async function mobileLogout(){
     if(watchId) navigator.geolocation.clearWatch(watchId);
+    if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.BackgroundGeolocation && window._backgroundWatcherId) {
+        window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: window._backgroundWatcherId });
+        window._backgroundWatcherId = null;
+    }
     if(previewAnimationActive) {
         previewAnimationActive = false;
         if (previewMarker) {

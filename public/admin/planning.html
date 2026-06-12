@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/css/main.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         .mode-tabs{display:flex;gap:4px;margin-bottom:12px;background:var(--bg-secondary);border-radius:8px;padding:3px}
         .mode-tab{flex:1;padding:8px;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:var(--text-secondary);font-family:inherit;transition:var(--transition)}
@@ -54,6 +55,7 @@
         <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
         <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <a href="/admin/fuel-tracking" class="nav-item"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/vehicle-tracking" class="nav-item"><span class="icon">📡</span> Araç Takip</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -76,7 +78,7 @@
                         <button class="btn btn-sm btn-primary" onclick="fetchOSMStreets()" id="btnFetch">🌐 Sokakları Çek</button>
                         <button class="btn btn-sm btn-success" onclick="calculateRoute()" id="btnCalc">🧮 Rota Hesapla</button>
                         <button class="btn btn-sm btn-outline" onclick="clearAll()">🗑️ Temizle</button>
-                        <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konumum</button>
+                        <button class="btn btn-sm btn-outline" onclick="locateMe()" style="color:#10b981;border-color:rgba(16,185,129,0.3);">📍 Konum</button>
                     </div>
                 </div>
                 <div id="planMap" class="map-container fullheight"></div>
@@ -129,7 +131,7 @@
                         <label class="form-label">Planlanan Tarih</label>
                         <input type="date" class="form-input" id="planDate">
                     </div>
-                    <button class="btn btn-success" style="width:100%;justify-content:center" onclick="saveRoute()">💾 Rotayı Kaydet & Ata</button>
+                    <button class="btn btn-success" id="btnSaveRoute" style="width:100%;justify-content:center" onclick="saveRoute()">💾 Rotayı Kaydet & Ata</button>
                 </div>
                 <div class="card">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -248,7 +250,7 @@ const overlayMaps = {
 
 L.control.layers(baseMaps, overlayMaps, { position: 'topright' }).addTo(map);
 
-let drawControl, currentMode='auto', fetchedGeoJSON=null, originalFetchedGeoJSON=null, calculatedResult=null, manualCoords=[], allNeighborhoods=[], activeNeighborhoodLayer=null, selectedNeighborhoodGeometry=null;
+let drawControl, currentMode='auto', fetchedGeoJSON=null, originalFetchedGeoJSON=null, calculatedResult=null, manualCoords=[], allNeighborhoods=[], activeNeighborhoodLayer=null, selectedNeighborhoodGeometry=null, selectedSavedRouteId = null, allPlannedRoutes = [];
 
 function setupDrawControl(mode){
     if(drawControl) map.removeControl(drawControl);
@@ -644,6 +646,13 @@ function clearAll(){
     selectedNeighborhoodGeometry = null;
     fetchedGeoJSON=null;calculatedResult=null;manualCoords=[];
     ['rDist','rTime','rChem','rStreets','rRefills','rExtra','rBridge','rComponents'].forEach(id=>document.getElementById(id).textContent='-');
+    
+    // Reset saved route selection
+    selectedSavedRouteId = null;
+    const btnSave = document.getElementById('btnSaveRoute');
+    if (btnSave) btnSave.textContent = '💾 Rotayı Kaydet & Ata';
+    
+    loadSavedRoutes();
     toast('Temizlendi');
 }
 
@@ -653,6 +662,45 @@ async function saveRoute(){
         toast('Araç seçmelisiniz', 'error');
         return;
     }
+    
+    const userId=document.getElementById('planUser').value;
+    const operatorId=document.getElementById('planOperator').value;
+    const vehicleId=document.getElementById('planVehicle').value;
+    const plannedDate=document.getElementById('planDate').value;
+    const transportType=document.getElementById('planTransportType').value;
+    
+    const personnelIds = [];
+    if(userId) personnelIds.push(parseInt(userId));
+    if(operatorId) personnelIds.push(parseInt(operatorId));
+    
+    if (selectedSavedRouteId) {
+        try {
+            const assignRes = await api(`/api/routes/planned-routes/${selectedSavedRouteId}/assign`,{
+                method:'POST',
+                body:JSON.stringify({
+                    user_id: userId ? parseInt(userId) : null,
+                    personnel_ids: personnelIds,
+                    vehicle_id: vehicleId ? parseInt(vehicleId) : null,
+                    planned_date: plannedDate,
+                    transport_type: transportType
+                })
+            });
+            if(assignRes.error) {
+                throw new Error(assignRes.error);
+            }
+            toast('Rota ataması başarıyla güncellendi!', 'success');
+            
+            // Reset selection
+            selectedSavedRouteId = null;
+            const btnSave = document.getElementById('btnSaveRoute');
+            if (btnSave) btnSave.textContent = '💾 Rotayı Kaydet & Ata';
+        } catch(e) {
+            toast('Atama güncellenirken hata oluştu: ' + e.message, 'error');
+        }
+        loadSavedRoutes();
+        return;
+    }
+    
     if (currentMode === 'auto') {
         if (!fetchedGeoJSON || !fetchedGeoJSON.features || fetchedGeoJSON.features.length === 0) {
             toast('Önce sokak verilerini çekmelisiniz', 'error');
@@ -669,11 +717,10 @@ async function saveRoute(){
         }
     }
     const s=calculatedResult.stats;
-    const userId=document.getElementById('planUser').value;
     const body={
         name:(document.getElementById('planNeighborhood').value||'Rota')+' - '+document.getElementById('planDate').value,
         neighborhood:document.getElementById('planNeighborhood').value||'Belirsiz',
-        vehicle_id:document.getElementById('planVehicle').value,
+        vehicle_id:vehicleId,
         route_geojson:calculatedResult.route_geojson?JSON.stringify(calculatedResult.route_geojson):null,
         route_coords:JSON.stringify(calculatedResult.route_coords||[]),
         total_distance_km:s.total_distance_km,
@@ -681,8 +728,8 @@ async function saveRoute(){
         estimated_chemical_lt:s.estimated_chemical_lt,
         street_count:s.street_count||0,
         route_type:currentMode,
-        planned_date:document.getElementById('planDate').value,
-        transport_type:document.getElementById('planTransportType').value
+        planned_date:plannedDate,
+        transport_type:transportType
     };
     
     try {
@@ -692,11 +739,7 @@ async function saveRoute(){
         }
         
         // Assign if user selected
-        const operatorId=document.getElementById('planOperator').value;
         if((userId || operatorId) && res.id){
-            const personnelIds = [];
-            if(userId) personnelIds.push(parseInt(userId));
-            if(operatorId) personnelIds.push(parseInt(operatorId));
             const assignRes = await api(`/api/routes/planned-routes/${res.id}/assign`,{
                 method:'POST',
                 body:JSON.stringify({
@@ -723,16 +766,137 @@ async function saveRoute(){
 
 async function loadSavedRoutes(){
     const routes=await api('/api/routes/planned-routes');
-    document.getElementById('savedRoutes').innerHTML=(routes||[]).slice(0,10).map(r=>`
-        <div class="assign-row">
+    allPlannedRoutes = routes || [];
+    document.getElementById('savedRoutes').innerHTML=allPlannedRoutes.slice(0,10).map(r=>`
+        <div class="assign-row" id="saved-route-${r.id}" onclick="selectSavedRoute(${r.id})" style="cursor:pointer; padding:8px; border-radius:6px; margin-bottom:4px; border:1px solid transparent; transition:all 0.2s;">
             <div style="flex:1">
-                <div style="font-weight:500">${r.name||r.neighborhood} ${r.plate?'- '+r.plate:''}</div>
+                <div style="font-weight:500;color:#fff">${r.name||r.neighborhood} ${r.plate?'- '+r.plate:''}</div>
                 <div style="color:var(--text-muted);font-size:11px">${r.planned_date||''} • ${Number(r.total_distance_km||0).toFixed(1)}km • ${Number(r.estimated_chemical_lt||0).toFixed(1)}lt • ${r.transport_type === 'pedestrian' ? '🚶 Yaya' : '🚗 Araç'}</div>
                 <div style="font-size:10px;color:${r.status==='assigned'?'var(--success)':r.status==='completed'?'var(--cyan)':'var(--text-muted)'}">${r.assigned_user_name||'Atanmamış'} • ${r.status}</div>
             </div>
-            <button class="btn btn-sm btn-outline" onclick="deleteRoute(${r.id})">🗑️</button>
+            <button class="btn btn-sm btn-outline" onclick="event.stopPropagation(); deleteRoute(${r.id})" style="padding:4px 8px;">🗑️</button>
         </div>
     `).join('')||'<div style="color:var(--text-muted);font-size:12px">Kayıtlı rota yok</div>';
+    
+    if (selectedSavedRouteId) {
+        highlightSelectedRoute(selectedSavedRouteId);
+    }
+}
+
+function highlightSelectedRoute(id) {
+    document.querySelectorAll('.assign-row').forEach(el => {
+        el.style.background = 'transparent';
+        el.style.borderColor = 'transparent';
+    });
+    const selectedEl = document.getElementById(`saved-route-${id}`);
+    if (selectedEl) {
+        selectedEl.style.background = 'rgba(59, 130, 246, 0.08)';
+        selectedEl.style.borderColor = 'var(--accent)';
+    }
+}
+
+function selectSavedRoute(id) {
+    const route = allPlannedRoutes.find(r => r.id === id);
+    if (!route) return;
+    
+    selectedSavedRouteId = id;
+    highlightSelectedRoute(id);
+    
+    // Fill parameters form
+    const nhSelect = document.getElementById('planNeighborhood');
+    nhSelect.value = route.neighborhood || '';
+    nhSelect.dispatchEvent(new Event('change'));
+    
+    document.getElementById('planTransportType').value = route.transport_type || 'vehicle';
+    document.getElementById('planVehicle').value = route.vehicle_id || '';
+    document.getElementById('planUser').value = route.assigned_user_id || '';
+    document.getElementById('planDate').value = route.planned_date || '';
+    
+    // Parse operator ID if exists
+    let opId = '';
+    if (route.assigned_personnel_ids) {
+        try {
+            const pIds = typeof route.assigned_personnel_ids === 'string'
+                ? JSON.parse(route.assigned_personnel_ids)
+                : route.assigned_personnel_ids;
+            if (Array.isArray(pIds)) {
+                opId = pIds.find(pid => pid !== route.assigned_user_id) || '';
+            }
+        } catch(e) {
+            console.error("Error parsing operator id:", e);
+        }
+    }
+    document.getElementById('planOperator').value = opId;
+    
+    // Parse route geometry
+    calculatedResult = {
+        route_geojson: route.route_geojson ? JSON.parse(route.route_geojson) : null,
+        route_coords: route.route_coords ? JSON.parse(route.route_coords) : [],
+        stats: {
+            total_distance_km: route.total_distance_km,
+            estimated_time_min: route.estimated_time_min,
+            estimated_chemical_lt: route.estimated_chemical_lt,
+            street_count: route.street_count,
+            tank_refills: 0,
+            extra_distance_km: 0,
+            bridge_distance_km: 0,
+            connected_components: 1
+        }
+    };
+    
+    // Redraw route layer
+    routeLayer.clearLayers();
+    if (calculatedResult.route_geojson) {
+        const rl = L.geoJSON(calculatedResult.route_geojson, {
+            style: f => {
+                if(f.properties.bridge) return {color:'#f59e0b',weight:3,opacity:0.85,dashArray:'8 6'};
+                if(f.properties.duplicate) return {color:'#b91c1c',weight:4,opacity:0.9,dashArray:'8 4'};
+                return {color:'#ef4444',weight:4,opacity:0.9};
+            },
+            onEachFeature: (f,l) => {
+                if(f.properties.bridge){
+                    l.bindPopup(`↗️ <b>Bölge Geçişi</b><br>Mesafe: ${f.properties.distance_m}m<br>⚠️ İlaçlama yapılmadan geçilecek`);
+                } else {
+                    l.bindPopup(`<b>${f.properties.name||'Segment'}</b><br>Mesafe: ${f.properties.distance_m}m${f.properties.duplicate?' (tekrar)':''}`);
+                }
+            }
+        });
+        routeLayer.addLayer(rl);
+    } else if (calculatedResult.route_coords && calculatedResult.route_coords.length > 0) {
+        const pl = L.polyline(calculatedResult.route_coords, {color: '#ef4444', weight: 4, opacity: 0.9});
+        routeLayer.addLayer(pl);
+    }
+    
+    if (calculatedResult.route_coords && calculatedResult.route_coords.length > 0) {
+        L.circleMarker(calculatedResult.route_coords[0], {radius: 8, color: '#10b981', fillColor: '#10b981', fillOpacity: 1}).bindPopup('🏁 Başlangıç').addTo(routeLayer);
+        L.circleMarker(calculatedResult.route_coords[calculatedResult.route_coords.length-1], {radius: 8, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1}).bindPopup('🏁 Bitiş').addTo(routeLayer);
+        drawRouteDirectionArrows(calculatedResult.route_coords, routeLayer);
+        
+        const bounds = L.polyline(calculatedResult.route_coords).getBounds();
+        if (bounds.isValid()) {
+            map.fitBounds(bounds, {padding: [50, 50]});
+        }
+    }
+    
+    // Show stats
+    document.getElementById('rDist').textContent = Number(route.total_distance_km || 0).toFixed(2) + ' km';
+    document.getElementById('rTime').textContent = Math.round(route.estimated_time_min || 0) + ' dk';
+    document.getElementById('rChem').textContent = Number(route.estimated_chemical_lt || 0).toFixed(1) + ' lt';
+    document.getElementById('rStreets').textContent = route.street_count || 0;
+    document.getElementById('rRefills').textContent = '-';
+    document.getElementById('rExtra').textContent = '-';
+    document.getElementById('rBridge').textContent = '-';
+    document.getElementById('rComponents').textContent = '-';
+    
+    // Change button text
+    const btnSave = document.getElementById('btnSaveRoute');
+    if (btnSave) {
+        btnSave.textContent = '💾 Rota Atamasını Güncelle';
+    }
+    
+    document.getElementById('btnAnimate').style.display = (calculatedResult.route_coords && calculatedResult.route_coords.length >= 2) ? 'block' : 'none';
+    
+    toast(`${route.name || route.neighborhood} rotası seçildi. Atama yapıp güncelleyebilirsiniz.`, 'info');
 }
 
 function calculateRouteIfFetched() {
@@ -1019,30 +1183,10 @@ function exportRoutesToExcel() {
 }
 
 function exportDataToExcel(headers, rows, filename = 'rapor') {
-    let html = '<table border="1" style="border-collapse:collapse;font-family:Segoe UI,sans-serif;">';
-    html += '<thead><tr style="background:#1e3a8a;color:#fff;font-weight:bold;">' + 
-            headers.map(h => `<th style="padding:8px;border:1px solid #cbd5e1;text-align:left;">${h}</th>`).join('') + '</tr></thead>';
-    html += '<tbody>';
-    rows.forEach(row => {
-        const isTotal = row[0] === "GENEL TOPLAM";
-        html += '<tr>' + row.map(cell => {
-            const tdStyle = isTotal ? 'padding:6px 8px;border:1px solid #cbd5e1;background:#ecfdf5;font-weight:bold;' : 'padding:6px 8px;border:1px solid #cbd5e1;';
-            return `<td style="${tdStyle}">${cell}</td>`;
-        }).join('') + '</tr>';
-    });
-    html += '</tbody></table>';
-    
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Rapor");
+    XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 function updateVehicleInfo(){updateManualStats();}

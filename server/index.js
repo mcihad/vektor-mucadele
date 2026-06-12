@@ -53,6 +53,92 @@ app.use('/api/sessions', createSessionRoutes(io));
 app.use('/api/reports', reportRoutes);
 app.use('/api/chemicals', chemicalRoutes);
 app.use('/api/citizen-reports', createCitizenReportRoutes(io));
+
+// ─── Kullanıcı Konum Ping Endpoint (Socket yoksa yedek) ───
+app.post('/api/location/ping', authMiddleware, async (req, res) => {
+    const userId = req.user.id;
+    const { latitude, longitude, speed, accuracy } = req.body;
+    if (!latitude || !longitude) return res.status(400).json({ error: 'Konum bilgisi gerekli' });
+    try {
+        const db = getDb();
+        await db.run(
+            "UPDATE users SET last_lat = $1, last_lng = $2, last_speed = $3, last_location_time = NOW() WHERE id = $4",
+            [latitude, longitude, speed || 0, userId]
+        );
+        // 15 saniyede bir geçmiş loguna yaz
+        const now = Date.now();
+        const lastLogKey = `_locPing_${userId}`;
+        if (!app.locals[lastLogKey] || (now - app.locals[lastLogKey]) >= 15000) {
+            app.locals[lastLogKey] = now;
+            await db.run(
+                "INSERT INTO user_location_log (user_id, latitude, longitude, speed, accuracy) VALUES ($1, $2, $3, $4, $5)",
+                [userId, latitude, longitude, speed || 0, accuracy || null]
+            );
+        }
+        saveDatabase();
+        res.json({ ok: true });
+    } catch(err) {
+        console.error('[Location Ping] Hata:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Kullanıcı Konum Geçmişi Sorgulama ───
+app.get('/api/location/history/:userId', authMiddleware, async (req, res) => {
+    const { userId } = req.params;
+    const { start_date, end_date } = req.query;
+    // Sadece admin veya kendi konumunu görebilir
+    if (req.user.role !== 'admin' && req.user.id !== parseInt(userId)) {
+        return res.status(403).json({ error: 'Yetkiniz yok' });
+    }
+    try {
+        const db = getDb();
+        let query = `SELECT latitude, longitude, speed, accuracy, recorded_at FROM user_location_log WHERE user_id = $1`;
+        const params = [userId];
+        if (start_date) {
+            query += ` AND recorded_at >= $${params.length + 1}`;
+            params.push(start_date);
+        }
+        if (end_date) {
+            query += ` AND recorded_at <= $${params.length + 1}`;
+            params.push(end_date);
+        }
+        query += ' ORDER BY recorded_at DESC LIMIT 1000';
+        const result = await db.exec(query, params);
+        const rows = result && result.length > 0 && result[0].values ? result[0].values.map(row => {
+            const obj = {};
+            result[0].columns.forEach((c, i) => obj[c] = row[i]);
+            return obj;
+        }) : [];
+        res.json(rows);
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Tüm Kullanıcıların Son Konumu (Admin) ───
+app.get('/api/location/all-users', authMiddleware, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Yetkiniz yok' });
+    try {
+        const db = getDb();
+        const result = await db.exec(`
+            SELECT u.id, u.full_name, u.last_lat, u.last_lng, u.last_speed, u.last_location_time,
+                   p.name as personnel_name, p.role as personnel_role
+            FROM users u
+            LEFT JOIN personnel p ON p.user_id = u.id
+            WHERE u.last_lat IS NOT NULL AND u.last_lng IS NOT NULL
+            ORDER BY u.last_location_time DESC
+        `);
+        const rows = result && result.length > 0 && result[0].values ? result[0].values.map(row => {
+            const obj = {};
+            result[0].columns.forEach((c, i) => obj[c] = row[i]);
+            return obj;
+        }) : [];
+        res.json(rows);
+    } catch(err) {
+        res.status(500).json({ error: err.message });
+    }
+});
 app.use('/api/routes', routeRoutes);
 
 // ─── Push Notification Endpoints ───
@@ -221,13 +307,58 @@ const userSocketMap = new Map(); // userId -> socketId
 io.on('connection', (socket) => {
     console.log(`[Socket] Yeni bağlantı: ${socket.id}`);
 
-    socket.on('vehicle-location', (data) => {
+    socket.on('vehicle-location', async (data) => {
         // Konum hareketi kontrolü
         if (data.vehicle_id && data.latitude && data.longitude) {
             checkVehicleMovement(data.vehicle_id, data.latitude, data.longitude);
+            // Araç konumunu veritabanına kaydet
+            try {
+                const db = getDb();
+                await db.run(
+                    "UPDATE vehicles SET last_lat = $1, last_lng = $2, last_location_time = NOW() WHERE id = $3",
+                    [data.latitude, data.longitude, data.vehicle_id]
+                );
+                saveDatabase();
+            } catch(e) {
+                console.error('[Vehicle Location DB] Hata:', e.message);
+            }
         }
         // Broadcast vehicle location to all admin clients
         io.emit('vehicle-update', data);
+    });
+
+    // ─── Kullanıcı Konum Takibi (Oturum Bağımsız) ───
+    socket.on('user-location', async (data) => {
+        if (!data.user_id || !data.latitude || !data.longitude) return;
+        try {
+            const db = getDb();
+            // 1) Kullanıcının son konumunu güncelle
+            await db.run(
+                "UPDATE users SET last_lat = $1, last_lng = $2, last_speed = $3, last_location_time = NOW() WHERE id = $4",
+                [data.latitude, data.longitude, data.speed || 0, data.user_id]
+            );
+            // 2) Konum geçmişi loguna yaz (15 saniyede bir kaydet - throttle sunucu tarafında)
+            const lastLogKey = `_lastLocLog_${data.user_id}`;
+            const now = Date.now();
+            if (!socket[lastLogKey] || (now - socket[lastLogKey]) >= 15000) {
+                socket[lastLogKey] = now;
+                await db.run(
+                    "INSERT INTO user_location_log (user_id, latitude, longitude, speed, accuracy) VALUES ($1, $2, $3, $4, $5)",
+                    [data.user_id, data.latitude, data.longitude, data.speed || 0, data.accuracy || null]
+                );
+            }
+            saveDatabase();
+        } catch(e) {
+            console.error('[User Location] Hata:', e.message);
+        }
+        // Admin panele kullanıcı konumunu yayınla
+        io.to('admin').emit('user-location-update', {
+            user_id: data.user_id,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            speed: data.speed || 0,
+            timestamp: new Date().toISOString()
+        });
     });
 
     socket.on('vehicle-speed-violation', (data) => {

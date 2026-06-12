@@ -150,6 +150,184 @@ router.delete('/fuel/logs/:id', authMiddleware, async (req, res) => {
     }
 });
 
+
+// ─── Mobiliz Entegrasyonu (Simüle Edilmiş Araç Listesi ve Konumları) ───
+router.get('/mobiliz', authMiddleware, async (req, res) => {
+    const db = getDb();
+    try {
+        const query = `
+            SELECT v.*, 
+                   p1.name as driver_name,
+                   p2.name as operator_name
+            FROM vehicles v
+            LEFT JOIN spray_sessions s ON s.id = (
+                SELECT id FROM spray_sessions 
+                WHERE vehicle_id = v.id AND status IN ('planned', 'active', 'beklemede')
+                ORDER BY created_at DESC LIMIT 1
+            )
+            LEFT JOIN personnel p1 ON s.driver_id = p1.id
+            LEFT JOIN personnel p2 ON s.operator_id = p2.id
+            ORDER BY v.plate
+        `;
+        const result = await db.exec(query);
+        const vehicles = rowsToObjects(result);
+        
+        // Simüle edilmiş Mobiliz konumları ve online durumları (Sistem GPS'ten farklı olsun)
+        const mockPositions = {
+            '58 TD 620': { lat: 39.7495, lng: 37.0125, status: 'çevrimiçi' },
+            '58 TD 621': { lat: 39.7420, lng: 37.0250, status: 'çevrimiçi' },
+            '58 TD 622': { lat: 39.7610, lng: 37.0090, status: 'çevrimdışı' },
+            '58 TD 623': { lat: 39.7380, lng: 36.9850, status: 'çevrimdışı' }
+        };
+        
+        const now = new Date();
+        const enriched = vehicles.map((v, i) => {
+            const mock = mockPositions[v.plate] || {
+                lat: 39.7500 + (v.id * 0.003),
+                lng: 37.0150 - (v.id * 0.004),
+                status: (v.id % 2 === 0) ? 'çevrimiçi' : 'çevrimdışı'
+            };
+            return {
+                ...v,
+                last_lat: mock.lat,
+                last_lng: mock.lng,
+                online_status: mock.status,
+                last_location_time: mock.status === 'çevrimiçi' 
+                    ? new Date(now.getTime() - 45000).toISOString() 
+                    : new Date(now.getTime() - 3600000 * 4).toISOString()
+            };
+        });
+        res.json(enriched);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Mobiliz Entegrasyonu (Simüle Edilmiş Sürüş Raporları / Oturumları) ───
+router.get('/mobiliz/sessions', authMiddleware, async (req, res) => {
+    const db = getDb();
+    const { date_from, date_to } = req.query;
+    try {
+        const result = await db.exec("SELECT * FROM vehicles ORDER BY id");
+        const vehicles = rowsToObjects(result);
+        
+        const startStr = date_from || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0];
+        const endStr = date_to || new Date().toISOString().split('T')[0];
+        
+        const sessions = [];
+        const start = new Date(startStr);
+        const end = new Date(endStr + 'T23:59:59');
+        
+        const neighborhoods = ["Fatih", "Şeyh Şamil", "Diriliş", "Kılavuz", "Yüceyurt", "Yenişehir", "Alibaba", "Mimar Sinan", "Kardeşler", "Esentepe"];
+        const drivers = ["Ahmet Yılmaz", "Kamil Kaya", "Ufuk Demir", "Samet Öztürk", "Tolga Şahin"];
+        
+        let sessionId = 90000;
+        const limitDays = 31;
+        let dayCount = 0;
+        
+        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            dayCount++;
+            if (dayCount > limitDays) break;
+            
+            const dateStr = d.toISOString().split('T')[0];
+            
+            vehicles.forEach(v => {
+                // Deterministic seed based on vehicle ID and day
+                const seed = (v.id * 33 + d.getDate() * 7) % 100;
+                if (seed > 85) return; // 15% idle chance
+                
+                const startHour = 8 + (seed % 4); // 8 to 11
+                const durationHours = 2 + (seed % 5); // 2 to 6 hours
+                
+                const startStr = `${dateStr}T${String(startHour).padStart(2, '0')}:30:00Z`;
+                const endStr = `${dateStr}T${String(startHour + durationHours).padStart(2, '0')}:${String(seed % 60).padStart(2, '0')}:00Z`;
+                
+                // Mobiliz hardware tracking is usually ~5% to 15% higher mileage than app pings
+                const totalKm = durationHours * (14 + (seed % 8)); 
+                
+                sessions.push({
+                    id: sessionId++,
+                    vehicle_id: v.id,
+                    driver_name: drivers[seed % drivers.length],
+                    neighborhood: neighborhoods[seed % neighborhoods.length] + " Mah.",
+                    application_type: v.usage_type || "sokak_ilacalama",
+                    start_time: startStr,
+                    end_time: endStr,
+                    total_km: parseFloat(totalKm.toFixed(1)),
+                    status: 'completed',
+                    chemical_name: 'Simüle (Mobiliz GPS)',
+                    chemical_used_lt: 0
+                });
+            });
+        }
+        res.json(sessions);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Araç Takip Yorum / Analiz Değerlendirme Çekme ───
+router.get('/comments', authMiddleware, async (req, res) => {
+    const { vehicle_id, period_type, period_date, source_type } = req.query;
+    if (!period_type || !period_date || !source_type) {
+        return res.status(400).json({ error: 'Gerekli parametreler eksik' });
+    }
+    const db = getDb();
+    const vId = (!vehicle_id || vehicle_id === 'all' || vehicle_id === '0') ? null : parseInt(vehicle_id);
+    try {
+        let query = `
+            SELECT * FROM vehicle_tracking_comments 
+            WHERE period_type = ? AND period_date = ? AND source_type = ?
+        `;
+        const params = [period_type, period_date, source_type];
+        if (vId === null) {
+            query += " AND vehicle_id IS NULL";
+        } else {
+            query += " AND vehicle_id = ?";
+            params.push(vId);
+        }
+        const result = await db.exec(query, params);
+        const rows = rowsToObjects(result);
+        res.json(rows[0] || { comment_text: '' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Araç Takip Yorum / Analiz Değerlendirme Kaydetme ───
+router.post('/comments', authMiddleware, async (req, res) => {
+    const { vehicle_id, period_type, period_date, source_type, comment_text } = req.body;
+    if (!period_type || !period_date || !source_type || comment_text === undefined) {
+        return res.status(400).json({ error: 'Gerekli alanlar eksik' });
+    }
+    const db = getDb();
+    const vId = (!vehicle_id || vehicle_id === 'all' || vehicle_id === '0') ? null : parseInt(vehicle_id);
+    try {
+        let selectQuery = `SELECT id FROM vehicle_tracking_comments WHERE period_type = ? AND period_date = ? AND source_type = ?`;
+        const selectParams = [period_type, period_date, source_type];
+        if (vId === null) {
+            selectQuery += " AND vehicle_id IS NULL";
+        } else {
+            selectQuery += " AND vehicle_id = ?";
+            selectParams.push(vId);
+        }
+        const checkResult = await db.exec(selectQuery, selectParams);
+        const rows = rowsToObjects(checkResult);
+        
+        if (rows.length > 0) {
+            const commentId = rows[0].id;
+            await db.run(`UPDATE vehicle_tracking_comments SET comment_text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`, [comment_text, commentId]);
+        } else {
+            await db.run(`INSERT INTO vehicle_tracking_comments (vehicle_id, period_type, period_date, source_type, comment_text) VALUES (?, ?, ?, ?, ?)`, 
+                [vId, period_type, period_date, source_type, comment_text]);
+        }
+        saveDatabase();
+        res.json({ success: true, message: 'Yönetici yorumu başarıyla kaydedildi' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Get vehicle stock transaction history
 router.get('/:id/transactions', authMiddleware, async (req, res) => {
     const db = getDb();

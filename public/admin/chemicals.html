@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VMS - İlaç Stok Yönetimi</title>
     <link rel="stylesheet" href="/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -25,6 +26,7 @@
         <a href="/admin/chemicals" class="nav-item active"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
         <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <a href="/admin/fuel-tracking" class="nav-item"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/vehicle-tracking" class="nav-item"><span class="icon">📡</span> Araç Takip</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -381,18 +383,12 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
     // Clone the table to avoid styling the actual UI table
     const clone = table.cloneNode(true);
     
-    // Set basic properties for Excel borders
-    clone.setAttribute('border', '1');
-    clone.style.borderCollapse = 'collapse';
-    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-    clone.style.background = '#ffffff';
-    
     // Remove the last column ("İşlem") if it exists
     let hasActionColumn = false;
     const headersList = clone.querySelectorAll('thead tr');
     headersList.forEach(tr => {
         const lastTh = tr.querySelector('th:last-child');
-        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler'))) {
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler') || lastTh.textContent.trim() === '')) {
             lastTh.remove();
             hasActionColumn = true;
         }
@@ -406,92 +402,8 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
         });
     }
     
-    // Process headers
-    const ths = clone.querySelectorAll('th');
-    ths.forEach(th => {
-        th.style.backgroundColor = '#1e3a8a'; // Dark blue background for header
-        th.style.color = '#ffffff';
-        th.style.fontWeight = 'bold';
-        th.style.padding = '8px';
-        th.style.border = '1px solid #cbd5e1';
-    });
-    
-    // Process rows
-    const trs = clone.querySelectorAll('tr');
-    trs.forEach(tr => {
-        tr.removeAttribute('class');
-        tr.removeAttribute('style'); // Clear all inline style on tr
-        tr.style.backgroundColor = '#ffffff';
-        
-        const tds = tr.querySelectorAll('td');
-        tds.forEach(td => {
-            td.removeAttribute('class');
-            
-            // Keep important inline style values before removing all styles
-            const originalColor = td.style.color;
-            const originalPaddingLeft = td.style.paddingLeft;
-            
-            td.removeAttribute('style');
-            
-            // Apply standard Excel cell styles
-            td.style.border = '1px solid #cbd5e1';
-            td.style.padding = '6px 8px';
-            if (originalPaddingLeft) {
-                td.style.paddingLeft = originalPaddingLeft;
-            }
-            
-            // Clean up text colors for Excel readability
-            if (originalColor) {
-                if (originalColor.includes('var(--text-secondary)')) {
-                    td.style.color = '#475569';
-                } else if (originalColor.includes('var(--text-muted)')) {
-                    td.style.color = '#64748b';
-                } else if (originalColor.includes('var(--danger)')) {
-                    td.style.color = '#dc2626';
-                } else if (originalColor.includes('var(--success)')) {
-                    td.style.color = '#16a34a';
-                } else {
-                    td.style.color = originalColor;
-                }
-            }
-        });
-    });
-
-    // Also style any status badges cleanly for Excel
-    clone.querySelectorAll('.badge').forEach(badge => {
-        badge.style.padding = '2px 6px';
-        badge.style.borderRadius = '4px';
-        badge.style.fontWeight = 'bold';
-        badge.style.fontSize = '10px';
-        if (badge.classList.contains('badge-danger')) {
-            badge.style.backgroundColor = '#fee2e2';
-            badge.style.color = '#dc2626';
-        } else if (badge.classList.contains('badge-warning')) {
-            badge.style.backgroundColor = '#fef3c7';
-            badge.style.color = '#d97706';
-        } else if (badge.classList.contains('badge-success')) {
-            badge.style.backgroundColor = '#dcfce7';
-            badge.style.color = '#16a34a';
-        } else if (badge.classList.contains('badge-info')) {
-            badge.style.backgroundColor = '#e0f2fe';
-            badge.style.color = '#0284c7';
-        }
-    });
-    
-    // Turkish character support with UTF-8 BOM
-    const BOM = '\uFEFF';
-    const html = BOM + clone.outerHTML;
-    
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.table_to_book(clone, { raw: true });
+    XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 load();

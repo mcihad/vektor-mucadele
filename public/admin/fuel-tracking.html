@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VMS - Araç Yakıt Takip Sistemi</title>
     <link rel="stylesheet" href="/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -25,6 +26,7 @@
         <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
         <a href="/admin/vehicle-stock" class="nav-item"><span class="icon">🚚</span> Araç Stok</a>
         <a href="/admin/fuel-tracking" class="nav-item active"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/vehicle-tracking" class="nav-item"><span class="icon">📡</span> Araç Takip</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -105,23 +107,23 @@
             <button class="modal-close" onclick="closeAddFuelModal()">&times;</button>
         </div>
         <form id="addFuelForm" onsubmit="saveFuelRecord(event)" style="margin-top: 15px;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
+            <div class="form-row-responsive" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Araç Plakası *</label>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Araç Plakası*</label>
                     <select id="fVehicle" required style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                         <option value="">Seçiniz...</option>
                     </select>
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Şoför / Personel</label>
-                    <select id="fDriver" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Şoför / Personel*</label>
+                    <select id="fDriver" required style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                         <option value="">Seçiniz...</option>
                     </select>
                 </div>
             </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
+            <div class="form-row-responsive" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom: 12px;">
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Kilometre (Odometer) *</label>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Kilometre (Odometer)*</label>
                     <input type="number" id="fOdo" required min="0" placeholder="Örn: 42150" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                 </div>
                 <div>
@@ -129,13 +131,13 @@
                     <input type="text" id="fStation" placeholder="Örn: Opet / Belediye Garaj" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                 </div>
             </div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom: 12px;">
+            <div class="form-row-responsive" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px; margin-bottom: 12px;">
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Litre (lt) *</label>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Litre (lt)*</label>
                     <input type="number" id="fLiters" step="0.01" required min="0.1" placeholder="0.00" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary);">
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Yakıt Tipi *</label>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Yakıt Tipi*</label>
                     <select id="fFuelType" required style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); outline:none;">
                         <option value="Dizel (Motorin)">Dizel (Motorin)</option>
                         <option value="Benzin">Benzin</option>
@@ -144,7 +146,7 @@
                     </select>
                 </div>
                 <div>
-                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Toplam Tutar (TL) *</label>
+                    <label style="display:block; font-size:11px; font-weight:700; color:var(--text-secondary); margin-bottom:4px;">Toplam Tutar (TL)*</label>
                     <input type="number" id="fTotalCost" step="0.01" required min="0.1" placeholder="0.00" style="width:100%; padding:8px; border:1px solid var(--border); border-radius:6px; background:var(--bg-card); color:var(--text-primary); font-weight:700;">
                 </div>
             </div>
@@ -312,7 +314,7 @@ function exportToExcel() {
     // Remove Action Column
     clone.querySelectorAll('thead tr').forEach(tr => {
         const lastTh = tr.querySelector('th:last-child');
-        if (lastTh && lastTh.textContent.includes('İşlem')) lastTh.remove();
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.trim() === '')) lastTh.remove();
     });
     
     clone.querySelectorAll('tbody tr').forEach(tr => {
@@ -320,46 +322,8 @@ function exportToExcel() {
         if (lastTd) lastTd.remove();
     });
 
-    clone.setAttribute('border', '1');
-    clone.style.borderCollapse = 'collapse';
-    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-    clone.style.background = '#ffffff';
-    
-    clone.querySelectorAll('th').forEach(th => {
-        th.style.backgroundColor = '#1e3a8a';
-        th.style.color = '#ffffff';
-        th.style.fontWeight = 'bold';
-        th.style.padding = '8px';
-        th.style.border = '1px solid #cbd5e1';
-    });
-    
-    clone.querySelectorAll('tr').forEach(tr => {
-        tr.removeAttribute('class');
-        tr.removeAttribute('style');
-        tr.style.backgroundColor = '#ffffff';
-        
-        tr.querySelectorAll('td').forEach(td => {
-            td.removeAttribute('class');
-            const originalColor = td.style.color;
-            td.removeAttribute('style');
-            td.style.border = '1px solid #cbd5e1';
-            td.style.padding = '6px 8px';
-            if (originalColor) td.style.color = originalColor;
-        });
-    });
-    
-    const BOM = '\uFEFF';
-    const html = BOM + clone.outerHTML;
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'Arac_Yakit_Alim_Raporu.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.table_to_book(clone, { raw: true });
+    XLSX.writeFile(wb, 'Arac_Yakit_Alim_Raporu.xlsx');
 }
 
 load();

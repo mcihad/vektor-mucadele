@@ -584,6 +584,7 @@ tr:hover td { background: rgba(59,130,246,0.04); }
 }
 
 @media (max-width: 1024px) {
+    .hide-on-mobile { display: none !important; }
     .mobile-nav-toggle { display: inline-flex; }
     .sidebar-close-btn { display: flex; }
     .sidebar { transform: translateX(-100%); z-index: 2000; }
@@ -600,4 +601,25 @@ tr:hover td { background: rgba(59,130,246,0.04); }
 
 @media (max-width: 600px) {
     .stats-grid { grid-template-columns: 1fr; }
+    .form-row-responsive {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* Dark theme for Leaflet Popups to match dark dashboard styling */
+.leaflet-popup-content-wrapper, .leaflet-popup-tip {
+    background: var(--bg-card) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
+}
+.leaflet-popup-content {
+    font-family: 'Inter', sans-serif !important;
+    color: var(--text-primary) !important;
+}
+.leaflet-popup-close-button {
+    color: var(--text-secondary) !important;
+}
+.leaflet-popup-close-button:hover {
+    color: var(--text-primary) !important;
 }

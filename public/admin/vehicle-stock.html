@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VMS - Araç Stok Yönetimi</title>
     <link rel="stylesheet" href="/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <aside class="sidebar">
@@ -25,6 +26,7 @@
         <a href="/admin/chemicals" class="nav-item"><span class="icon">🧪</span> İlaç Stok(Depo)</a>
         <a href="/admin/vehicle-stock" class="nav-item active"><span class="icon">🚚</span> Araç Stok</a>
         <a href="/admin/fuel-tracking" class="nav-item"><span class="icon">⛽</span> Yakıt Takip</a>
+        <a href="/admin/vehicle-tracking" class="nav-item"><span class="icon">📡</span> Araç Takip</a>
         <div class="nav-section">İzleme</div>
         <a href="/admin/reports" class="nav-item"><span class="icon">📈</span> Raporlar</a>
         <a href="/admin/citizen-reports" class="nav-item"><span class="icon">📋</span> Vatandaş İhbar</a>
@@ -289,7 +291,7 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
     const headersList = clone.querySelectorAll('thead tr');
     headersList.forEach(tr => {
         const lastTh = tr.querySelector('th:last-child');
-        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler'))) {
+        if (lastTh && (lastTh.textContent.includes('İşlem') || lastTh.textContent.includes('İşlemler') || lastTh.textContent.trim() === '')) {
             lastTh.remove();
             hasActionColumn = true;
         }
@@ -303,72 +305,8 @@ function exportHtmlTableToExcel(tableID, filename = 'rapor') {
         });
     }
 
-    clone.setAttribute('border', '1');
-    clone.style.borderCollapse = 'collapse';
-    clone.style.fontFamily = 'Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-    clone.style.background = '#ffffff';
-    
-    // Process headers
-    const ths = clone.querySelectorAll('th');
-    ths.forEach(th => {
-        th.style.backgroundColor = '#1e3a8a';
-        th.style.color = '#ffffff';
-        th.style.fontWeight = 'bold';
-        th.style.padding = '8px';
-        th.style.border = '1px solid #cbd5e1';
-    });
-    
-    // Process rows
-    const trs = clone.querySelectorAll('tr');
-    trs.forEach(tr => {
-        tr.removeAttribute('class');
-        tr.removeAttribute('style');
-        tr.style.backgroundColor = '#ffffff';
-        
-        const tds = tr.querySelectorAll('td');
-        tds.forEach(td => {
-            td.removeAttribute('class');
-            const originalColor = td.style.color;
-            td.removeAttribute('style');
-            td.style.border = '1px solid #cbd5e1';
-            td.style.padding = '6px 8px';
-            if (originalColor) td.style.color = originalColor;
-        });
-    });
-
-    // Style badges
-    clone.querySelectorAll('.badge').forEach(badge => {
-        badge.style.padding = '2px 6px';
-        badge.style.borderRadius = '4px';
-        badge.style.fontWeight = 'bold';
-        badge.style.fontSize = '10px';
-        if (badge.classList.contains('badge-danger')) {
-            badge.style.backgroundColor = '#fee2e2';
-            badge.style.color = '#dc2626';
-        } else if (badge.classList.contains('badge-warning')) {
-            badge.style.backgroundColor = '#fef3c7';
-            badge.style.color = '#d97706';
-        } else if (badge.classList.contains('badge-success')) {
-            badge.style.backgroundColor = '#dcfce7';
-            badge.style.color = '#16a34a';
-        } else if (badge.classList.contains('badge-info')) {
-            badge.style.backgroundColor = '#e0f2fe';
-            badge.style.color = '#0284c7';
-        }
-    });
-    
-    const BOM = '\uFEFF';
-    const html = BOM + clone.outerHTML;
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename + '.xls';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const wb = XLSX.utils.table_to_book(clone, { raw: true });
+    XLSX.writeFile(wb, filename + '.xlsx');
 }
 
 load();

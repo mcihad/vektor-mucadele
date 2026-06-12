@@ -516,6 +516,60 @@ async function createPgTables() {
     } catch(e) {
         console.log('Error migrating vehicle_fuel_logs columns:', e.message);
     }
+
+    // ─── Kullanıcı Konum Takibi (Sürekli) ───
+    // Users tablosuna konum sütunları ekle
+    try {
+        await dbConnection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_lat DOUBLE PRECISION`);
+        await dbConnection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_lng DOUBLE PRECISION`);
+        await dbConnection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_speed DOUBLE PRECISION DEFAULT 0`);
+        await dbConnection.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_location_time TIMESTAMP`);
+    } catch(e) {
+        console.log('Error adding location columns to users:', e.message);
+    }
+
+    // Kullanıcı konum geçmişi tablosu - oturum bağımsız, sürekli kayıt
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS user_location_log (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            latitude DOUBLE PRECISION NOT NULL,
+            longitude DOUBLE PRECISION NOT NULL,
+            speed DOUBLE PRECISION DEFAULT 0,
+            accuracy DOUBLE PRECISION,
+            recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    // İndeks oluştur - hızlı tarih bazlı sorgular için
+    try {
+        await dbConnection.query(`CREATE INDEX IF NOT EXISTS idx_user_location_log_user_time ON user_location_log (user_id, recorded_at DESC)`);
+    } catch(e) {
+        console.log('Error creating user_location_log index:', e.message);
+    }
+
+    // Araç takip yorumları tablosu
+    await dbConnection.query(`
+        CREATE TABLE IF NOT EXISTS vehicle_tracking_comments (
+            id SERIAL PRIMARY KEY,
+            vehicle_id INTEGER REFERENCES vehicles(id) ON DELETE CASCADE,
+            period_type VARCHAR(20) NOT NULL,
+            period_date VARCHAR(100) NOT NULL,
+            source_type VARCHAR(20) NOT NULL,
+            comment_text TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `);
+
+    try {
+        await dbConnection.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_vehicle_comments_unique 
+            ON vehicle_tracking_comments (COALESCE(vehicle_id, 0), period_type, period_date, source_type)
+        `);
+    } catch(e) {
+        console.log('Error creating idx_vehicle_comments_unique index:', e.message);
+    }
 }
 
 async function seedPgData() {

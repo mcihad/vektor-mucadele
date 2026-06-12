@@ -19,6 +19,8 @@
   "author": "Sivas Belediyesi - Akıllı Şehir ve Kent Bilgi Sistemleri Müdürlüğü",
   "license": "ISC",
   "dependencies": {
+    "@capacitor-community/background-geolocation": "^1.2.26",
+    "@capacitor/android": "^8.4.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
@@ -35,5 +37,9 @@
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0"
   }
 }

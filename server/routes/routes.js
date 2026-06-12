@@ -407,11 +407,26 @@ router.post('/planned-routes', authMiddleware, async (req, res) => {
 
 // ─── Rotayı personele ata ───
 router.post('/planned-routes/:id/assign', authMiddleware, async (req, res) => {
-    const { user_id, personnel_ids } = req.body;
+    const { user_id, personnel_ids, vehicle_id, planned_date, transport_type } = req.body;
     const db = getDb();
     try {
-        await db.run("UPDATE planned_routes SET assigned_user_id = ?, assigned_personnel_ids = ?, status = 'assigned' WHERE id = ?",
-            [user_id ? parseInt(user_id) : null, JSON.stringify(personnel_ids || []), parseInt(req.params.id)]);
+        await db.run(`
+            UPDATE planned_routes 
+            SET assigned_user_id = ?, 
+                assigned_personnel_ids = ?, 
+                vehicle_id = COALESCE(?, vehicle_id),
+                planned_date = COALESCE(?, planned_date),
+                transport_type = COALESCE(?, transport_type),
+                status = 'assigned' 
+            WHERE id = ?
+        `, [
+            user_id ? parseInt(user_id) : null,
+            JSON.stringify(personnel_ids || []),
+            vehicle_id ? parseInt(vehicle_id) : null,
+            planned_date || null,
+            transport_type || null,
+            parseInt(req.params.id)
+        ]);
         saveDatabase();
 
         // Send push notification to assigned user
